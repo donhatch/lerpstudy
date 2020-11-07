@@ -1,3 +1,6 @@
+.PHONY: all
+all: lerp FloatTest
+
 lerp: lerp.cc Makefile
 	clang++ -std=c++2a -fno-inline -O0 -g -W -Wall -Werror lerp.cc -o lerp
 
