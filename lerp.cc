@@ -129,12 +129,14 @@ class PositiveFloat {
     const double scale = (double)(1<<FractionBits) / round_down_to_power_of_2(x);
     const double answer = std::floor(x*scale)/scale;
     if (verbose_level >= 1) std::cout << "            out round_down_to_representable("<<EXACT(x)<<"), returning "<<EXACT(answer) << std::endl;
+    CHECK_LE(answer, x);
     CHECK(is_representable(answer));
     return answer;
   }
   static double round_up_to_representable(double x) {
     const double scale = (double)(1<<FractionBits) / round_down_to_power_of_2(x);
     const double answer = std::ceil(x*scale)/scale;
+    CHECK_GE(answer, x);
     CHECK(is_representable(answer));
     return answer;
   }
@@ -235,43 +237,64 @@ class SimpleFloat {
     return SimpleFloat<FractionBits,MinExponent>(round_to_even_representable(x));
   }
 
+  SimpleFloat<FractionBits,MinExponent> operator+(const SimpleFloat<FractionBits,MinExponent> &that) const { return round_to_even(this->x_ + that.x_); }
+  SimpleFloat<FractionBits,MinExponent> operator-(const SimpleFloat<FractionBits,MinExponent> &that) const { return round_to_even(this->x_ - that.x_); }
+  SimpleFloat<FractionBits,MinExponent> operator*(const SimpleFloat<FractionBits,MinExponent> &that) const { return round_to_even(this->x_ * that.x_); }
+  SimpleFloat<FractionBits,MinExponent> operator/(const SimpleFloat<FractionBits,MinExponent> &that) const { return round_to_even(this->x_ / that.x_); }
+
   double x_;
 
   // BEGIN STATIC UTILITIES
   static bool is_representable(double x) {
     if (!(x == x)) return false;  // NaN
     if (x+1. == x) return false;  // infinite or too big
+    if (x == 0.) return true;
     if (!PositiveFloat<FractionBits>::is_representable(std::abs(x))) return false;
-
-    return x == x;
+    return true;
   }
   static double round_down_to_representable(double x) {
+    const int verbose_level = 0;
+    if (verbose_level >= 1) std::cout << "                    in round_down_to_representable("<<EXACT(x)<<")" << std::endl;
     CHECK_EQ(x, x);  // not NaN
     CHECK_NE(x+1., x); // not infinite or too big
     if (x == 0.) return x;
     if (x < 0.) return -round_up_to_representable(-x);
     const double answer_maybe = PositiveFloat<FractionBits>::round_down_to_representable(x);
     double subnormalMax =  std::exp2(MinExponent);
+    if (verbose_level >= 1) std::cout << "                      subnormalMax = "<<EXACT(subnormalMax) << std::endl;
     if (answer_maybe >= subnormalMax) {
+      if (verbose_level >= 1) std::cout << "                    out round_down_to_representable("<<EXACT(x)<<"), normal, returning "<<EXACT(answer_maybe) << std::endl;
+      CHECK_LE(answer_maybe, x);
       return answer_maybe;
     } else {
       // The range [0..subnormalMax] is divided into 2^FractionBits parts.
-      const double answer = std::floor(x * std::exp2(FractionBits)) * std::exp2(-FractionBits);
+      const double answer = std::floor((x / subnormalMax) * std::exp2(FractionBits)) * std::exp2(-FractionBits) * subnormalMax;
+      if (verbose_level >= 1) std::cout << "                    out round_down_to_representable("<<EXACT(x)<<"), subnormal, returning "<<EXACT(answer) << std::endl;
+      CHECK_LE(answer, x);
       return answer;
     }
   }
   static double round_up_to_representable(double x) {
+    const int verbose_level = 0;
+    if (verbose_level >= 1) std::cout << "                    in round_up_to_representable("<<EXACT(x)<<")" << std::endl;
     CHECK_EQ(x, x);  // not NaN
     CHECK_NE(x+1., x); // not infinite or too big
     if (x == 0.) return x;
     if (x < 0.) return -round_down_to_representable(-x);
     const double answer_maybe = PositiveFloat<FractionBits>::round_up_to_representable(x);
     const double subnormalMax =  std::exp2(MinExponent);
+    if (verbose_level >= 1) std::cout << "                      subnormalMax = "<<EXACT(subnormalMax) << std::endl;
     if (answer_maybe >= subnormalMax) {
+      if (verbose_level >= 1) std::cout << "                    out round_up_to_representable("<<EXACT(x)<<"), normal, returning "<<EXACT(answer_maybe) << std::endl;
+      CHECK_GE(answer_maybe, x);
+      CHECK(is_representable(answer_maybe));
       return answer_maybe;
     } else {
       // The range [0..subnormalMax] is divided into 2^FractionBits parts.
-      const double answer = std::ceil(x * std::exp2(FractionBits)) * std::exp2(-FractionBits);
+      const double answer = std::ceil((x / subnormalMax) * std::exp2(FractionBits)) * std::exp2(-FractionBits) * subnormalMax;
+      if (verbose_level >= 1) std::cout << "                    out round_up_to_representable("<<EXACT(x)<<"), subnormal, returning "<<EXACT(answer) << std::endl;
+      CHECK_GE(answer, x);
+      CHECK(is_representable(answer));
       return answer;
     }
   }
@@ -306,20 +329,29 @@ class SimpleFloat {
     CHECK(is_representable(x));
     const double answer = -succ(-x);
     CHECK_LT(answer, x);
+    CHECK(is_representable(answer));
+    CHECK_EQ(round_down_to_representable((x+answer)/2.), answer);
+    CHECK_EQ(round_up_to_representable((x+answer)/2.), x);
     return answer;
   }
   static double succ(double x) {
     const int verbose_level = 0;
     if (verbose_level >= 1) std::cout << "            in succ("<<EXACT(x)<<")" << std::endl;
     CHECK(is_representable(x));
-    for (double tiny = 1.; ; tiny /= 2.) {
-      double answer_maybe = round_up_to_representable(x+tiny);
-      CHECK_GT(answer_maybe, x);
-      double mid = (x + answer_maybe) / 2.;
-      if (round_down_to_representable(mid) == x && round_up_to_representable(mid) == answer_maybe) {
-        return answer_maybe;
-      }
+
+    // Find a number tiny enough so that round_down_to_representable(x+tiny) == x
+    double tiny = 1.;
+    while (round_down_to_representable(x+tiny) != x) {
+      if (verbose_level >= 1) std::cout << "              tiny "<<EXACT(tiny)<<"->"<<EXACT(tiny/2.) << std::endl;
+      tiny /= 2.;
     }
+    CHECK_GT(x+tiny, x);
+    const double answer = round_up_to_representable(x+tiny);
+    if (verbose_level >= 1) std::cout << "            out succ("<<EXACT(x)<<"), returning "<<EXACT(answer) << std::endl;
+    CHECK_GT(answer, x);
+    CHECK_EQ(round_down_to_representable((x+answer)/2.), x);
+    CHECK_EQ(round_up_to_representable((x+answer)/2.), answer);
+    return answer;
   }
   // END STATIC UTILITIES
 };  // class SimpleFloat<FractionBits,MinExponent>
@@ -330,11 +362,25 @@ std::string EXACT(const PositiveFloat<FractionBits> &x) {
   return ::EXACT(x.toDouble());
 }
 
+template<int FractionBits, int MinExponent>
+std::string EXACT(const SimpleFloat<FractionBits,MinExponent> &x) {
+  return ::EXACT(x.toDouble());
+}
+
 
 template<int FractionBits>
 void positive_float_unit_test() {
   std::cout << "        in positive_float_unit_test<FractionBits="<<FractionBits<<">" << std::endl;
   using Float = PositiveFloat<FractionBits>;
+
+  if (FractionBits >= 1) {  // these don't hold for FractionBits==0, since round of 1.5 is 2, not 1
+    Float one = Float(1.);
+    CHECK_EQ((one+one.succ())/Float(2.), one);
+    CHECK_EQ((one.succ()+one.succ().succ())/Float(2.), one.succ().succ());
+    CHECK_EQ((one+one.pred())/Float(2.), one);
+    CHECK_EQ((one.pred()+one.pred().pred())/Float(2.), one.pred().pred());
+  }
+
   const Float min = Float(1./4.);
   const Float max = Float(4.);
   for (Float x = min; x <= max; x = x.succ()) {
@@ -358,30 +404,35 @@ void positive_float_unit_test() {
     CHECK_EQ(x.pred().succ(), x);
   }
 
-  if (FractionBits >= 1) {  // these don't hold for FractionBits==0
+  std::cout << "        out positive_float_unit_test<FractionBits="<<FractionBits<<">" << std::endl;
+}
+
+template<int FractionBits, int MinExponent>
+void simple_float_unit_test() {
+  std::cout << "        in simple_float_unit_test<FractionBits="<<FractionBits<<", MinExponent="<<MinExponent<<">" << std::endl;
+  using Float = SimpleFloat<FractionBits, MinExponent>;
+
+  if (FractionBits >= 1) {  // these don't hold for FractionBits==0, since round of 1.5 is 2, not 1
     Float one = Float(1.);
+    // First repeat the PositiveFloat ones...
     CHECK_EQ((one+one.succ())/Float(2.), one);
     CHECK_EQ((one.succ()+one.succ().succ())/Float(2.), one.succ().succ());
     CHECK_EQ((one+one.pred())/Float(2.), one);
     CHECK_EQ((one.pred()+one.pred().pred())/Float(2.), one.pred().pred());
   }
 
-  std::cout << "        out positive_float_unit_test<FractionBits="<<FractionBits<<">" << std::endl;
-}
 
-template<int FractionBits, int MinExponent>
-void simple_float_unit_test() {
-  std::cout << "        in simple_float_unit_test<FractionBits="<<FractionBits<<">" << std::endl;
-  using Float = SimpleFloat<FractionBits, MinExponent>;
   const Float min = Float(-4.);
   const Float max = Float(4.);
+
   for (Float x = min; x <= max; x = x.succ()) {
+    //std::cout << "              =================" << std::endl;  // uncomment when verbose_level is turned on in various sub-functions
     std::cout << "              "<<::EXACT(x.toDouble()) << std::endl;
     const Float next = x.succ();
     if (next < max) {
     }
   }
-  std::cout << "        out simple_float_unit_test<FractionBits="<<FractionBits<<">" << std::endl;
+  std::cout << "        out simple_float_unit_test<FractionBits="<<FractionBits<<", MinExponent="<<MinExponent<<">" << std::endl;
 }
 
 // Search for t,a such that (1-t)*a + t*a != a, and 0<=t<=1.
@@ -620,6 +671,8 @@ int main(int, char**) {
   simple_float_unit_test<0,-1>();
   simple_float_unit_test<1,-1>();
   simple_float_unit_test<2,-1>();
+
+  exit(5);
 
   counterexample_search<1>();
   counterexample_search<2>();
