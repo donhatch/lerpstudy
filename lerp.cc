@@ -25,7 +25,7 @@
 #include <limits>
 #include <sstream>
 
-namespace {
+//namespace {
 
 template<int FractionBits>
 class PositiveFloat {
@@ -325,12 +325,10 @@ class SimpleFloat {
 };  // class SimpleFloat<FractionBits,MinExponent>
 
 
-#if 0
 template<int FractionBits>
 std::string EXACT(const PositiveFloat<FractionBits> &x) {
   return ::EXACT(x.toDouble());
 }
-#endif
 
 
 template<int FractionBits>
@@ -609,7 +607,7 @@ void another_counterexample_search() {
 
 
 
-}  // namespace
+//}  // namespace
 
 int main(int, char**) {
   std::cout << "    in main" << std::endl;

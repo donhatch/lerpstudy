@@ -4,12 +4,14 @@
 #include <sstream>
 
 #define CHECK(x) do { if (!(x)) { std::cerr << __FILE__<<"("<<__LINE__<<"): "<<__FUNCTION__<<": CHECK failed: " #x << std::endl << std::flush; abort(); } } while (false)
-#define CHECK_EQ(a,b) CHECK((a) == (b))  // TODO: something better
-#define CHECK_NE(a,b) CHECK((a) != (b))  // TODO: something better
-#define CHECK_LT(a,b) CHECK((a) < (b))  // TODO: something better
-#define CHECK_GT(a,b) CHECK((a) > (b))  // TODO: something better
-#define CHECK_LE(a,b) CHECK((a) <= (b))  // TODO: something better
-#define CHECK_GE(a,b) CHECK((a) >= (b))  // TODO: something better
+#define CHECK_RELOP(a,relop,b) do { if (!((a)relop(b))) { std::cerr << __FILE__<<"("<<__LINE__<<"): "<<__FUNCTION__<<": CHECK failed: "<<#a<<" "<<#relop<<" "<<#b<<" where "<<#a<<" is "<<::EXACT(a)<<" and "<<#b<<" is "<<::EXACT(b) << std::endl << std::flush; abort(); } } while (false)
+#define CHECK_EQ(a,b) CHECK_RELOP(a,==,b)
+#define CHECK_NE(a,b) CHECK_RELOP(a,!=,b)
+#define CHECK_LT(a,b) CHECK_RELOP(a,<,b)
+#define CHECK_GT(a,b) CHECK_RELOP(a,>,b)
+#define CHECK_LE(a,b) CHECK_RELOP(a,<=,b)
+#define CHECK_GE(a,b) CHECK_RELOP(a,>=,b)
+
 #define PRINT(x) (std::cout << #x << " = " << EXACT(x) << std::endl)
 
 
