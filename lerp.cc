@@ -386,16 +386,19 @@ void positive_float_unit_test() {
   for (Float x = min; x <= max; x = x.succ()) {
     std::cout << "              "<<::EXACT(x.toDouble()) << std::endl;
     const Float next = x.succ();
-    if (next < max) {
+    if (next <= max) {
+      const double mid = (x.toDouble()+next.toDouble())/2.;
       std::cout << "                  "
-                <<::EXACT((x.toDouble()+next.toDouble())/2.)
-                <<": "
-                <<::EXACT(Float::round_down((x.toDouble()+next.toDouble())/2.).toDouble())
+                <<::EXACT(mid)
+                <<" rounded down,even,up: "
+                <<::EXACT(Float::round_down(mid).toDouble())
                 <<" "
-                <<::EXACT(Float::round_to_even((x.toDouble()+next.toDouble())/2.).toDouble())
+                <<::EXACT(Float::round_to_even(mid).toDouble())
                 <<" "
-                <<::EXACT(Float::round_up((x.toDouble()+next.toDouble())/2.).toDouble())
+                <<::EXACT(Float::round_up(mid).toDouble())
                 << std::endl;
+      CHECK_EQ(Float::round_down(mid), x);
+      CHECK_EQ(Float::round_up(mid), next);
     }
 
     CHECK_NE(x.succ(), x);
@@ -429,8 +432,25 @@ void simple_float_unit_test() {
     //std::cout << "              =================" << std::endl;  // uncomment when verbose_level is turned on in various sub-functions
     std::cout << "              "<<::EXACT(x.toDouble()) << std::endl;
     const Float next = x.succ();
-    if (next < max) {
+    if (next <= max) {
+      const double mid = (x.toDouble()+next.toDouble())/2.;
+      std::cout << "                  "
+                <<::EXACT(mid)
+                <<" rounded down,even,up: "
+                <<::EXACT(Float::round_down(mid).toDouble())
+                <<" "
+                <<::EXACT(Float::round_to_even(mid).toDouble())
+                <<" "
+                <<::EXACT(Float::round_up(mid).toDouble())
+                << std::endl;
+      CHECK_EQ(Float::round_down(mid), x);
+      CHECK_EQ(Float::round_up(mid), next);
     }
+
+    CHECK_NE(x.succ(), x);
+    CHECK_NE(x.pred(), x);
+    CHECK_EQ(x.succ().pred(), x);
+    CHECK_EQ(x.pred().succ(), x);
   }
   std::cout << "        out simple_float_unit_test<FractionBits="<<FractionBits<<", MinExponent="<<MinExponent<<">" << std::endl;
 }
