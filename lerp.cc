@@ -25,8 +25,6 @@
 #include <limits>
 #include <sstream>
 
-//namespace {
-
 
 // Search for t,a such that (1-t)*a + t*a != a, and 0<=t<=1.
 // It finds something!!
@@ -250,19 +248,9 @@ void another_counterexample_search() {
 
 
 
-//}  // namespace
 
 int main(int, char**) {
   std::cout << "    in main" << std::endl;
-
-  // FractionBits=2,MinExponent=-1 is the picture in https://en.wikipedia.org/wiki/Denormal_number
-  //simpler_float_unit_test(0, -1);
-  simpler_float_unit_test(1, -1);
-  simpler_float_unit_test(2, -1);
-
-  if ((false)) {
-    exit(5);
-  }
 
   counterexample_search<1>();
   counterexample_search<2>();

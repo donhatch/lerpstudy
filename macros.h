@@ -1,6 +1,7 @@
 #ifndef MACROS_H_
 #define MACROS_H_
 
+#include <cstdint>
 #include <sstream>
 
 // The `(new char[1])[1] = 0;` is a hack to get asan to show the stack trace
@@ -18,6 +19,11 @@
 #define DEBUG(x) #x<<" = "<<EXACT(x)
 
 
+inline std::string EXACT(int64_t x) {
+  std::stringstream ss;
+  ss << x;
+  return ss.str();
+}
 inline std::string EXACT(int x) {
   std::stringstream ss;
   ss << x;

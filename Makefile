@@ -1,5 +1,5 @@
 .PHONY: all
-all: lerp FloatTest
+all: SimplerFloatTest lerpvis lerp FloatTest
 
 # Incompatible:
 #   - address and thread
@@ -22,5 +22,11 @@ CXXFLAGS=$(SANITIZER) -std=c++2a -fno-inline -O0 -g $(WARNINGS) -fno-omit-frame-
 lerp: lerp.cc macros.h Makefile
 	clang++ $(CXXFLAGS) lerp.cc -o lerp
 
+lerpvis: lerpvis.cc macros.h Makefile
+	clang++ $(CXXFLAGS) lerpvis.cc -o lerpvis
+
 FloatTest: FloatTest.cc Float.h macros.h Makefile
 	clang++ $(CXXFLAGS) FloatTest.cc -o FloatTest
+
+SimplerFloatTest: SimplerFloatTest.cc SimplerFloat.h macros.h Makefile
+	clang++ $(CXXFLAGS) SimplerFloatTest.cc -o SimplerFloatTest

@@ -1,6 +1,8 @@
 #ifndef SIMPLER_FLOAT_
 #define SIMPLER_FLOAT_
 
+#include "macros.h"
+
 #include <cmath>
 #include <iostream>
 
@@ -12,30 +14,46 @@ class SimplerFloatUtils {
                                      double *return_rounded_down,
                                      double *return_rounded_to_nearest_ties_to_even,
                                      double *return_rounded_up) {
-    // firstThreshold is the first place where quantum changes
-    const double firstThreshold = std::exp2(minExponent+1.);
-    // Doesn't matter whether <= or <, since if we're exactly on a power of 2 then either way works
-    const double numZooms = (std::abs(x) <= firstThreshold ? 0 :
-        std::ceil(std::log2(std::abs(x) / firstThreshold)));
-    const double scale = std::exp2(numZooms + numFractionBits);
-    const double X = x*scale;
+
+    const int verbose_level = 0;
+    if (verbose_level >= 1) std::cout << "                in round_to_representable("<<DBG(numFractionBits)<<", "<<DBG(minExponent)<<", "<<DBG(x)<<")" << std::endl;
+
+    double quantum;
+    {
+      const double subnormalThreshold = std::exp2(minExponent);
+      if (std::abs(x) < subnormalThreshold) {
+        quantum = subnormalThreshold / ((int64_t)1<<numFractionBits);
+      } else {
+        const double roundedDownToPowerOf2 = std::exp2(std::floor(std::log2(std::abs(x))));
+        quantum = roundedDownToPowerOf2 / ((int64_t)1<<numFractionBits);
+      }
+    }
+    const double X = x/quantum;
     // CBB: if we want *only* lo or only hi, then this does an unnecessary floor or ceil call
     const double Lo = std::floor(X);
     const double Hi = std::ceil(X);
-    if (return_rounded_down != nullptr) *return_rounded_down = Lo/scale;
-    if (return_rounded_up != nullptr) *return_rounded_up = Hi/scale;
+    if (return_rounded_down != nullptr) {
+      *return_rounded_down = Lo*quantum;
+      if (verbose_level >= 1) std::cout << "                  "<<DEBUG(*return_rounded_down) << std::endl;
+    }
+    if (return_rounded_up != nullptr) {
+      *return_rounded_up = Hi*quantum;
+      if (verbose_level >= 1) std::cout << "                  "<<DEBUG(*return_rounded_up) << std::endl;
+    }
     if (return_rounded_to_nearest_ties_to_even != nullptr) {
       if (Lo == Hi) {
-        *return_rounded_to_nearest_ties_to_even = Lo/scale;
+        *return_rounded_to_nearest_ties_to_even = Lo*quantum;
+        if (verbose_level >= 1) std::cout << "                  trivial: "<<DEBUG(*return_rounded_to_nearest_ties_to_even) << std::endl;
       } else {
         CHECK_EQ(Lo+1., Hi);
         double Mid = (Lo + Hi) / 2.;
-        *return_rounded_to_nearest_ties_to_even = X<Mid ? Lo/scale :
-                                                  X>Mid ? Hi/scale :
-                                                  (int)Lo%2==0 ? Lo/scale : Hi/scale;
-
+        *return_rounded_to_nearest_ties_to_even = X<Mid ? Lo*quantum :
+                                                  X>Mid ? Hi*quantum :
+                                                  (int)Lo%2==0 ? Lo*quantum : Hi*quantum;
+        if (verbose_level >= 1) std::cout << "                  nontrivial: "<<DEBUG(*return_rounded_to_nearest_ties_to_even) << std::endl;
       }
     }
+    if (verbose_level >= 1) std::cout << "                out round_to_representable("<<DBG(numFractionBits)<<", "<<DBG(minExponent)<<", "<<DBG(x)<<")" << std::endl;
   }  // round_to_representable
   static double round_down(int numFractionBits, int minExponent, double x) {
     double answer;
@@ -63,20 +81,23 @@ class SimplerFloatUtils {
     const int verbose_level = 0;
     if (verbose_level >= 1) std::cout << "                in pred_without_checking_against_succ("<<DBG(numFractionBits)<<", "<<DBG(minExponent)<<", "<<DBG(x)<<")" << std::endl;
     CHECK(is_representable(numFractionBits, minExponent, x));
-    // firstThreshold is the first place where quantum changes
-    const double firstThreshold = std::exp2(minExponent+1.);
-    if (verbose_level >= 1) std::cout << "                  "<<DEBUG(firstThreshold) << std::endl;
-    // if we are exactly on a power of 2, we should choose the smaller section
-    const double numZooms = (x <= firstThreshold ? 0 :
-        std::ceil(std::log2(x / firstThreshold)));
-    if (verbose_level >= 1) std::cout << "                  "<<DEBUG(numZooms) << std::endl;
-    const double scale = std::exp2(numZooms + numFractionBits);
-    if (verbose_level >= 1) std::cout << "                  "<<DEBUG(scale) << std::endl;
-    const double answer = (x*scale - 1) / scale;
+
+    double quantum;
+    {
+      const double subnormalThreshold = std::exp2(minExponent);
+      if (x <= subnormalThreshold) {
+        quantum = subnormalThreshold / ((int64_t)1<<numFractionBits);
+      } else {
+        const double roundedUpToPowerOf2 = std::exp2(std::ceil(std::log2(x)));
+        quantum = (roundedUpToPowerOf2/2.) / ((int64_t)1<<numFractionBits);
+      }
+    }
+
+    const double answer = (x/quantum - 1) * quantum;
+    if (verbose_level >= 1) std::cout << "                out pred_without_checking_against_succ("<<DBG(numFractionBits)<<", "<<DBG(minExponent)<<", "<<DBG(x)<<"), returning "<<EXACT(answer) << std::endl;
     CHECK_LT(answer, x);
     CHECK(is_representable(numFractionBits, minExponent, answer));
     CHECK(!is_representable(numFractionBits, minExponent, (answer+x)/2.));
-    if (verbose_level >= 1) std::cout << "                out pred_without_checking_against_succ("<<DBG(numFractionBits)<<", "<<DBG(minExponent)<<", "<<DBG(x)<<"), returning "<<EXACT(answer) << std::endl;
     return answer;
   }
   static double succ_without_checking_against_pred(int numFractionBits, int minExponent, double x) {
@@ -86,20 +107,23 @@ class SimplerFloatUtils {
     const int verbose_level = 0;
     if (verbose_level >= 1) std::cout << "                in succ_without_checking_against_pred("<<DBG(numFractionBits)<<", "<<DBG(minExponent)<<", "<<DBG(x)<<")" << std::endl;
     CHECK(is_representable(numFractionBits, minExponent, x));
-    // firstThreshold is the first place where quantum changes
-    const double firstThreshold = std::exp2(minExponent+1.);
-    if (verbose_level >= 1) std::cout << "                  "<<DEBUG(firstThreshold) << std::endl;
-    // if we are exactly on a power of 2, we should choose the larger section
-    const double numZooms = (x < firstThreshold ? 0 :
-        std::floor(std::log2(x / firstThreshold)+1.));
-    if (verbose_level >= 1) std::cout << "                  "<<DEBUG(numZooms) << std::endl;
-    const double scale = std::exp2(numZooms + numFractionBits);
-    if (verbose_level >= 1) std::cout << "                  "<<DEBUG(scale) << std::endl;
-    const double answer = (x*scale + 1) / scale;
+
+    double quantum;
+    {
+      const double subnormalThreshold = std::exp2(minExponent);
+      if (x < subnormalThreshold) {
+        quantum = subnormalThreshold / ((int64_t)1<<numFractionBits);
+      } else {
+        const double roundedDownToPowerOf2 = std::exp2(std::floor(std::log2(x)));
+        quantum = roundedDownToPowerOf2 / ((int64_t)1<<numFractionBits);
+      }
+    }
+
+    const double answer = (x/quantum + 1) * quantum;
+    if (verbose_level >= 1) std::cout << "                out succ_without_checking_against_pred("<<DBG(numFractionBits)<<", "<<DBG(minExponent)<<", "<<DBG(x)<<"), returning "<<EXACT(answer) << std::endl;
     CHECK_GT(answer, x);
     CHECK(is_representable(numFractionBits, minExponent, answer));
     CHECK(!is_representable(numFractionBits, minExponent, (x+answer)/2.));
-    if (verbose_level >= 1) std::cout << "                out succ_without_checking_against_pred("<<DBG(numFractionBits)<<", "<<DBG(minExponent)<<", "<<DBG(x)<<"), returning "<<EXACT(answer) << std::endl;
     return answer;
   }
   static double pred(int numFractionBits, int minExponent, double x) {
@@ -165,6 +189,7 @@ class SimplerFloat {
     return exactFromDouble(numFractionBits_, minExponent_, SimplerFloatUtils::succ(numFractionBits_, minExponent_, x_));
   }
 
+  SimplerFloat operator-() const { return exactFromDouble(numFractionBits_, minExponent_, -x_); }
   SimplerFloat operator+(const SimplerFloat &that) const {
     CheckCompatible(that); return nearestFromDouble(numFractionBits_, minExponent_, x_ + that.x_); }
   SimplerFloat operator-(const SimplerFloat &that) const {
@@ -199,7 +224,7 @@ std::string EXACT(const SimplerFloat &x) {
   return EXACT(x.toDouble());
 }
 
-static void simpler_float_unit_test(const int numFractionBits, const int minExponent) {
+static inline void simpler_float_unit_test(const int numFractionBits, const int minExponent) {
   std::cout << "        in simpler_float_unit_test(numFractionBits="<<numFractionBits<<", minExponent="<<minExponent<<")" << std::endl;
 
   using Float = SimplerFloat;
@@ -225,33 +250,68 @@ static void simpler_float_unit_test(const int numFractionBits, const int minExpo
     CHECK_EQ((one.pred()+one.pred().pred())/MakeFloat(2.), one.pred().pred());
   }
 
-  const Float min = MakeFloat(-4.);
-  const Float max = MakeFloat(4.);
+  {
+    const Float min = MakeFloat(-4.);
+    const Float max = MakeFloat(4.);
 
-  for (Float x = min; x <= max; x = x.succ()) {
-    //std::cout << "              =================" << std::endl;  // uncomment when verbose_level is turned on in various sub-functions
-    std::cout << "              "<<::EXACT(x.toDouble()) << std::endl;
-    const Float next = x.succ();
-    if (next <= max) {
-      const double mid = (x.toDouble()+next.toDouble())/2.;
-      std::cout << "                  "
-                <<::EXACT(mid)
-                <<" rounded down,even,up: "
-                <<::EXACT(RoundDown(mid).toDouble())
-                <<" "
-                <<::EXACT(RoundToNearest(mid).toDouble())
-                <<" "
-                <<::EXACT(RoundUp(mid).toDouble())
-                << std::endl;
-      CHECK_EQ(RoundDown(mid), x);
-      CHECK_EQ(RoundUp(mid), next);
+    for (Float x = min; x <= max; x = x.succ()) {
+      //std::cout << "              =================" << std::endl;  // uncomment when verbose_level is turned on in various sub-functions
+      std::cout << "              "<<::EXACT(x.toDouble()) << std::endl;
+      const Float next = x.succ();
+      if (next <= max) {
+        const double mid = (x.toDouble()+next.toDouble())/2.;
+        std::cout << "                  "
+                  <<::EXACT(mid)
+                  <<" rounded down,even,up: "
+                  <<::EXACT(RoundDown(mid).toDouble())
+                  <<" "
+                  <<::EXACT(RoundToNearest(mid).toDouble())
+                  <<" "
+                  <<::EXACT(RoundUp(mid).toDouble())
+                  << std::endl;
+        CHECK_EQ(RoundDown(mid), x);
+        CHECK_EQ(RoundUp(mid), next);
+      }
+
+      CHECK_NE(x.succ(), x);
+      CHECK_NE(x.pred(), x);
+      CHECK_EQ(x.succ().pred(), x);
+      CHECK_EQ(x.pred().succ(), x);
     }
-
-    CHECK_NE(x.succ(), x);
-    CHECK_NE(x.pred(), x);
-    CHECK_EQ(x.succ().pred(), x);
-    CHECK_EQ(x.pred().succ(), x);
   }
+
+  {
+    double normalThreshold = std::exp2(minExponent);
+    const int maxExponent = std::max(minExponent + 4, 4);
+    const Float max = MakeFloat(std::exp2(maxExponent));
+    const Float min = -max;
+    int nIntervals = (maxExponent - minExponent) * 2 + 2;
+    Float x = min;
+    double largest_delta = (max.toDouble()-max.toDouble()/2.) / ((int64_t)1<<numFractionBits);
+    double expected_delta = largest_delta;
+    std::cout << "          "<<DEBUG(numFractionBits) << std::endl;
+    std::cout << "          "<<DEBUG(normalThreshold) << std::endl;
+    std::cout << "          "<<DEBUG(max) << std::endl;
+    std::cout << "          "<<DEBUG(largest_delta) << std::endl;
+    for (int iInterval = 0; iInterval < nIntervals; ++iInterval) {
+      std::cout << "              "<<DEBUG(iInterval) << std::endl;
+      if (iInterval > 0 && x.toDouble() < -normalThreshold) {
+        expected_delta /= 2.;
+      } else if (x.toDouble() > normalThreshold) {
+        expected_delta *= 2.;
+      }
+      for (int64_t i = 0; i < ((int64_t)1<<numFractionBits); ++i) {
+        const Float nextx = x.succ();
+        const double delta = nextx.toDouble() - x.toDouble();
+        std::cout << "                  "<<DBG(iInterval)<<" "<<DBG(i)<<": "<<DBG(x)<<" "<<DBG(nextx)<<" "<<DBG(delta)<<" "<<DBG(expected_delta) << std::endl;
+        CHECK_EQ(delta, expected_delta);
+        x = nextx;
+      }
+    }
+    CHECK_EQ(x, max);
+    CHECK_EQ(expected_delta, largest_delta);
+  }
+
   std::cout << "        out simpler_float_unit_test(numFractionBits="<<numFractionBits<<", minExponent="<<minExponent<<")" << std::endl;
 }
 
