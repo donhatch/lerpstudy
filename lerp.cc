@@ -256,16 +256,21 @@ class SimplerFloatUtils {
   }
 
   static double pred_without_checking_against_succ(int numFractionBits, int minExponent, double x) {
-    const int verbose_level = 1;
+    if (x < 0.) {
+      return -succ_without_checking_against_pred(numFractionBits, minExponent, -x);
+    }
+    const int verbose_level = 0;
     if (verbose_level >= 1) std::cout << "                in pred_without_checking_against_succ("<<DBG(numFractionBits)<<", "<<DBG(minExponent)<<", "<<DBG(x)<<")" << std::endl;
     CHECK(is_representable(numFractionBits, minExponent, x));
     // firstThreshold is the first place where quantum changes
     const double firstThreshold = std::exp2(minExponent+1.);
     if (verbose_level >= 1) std::cout << "                  "<<DEBUG(firstThreshold) << std::endl;
     // if we are exactly on a power of 2, we should choose the smaller section
-    const double numZooms = (std::abs(x) <= firstThreshold ? 0 :
-        std::ceil(std::log2(std::abs(x) / firstThreshold)));
+    const double numZooms = (x <= firstThreshold ? 0 :
+        std::ceil(std::log2(x / firstThreshold)));
+    if (verbose_level >= 1) std::cout << "                  "<<DEBUG(numZooms) << std::endl;
     const double scale = std::exp2(numZooms + numFractionBits);
+    if (verbose_level >= 1) std::cout << "                  "<<DEBUG(scale) << std::endl;
     const double answer = (x*scale - 1) / scale;
     CHECK_LT(answer, x);
     CHECK(is_representable(numFractionBits, minExponent, answer));
@@ -274,21 +279,30 @@ class SimplerFloatUtils {
     return answer;
   }
   static double succ_without_checking_against_pred(int numFractionBits, int minExponent, double x) {
+    if (x < 0.) {
+      return -pred_without_checking_against_succ(numFractionBits, minExponent, -x);
+    }
+    const int verbose_level = 0;
+    if (verbose_level >= 1) std::cout << "                in succ_without_checking_against_pred("<<DBG(numFractionBits)<<", "<<DBG(minExponent)<<", "<<DBG(x)<<")" << std::endl;
     CHECK(is_representable(numFractionBits, minExponent, x));
     // firstThreshold is the first place where quantum changes
     const double firstThreshold = std::exp2(minExponent+1.);
+    if (verbose_level >= 1) std::cout << "                  "<<DEBUG(firstThreshold) << std::endl;
     // if we are exactly on a power of 2, we should choose the larger section
-    const double numZooms = (std::abs(x) < firstThreshold ? 0 :
-        std::floor(std::log2(std::abs(x) / firstThreshold)+1.));
+    const double numZooms = (x < firstThreshold ? 0 :
+        std::floor(std::log2(x / firstThreshold)+1.));
+    if (verbose_level >= 1) std::cout << "                  "<<DEBUG(numZooms) << std::endl;
     const double scale = std::exp2(numZooms + numFractionBits);
+    if (verbose_level >= 1) std::cout << "                  "<<DEBUG(scale) << std::endl;
     const double answer = (x*scale + 1) / scale;
     CHECK_GT(answer, x);
     CHECK(is_representable(numFractionBits, minExponent, answer));
     CHECK(!is_representable(numFractionBits, minExponent, (x+answer)/2.));
+    if (verbose_level >= 1) std::cout << "                out succ_without_checking_against_pred("<<DBG(numFractionBits)<<", "<<DBG(minExponent)<<", "<<DBG(x)<<"), returning "<<EXACT(answer) << std::endl;
     return answer;
   }
   static double pred(int numFractionBits, int minExponent, double x) {
-    const int verbose_level = 1;
+    const int verbose_level = 0;
     if (verbose_level >= 1) std::cout << "            in pred("<<DBG(numFractionBits)<<", "<<DBG(minExponent)<<", "<<DBG(x)<<")" << std::endl;
     const double answer = pred_without_checking_against_succ(numFractionBits, minExponent, x);
     //CHECK_EQ(succ_without_checking_against_pred(numFractionBits, minExponent, answer), x);
@@ -337,17 +351,10 @@ class SimplerFloat {
   bool operator>=(const SimplerFloat &that) const { CheckCompatible(that); return x_ >= that.x_; }
 
   SimplerFloat pred() const {
-    const int verbose_level = 1;
+    const int verbose_level = 0;
     if (verbose_level >= 1) std::cout << "        in SimplerFloat::pred("<<DBG(x_)<<")" << std::endl;
 
-
-    double xxx = SimplerFloatUtils::pred(numFractionBits_, minExponent_, x_);
-    if (verbose_level >= 1) std::cout << "          "<<DEBUG(xxx) << std::endl;
-
-    SimplerFloat answer = exactFromDouble(numFractionBits_, minExponent_, xxx);
-    CHECK_EQ(answer.x_, xxx);
-
-    //SimplerFloat answer = exactFromDouble(numFractionBits_, minExponent_, SimplerFloatUtils::pred(numFractionBits_, minExponent_, x_));
+    SimplerFloat answer = exactFromDouble(numFractionBits_, minExponent_, SimplerFloatUtils::pred(numFractionBits_, minExponent_, x_));
     if (verbose_level >= 1) std::cout << "          "<<DEBUG(answer) << std::endl;
     if (verbose_level >= 1) std::cout << "          "<<DEBUG(answer.x_) << std::endl;
     if (verbose_level >= 1) std::cout << "        out SimplerFloat::pred("<<DBG(x_)<<"), returning "<<EXACT(answer) << std::endl;
@@ -666,7 +673,6 @@ static void simpler_float_unit_test(const int numFractionBits, const int minExpo
     CHECK_EQ((one+one.pred())/MakeFloat(2.), one);
     CHECK_EQ((one.pred()+one.pred().pred())/MakeFloat(2.), one.pred().pred());
   }
-
 
   const Float min = MakeFloat(-4.);
   const Float max = MakeFloat(4.);
