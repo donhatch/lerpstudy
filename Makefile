@@ -1,5 +1,10 @@
+TARGETS=SimplerFloatTest lerpvis lerp FloatTest
+
 .PHONY: all
-all: SimplerFloatTest lerpvis lerp FloatTest
+all: $(TARGETS)
+
+clean:; /bin/rm -f $(TARGETS)
+
 
 # Incompatible:
 #   - address and thread
