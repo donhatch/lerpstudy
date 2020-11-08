@@ -16,7 +16,7 @@ int main(int, char **) {
   using F = s2e3;
   std::string_view Fname = "s2e3";
 
-  for (int i = 0; i <= 100; ++i) {
+  for (F::bits_type i = 0; i <= 100; ++i) {
     std::cout << "          i = "<<i << std::endl;
     const F f = F::fromBits(i);
     CHECK_EQ(f.bits(), i);

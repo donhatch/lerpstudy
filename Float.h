@@ -1,5 +1,5 @@
-#ifndef _FLOAT_H_
-#define _FLOAT_H_
+#ifndef FLOAT_H_
+#define FLOAT_H_
 
 #include "macros.h"
 
@@ -10,6 +10,7 @@
 template<typename BitsType>  // a signed integer type, typically int64
 class Float {
  public:
+ using bits_type = BitsType;
 
   static Float<BitsType> fromBits(int nf, int ne, BitsType bits) {
     return Float<BitsType>(nf, ne, bits);
@@ -44,8 +45,8 @@ class Float {
   int ne() const { return ne_; }  // num exponent bits
   BitsType bits() const { return bits_; }
   BitsType signbit() const { return (bits()>>(ne()+nf())) & (BitsType)1; }
-  BitsType ebits() const { return (bits()>>nf()) & (((BitsType)1<<ne())-1); }
-  BitsType fbits() const { return bits() & (((BitsType)1<<nf())-1); }
+  BitsType ebits() const { return (bits()>>nf()) & ((BitsType)((BitsType)1<<ne())-(BitsType)1); }
+  BitsType fbits() const { return bits() & ((BitsType)((BitsType)1<<nf())-(BitsType)1); }
  private:
   Float(int num_fraction_bits, int num_exponent_bits, BitsType bits) : nf_(num_fraction_bits), ne_(num_exponent_bits), bits_(bits) {}
   const int nf_;  // num fraction bits
@@ -58,14 +59,14 @@ class Float {
     if (verbose_level >= 1) std::cout << "    in bits2double(ne="<<ne<<", nf="<<nf<<", bits="<<bits<<")" << std::endl;
     CHECK((int)sizeof(BitsType)*8 >= 1+ne+nf);
     const BitsType signbit = (bits >> (ne+nf)) & (BitsType)1;
-    const BitsType ebits = (bits>>nf) & (((BitsType)1<<ne)-1);
-    const BitsType fbits = bits & (((BitsType)1<<nf)-1);
+    const BitsType ebits = (bits>>nf) & ((BitsType)((BitsType)1<<ne)-(BitsType)1);
+    const BitsType fbits = bits & ((BitsType)((BitsType)1<<nf)-(BitsType)1);
     if (ebits == 0) {
       if (fbits == 0) {
         return signbit==1 ? -0. : 0.;
       } else {
         // subnormal
-        const BitsType Emin = -(((BitsType)1<<(ne-1))-2);  // 5 -> -14,  4 -> -6, 3 -> -2, 2 -> 0
+        const BitsType Emin = -((BitsType)((BitsType)1<<(ne-1))-(BitsType)2);  // 5 -> -14,  4 -> -6, 3 -> -2, 2 -> 0
         return (double)fbits / (double)(1 << nf) / (double)(1 << -Emin);  // TODO: int overflow?
       }
     } else if (ebits == ~(BitsType)0) {
@@ -77,7 +78,7 @@ class Float {
     }
 
     CHECK(ne >= 2);
-    const BitsType Emax = ((BitsType)1<<(ne-1))-1;     // 5 -> 15, 4 -> 7,  3 -> 3,  2 -> 1
+    const BitsType Emax = (BitsType)((BitsType)1<<(ne-1))-(BitsType)1;     // 5 -> 15, 4 -> 7,  3 -> 3,  2 -> 1
     BitsType exponent = ebits - Emax;
     const double fraction = fbits / (double)((BitsType)1<<nf);
     CHECK(0. <= fraction);
@@ -157,4 +158,4 @@ class FloatTemplated : public Float<BitsType> {
 using s2e3 = FloatTemplated<2,3,int16_t>;
 using s2e2 = FloatTemplated<2,2,int16_t>;
 
-#endif  // _FLOAT_H_
+#endif  // FLOAT_H_
