@@ -203,6 +203,162 @@ class PositiveFloat {
   // END STATIC UTILITIES
 };  // class PositiveFloat<FractionBits>
 
+class SimplerFloatUtils {
+ public:
+  // Returns [rounded_down, rounded_to_nearest_ties_to_even, rounded_up]
+
+  static void round_to_representable(int numFractionBits, int minExponent, double x,
+                                     double *return_rounded_down,
+                                     double *return_rounded_to_nearest_ties_to_even,
+                                     double *return_rounded_up) {
+    // firstThreshold is the first place where quantum changes
+    const double firstThreshold = std::exp2(minExponent-1.);
+    // Doesn't matter whether <= or <, since if we're exactly on a power of 2 then either way works
+    const int numZooms = (std::abs(x) <= firstThreshold ? 0 :
+        std::ceil(std::log2(std::abs(x) / firstThreshold)));
+    const double scale = std::exp2(numZooms + numFractionBits);
+    const double X = x*scale;
+    // CBB: if we want *only* lo or only hi, then this does an unnecessary floor or ceil call
+    const double Lo = std::floor(X);
+    const double Hi = std::ceil(X);
+    if (return_rounded_down != nullptr) *return_rounded_down = Lo/scale;
+    if (return_rounded_up != nullptr) *return_rounded_up = Hi/scale;
+    if (return_rounded_to_nearest_ties_to_even != nullptr) {
+      if (Lo == Hi) {
+        *return_rounded_to_nearest_ties_to_even = Lo/scale;
+      } else {
+        CHECK_EQ(Lo+1., Hi);
+        double Mid = (Lo + Hi) / 2.;
+        *return_rounded_to_nearest_ties_to_even = X<Mid ? Lo/scale :
+                                                  X>Mid ? Hi/scale :
+                                                  (int)Lo%2==0 ? Lo/scale : Hi/scale;
+
+      }
+    }
+  }  // round_to_representable
+  static double round_down(int numFractionBits, int minExponent, double x) {
+    double answer;
+    round_to_representable(numFractionBits, minExponent, x, &answer, nullptr, nullptr);
+    return answer;
+  }
+  static double round_to_nearest_ties_to_even(int numFractionBits, int minExponent, double x) {
+    double answer;
+    round_to_representable(numFractionBits, minExponent, x, nullptr, &answer, nullptr);
+    return answer;
+  }
+  static double round_up(int numFractionBits, int minExponent, double x) {
+    double answer;
+    round_to_representable(numFractionBits, minExponent, x, nullptr, nullptr, &answer);
+    return answer;
+  }
+  static bool is_representable(int numFractionBits, int minExponent, double x) {
+    return round_down(numFractionBits, minExponent, x) == x;
+  }
+
+  static double pred_without_checking_against_succ(int numFractionBits, int minExponent, double x) {
+    CHECK(is_representable(numFractionBits, minExponent, x));
+    // firstThreshold is the first place where quantum changes
+    const double firstThreshold = std::exp2(minExponent-1.);
+    // if we are exactly on a power of 2, we should choose the smaller section
+    const double numZooms = (std::abs(x) <= firstThreshold ? 0 :
+        std::ceil(std::log2(std::abs(x) / firstThreshold)));
+    const double scale = std::exp2(numZooms + numFractionBits);
+    const double answer = (x*scale - 1) / scale;
+    CHECK_LT(answer, x);
+    CHECK(is_representable(numFractionBits, minExponent, answer));
+    CHECK(!is_representable(numFractionBits, minExponent, (answer+x)/2.));
+    return answer;
+  }
+  static double succ_without_checking_against_pred(int numFractionBits, int minExponent, double x) {
+    CHECK(is_representable(numFractionBits, minExponent, x));
+    // firstThreshold is the first place where quantum changes
+    const double firstThreshold = std::exp2(minExponent-1);
+    // if we are exactly on a power of 2, we should choose the larger section
+    const double numZooms = (std::abs(x) < firstThreshold ? 0 :
+        std::floor(std::log2(std::abs(x) / firstThreshold)+1.));
+    const double scale = std::exp2(numZooms + numFractionBits);
+    const double answer = (x*scale + 1) / scale;
+    CHECK_GT(answer, x);
+    CHECK(is_representable(numFractionBits, minExponent, answer));
+    CHECK(!is_representable(numFractionBits, minExponent, (x+answer)/2.));
+    return answer;
+  }
+  static double pred(int numFractionBits, int minExponent, double x) {
+    const double answer = pred_without_checking_against_succ(numFractionBits, minExponent, x);
+    CHECK_EQ(succ_without_checking_against_pred(numFractionBits, minExponent, answer), x);
+    return answer;
+  }
+  static double succ(int numFractionBits, int minExponent, double x) {
+    const double answer = succ_without_checking_against_pred(numFractionBits, minExponent, x);
+    CHECK_EQ(pred_without_checking_against_succ(numFractionBits, minExponent, answer), x);
+    return answer;
+  }
+};  // SimplerFloatUtils
+
+class SimplerFloat {
+ public:
+  static SimplerFloat exactFromDouble(int numFractionBits, int minExponent, double x) {
+    // constructor will fail if not exactly representable
+    return SimplerFloat(numFractionBits, minExponent, x);
+  }
+  static SimplerFloat nearestFromDouble(int numFractionBits, int minExponent, double x) {
+    return SimplerFloat(numFractionBits, minExponent, SimplerFloatUtils::round_to_nearest_ties_to_even(numFractionBits, minExponent, x));
+  }
+  static SimplerFloat roundDownFromDouble(int numFractionBits, int minExponent, double x) {
+    return SimplerFloat(numFractionBits, minExponent, SimplerFloatUtils::round_down(numFractionBits, minExponent, x));
+  }
+  static SimplerFloat roundUpFromDouble(int numFractionBits, int minExponent, double x) {
+    return SimplerFloat(numFractionBits, minExponent, SimplerFloatUtils::round_up(numFractionBits, minExponent, x));
+  }
+
+  SimplerFloat(const SimplerFloat &that)
+    : numFractionBits_(that.numFractionBits_), minExponent_(that.minExponent_), x_(that.x_) {}
+  SimplerFloat &operator=(const SimplerFloat &that) {
+    CheckCompatible(that);
+    x_ = that.x_;
+    return *this;
+  }
+  double toDouble() const { return x_; }
+  bool operator==(const SimplerFloat &that) const { CheckCompatible(that); return x_ == that.x_; }
+  bool operator!=(const SimplerFloat &that) const { CheckCompatible(that); return x_ != that.x_; }
+  bool operator<(const SimplerFloat &that) const { CheckCompatible(that); return x_ < that.x_; }
+  bool operator<=(const SimplerFloat &that) const { CheckCompatible(that); return x_ <= that.x_; }
+  bool operator>(const SimplerFloat &that) const { CheckCompatible(that); return x_ > that.x_; }
+  bool operator>=(const SimplerFloat &that) const { CheckCompatible(that); return x_ >= that.x_; }
+
+  SimplerFloat pred() const {
+    return exactFromDouble(numFractionBits_, minExponent_, SimplerFloatUtils::pred(numFractionBits_, minExponent_, x_));
+  }
+  SimplerFloat succ() const {
+    return exactFromDouble(numFractionBits_, minExponent_, SimplerFloatUtils::succ(numFractionBits_, minExponent_, x_));
+  }
+
+  SimplerFloat operator+(const SimplerFloat &that) const {
+    CheckCompatible(that); return nearestFromDouble(numFractionBits_, minExponent_, x_ + that.x_); }
+  SimplerFloat operator-(const SimplerFloat &that) const {
+    CheckCompatible(that); return nearestFromDouble(numFractionBits_, minExponent_, x_ - that.x_); }
+  SimplerFloat operator*(const SimplerFloat &that) const {
+    CheckCompatible(that); return nearestFromDouble(numFractionBits_, minExponent_, x_ * that.x_); }
+  SimplerFloat operator/(const SimplerFloat &that) const {
+    CheckCompatible(that);
+    // SimplerFloat has no Inf or NaN, so don't allow dividing by 0.
+    CHECK_NE(that.x_, 0.);
+    return nearestFromDouble(numFractionBits_, minExponent_, x_ / that.x_);
+  }
+
+ private:
+  explicit SimplerFloat(int numFractionBits, int minExponent, int x) : numFractionBits_(numFractionBits), minExponent_(minExponent), x_(x) {
+    CHECK(SimplerFloatUtils::is_representable(numFractionBits_, minExponent_, x_));
+  }
+  void CheckCompatible(const SimplerFloat &that) const {
+    CHECK_EQ(numFractionBits_, that.numFractionBits_);
+    CHECK_EQ(minExponent_, that.minExponent_);
+  }
+  int numFractionBits_;
+  int minExponent_;
+  int x_;
+};  // SimplerFloat
+
 template<int FractionBits, int MinExponent>
 class SimpleFloat {
  public:
@@ -359,12 +515,16 @@ class SimpleFloat {
 
 template<int FractionBits>
 std::string EXACT(const PositiveFloat<FractionBits> &x) {
-  return ::EXACT(x.toDouble());
+  return EXACT(x.toDouble());
 }
 
 template<int FractionBits, int MinExponent>
 std::string EXACT(const SimpleFloat<FractionBits,MinExponent> &x) {
-  return ::EXACT(x.toDouble());
+  return EXACT(x.toDouble());
+}
+
+std::string EXACT(const SimplerFloat &x) {
+  return EXACT(x.toDouble());
 }
 
 
@@ -453,6 +613,55 @@ void simple_float_unit_test() {
     CHECK_EQ(x.pred().succ(), x);
   }
   std::cout << "        out simple_float_unit_test<FractionBits="<<FractionBits<<", MinExponent="<<MinExponent<<">" << std::endl;
+}
+
+void simpler_float_unit_test(const int numFractionBits, const int minExponent) {
+  std::cout << "        in simpler_float_unit_test(numFractionBits="<<numFractionBits<<", minExponent="<<minExponent<<")" << std::endl;
+
+  using Float = SimplerFloat;
+  auto MakeFloat = [&numFractionBits, &minExponent](double x) { return SimplerFloat::exactFromDouble(numFractionBits, minExponent, x); };
+  auto RoundDown = [&numFractionBits, &minExponent](double x) { return SimplerFloat::roundDownFromDouble(numFractionBits, minExponent, x); };
+  auto RoundToNearest = [&numFractionBits, &minExponent](double x) { return SimplerFloat::nearestFromDouble(numFractionBits, minExponent, x); };
+  auto RoundUp = [&numFractionBits, &minExponent](double x) { return SimplerFloat::roundUpFromDouble(numFractionBits, minExponent, x); };
+
+  if (numFractionBits >= 1) {  // these don't hold for numFractionBits==0, since round of 1.5 is 2, not 1
+    Float one = MakeFloat(1.);
+    // First repeat the PositiveFloat ones...
+    CHECK_EQ((one+one.succ())/MakeFloat(2.), one);
+    CHECK_EQ((one.succ()+one.succ().succ())/MakeFloat(2.), one.succ().succ());
+    CHECK_EQ((one+one.pred())/MakeFloat(2.), one);
+    CHECK_EQ((one.pred()+one.pred().pred())/MakeFloat(2.), one.pred().pred());
+  }
+
+
+  const Float min = MakeFloat(-4.);
+  const Float max = MakeFloat(4.);
+
+  for (Float x = min; x <= max; x = x.succ()) {
+    //std::cout << "              =================" << std::endl;  // uncomment when verbose_level is turned on in various sub-functions
+    std::cout << "              "<<::EXACT(x.toDouble()) << std::endl;
+    const Float next = x.succ();
+    if (next <= max) {
+      const double mid = (x.toDouble()+next.toDouble())/2.;
+      std::cout << "                  "
+                <<::EXACT(mid)
+                <<" rounded down,even,up: "
+                <<::EXACT(RoundDown(mid).toDouble())
+                <<" "
+                <<::EXACT(RoundToNearest(mid).toDouble())
+                <<" "
+                <<::EXACT(RoundUp(mid).toDouble())
+                << std::endl;
+      CHECK_EQ(RoundDown(mid), x);
+      CHECK_EQ(RoundUp(mid), next);
+    }
+
+    CHECK_NE(x.succ(), x);
+    CHECK_NE(x.pred(), x);
+    CHECK_EQ(x.succ().pred(), x);
+    CHECK_EQ(x.pred().succ(), x);
+  }
+  std::cout << "        out simpler_float_unit_test(numFractionBits="<<numFractionBits<<", minExponent="<<minExponent<<")" << std::endl;
 }
 
 // Search for t,a such that (1-t)*a + t*a != a, and 0<=t<=1.
@@ -691,6 +900,11 @@ int main(int, char**) {
   simple_float_unit_test<0,-1>();
   simple_float_unit_test<1,-1>();
   simple_float_unit_test<2,-1>();
+
+  //simpler_float_unit_test(0, -1);
+  simpler_float_unit_test(1, -1);
+  simpler_float_unit_test(2, -1);
+
 
   exit(5);
 
