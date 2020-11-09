@@ -1,4 +1,3 @@
-// BUG: why positive and negative not behaving same on naive??  set a,b to 1.pred and 1.pred.pred.pred
 // TODO: the usual event screwup, need to listen on window instead
 // TODO: the usual select-the-text screwup; how to disable?
 // TODO: put the a and b labels next to the line
@@ -45,19 +44,44 @@ registerSourceCodeLinesAndRequire([
     const quantum = get_rounding_quantum(numFractionBits, minExponent, x);
     return Math.ceil(x/quantum)*quantum;
   };
-  const round_to_nearest_representable = (numFractionBits, minExponent, x) => {
+
+  const round_to_nearest_representable_without_checking_against_opposite = (numFractionBits, minExponent, x) => {
     CHECK.NE(x, undefined);
+    const verboseLevel = 0;
+    if (verboseLevel >= 1) console.log("            in round_to_nearest_representable(numFractionBits="+STRINGIFY(numFractionBits)+", minExponent="+STRINGIFY(minExponent)+", x="+STRINGIFY(x)+")");
     const quantum = get_rounding_quantum(numFractionBits, minExponent, x);
+    if (verboseLevel >= 1) console.log("              quantum = "+STRINGIFY(quantum));
     const Lo = Math.floor(x/quantum);
     const Hi = Math.ceil(x/quantum);
-    if (Lo == Hi) return Lo*quantum;
-    const lo = Lo*quantum;
-    const hi = Hi*quantum;
-    if (x-lo < hi-x) return lo;
-    if (x-lo > hi-x) return hi;
-    if (lo%2 == 0) return lo;
-    return hi;
+    if (verboseLevel >= 1) console.log("              Lo = "+STRINGIFY(Lo));
+    if (verboseLevel >= 1) console.log("              Hi = "+STRINGIFY(Hi));
+    let answer;
+    if (Lo == Hi) {
+      answer = Lo*quantum;
+      if (verboseLevel >= 1) console.log("            out round_to_nearest_representable(numFractionBits="+STRINGIFY(numFractionBits)+", minExponent="+STRINGIFY(minExponent)+", x="+STRINGIFY(x)+"), returning Lo*quantum="+STRINGIFY(Lo*quantum)+" because Lo==Hi");
+    } else {
+      const lo = Lo*quantum;
+      const hi = Hi*quantum;
+      if (x-lo < hi-x) {
+        answer = lo;
+      } else if (x-lo > hi-x) {
+        answer = hi;
+      } else if (Lo%2 == 0) {
+        answer = lo;
+      } else {
+        answer = hi;
+      }
+    }
+    return answer;
   };
+
+  const round_to_nearest_representable = (numFractionBits, minExponent, x) => {
+    CHECK.NE(x, undefined);
+    const answer = round_to_nearest_representable_without_checking_against_opposite(numFractionBits, minExponent, x);
+    CHECK.EQ(round_to_nearest_representable_without_checking_against_opposite(numFractionBits, minExponent, -x), -answer);
+    return answer;
+  };
+
   const is_representable = (numFractionBits, minExponent, x) => {
     CHECK.NE(x, undefined);
     return round_down_to_representable(numFractionBits, minExponent, x) == x;
@@ -168,13 +192,20 @@ registerSourceCodeLinesAndRequire([
   const width = 512+gridLineWidth;
   const height = 1024+gridLineWidth;
 
+  //const width = 256+gridLineWidth;
+  //const height = 512+gridLineWidth;
+
   // input and output coords.
   const ox0 = gridLineWidth*.5;
   const ox1 = width-gridLineWidth*.5;
   const oy0 = height-gridLineWidth*.5;
   const oy1 = gridLineWidth*.5;
+
   const ix0 = 0.;
   const ix1 = 1.;
+  // TODO: Extrapolation... maybe experiment some time
+  //const ix0 = -1.;
+  //const ix1 = 2.;
   const iy0 = -1.;
   const iy1 = 1.;
 
@@ -343,7 +374,41 @@ registerSourceCodeLinesAndRequire([
     theTitle.innerHTML = title;
   };
   const setLerpMethodToNaive = () => {
-    Lerp = (a,b,t) => Plus(Times(Minus(1.,t),a), Times(t,b));
+    //Lerp = (a,b,t) => Plus(Times(Minus(1.,t),a), Times(t,b));
+    Lerp = (a,b,t) => {
+      const verboseLevel = 0;
+      if (verboseLevel >= 1) console.log("    in naive Lerp(a="+STRINGIFY(a)+" b="+STRINGIFY(b)+" t="+STRINGIFY(t)+")");
+      if (verboseLevel >= 1) PRINT(Minus(1.,t));
+      if (verboseLevel >= 1) PRINT(Times(Minus(1.,t),a));
+      if (verboseLevel >= 1) PRINT(Times(t,b));
+      if (verboseLevel >= 1) PRINT(Plus(Times(Minus(1.,t),a), Times(t,b)));
+      if (verboseLevel >= 1) PRINT(Plus(.5,.3125));  // .875
+      if (verboseLevel >= 1) PRINT(Plus(-.5,-.3125));  // -.75
+      const answer = Plus(Times(Minus(1.,t),a), Times(t,b));
+      if (verboseLevel >= 1) console.log("    out naive Lerp(a="+STRINGIFY(a)+" b="+STRINGIFY(b)+" t="+STRINGIFY(t)+"), returning "+STRINGIFY(answer));
+      return answer;
+      /*
+	in naive Lerp(a=0.875 b=0.875 t=0.375)
+	  PRINT.js:74 Minus(1.,t) = 0.625
+	  PRINT.js:74 Times(Minus(1.,t),a) = 0.5
+	  PRINT.js:74 Times(t,b) = 0.3125
+	  PRINT.js:74 Plus(Times(Minus(1.,t),a), Times(t,b)) = 0.875   DIFFERENT
+	out naive Lerp(a=0.875 b=0.875 t=0.375), returning 0.875
+	in naive Lerp(a=-0.875 b=-0.875 t=0.375)
+	  PRINT.js:74 Minus(1.,t) = 0.625
+	  PRINT.js:74 Times(Minus(1.,t),a) = -0.5
+	  PRINT.js:74 Times(t,b) = -0.3125
+	  PRINT.js:74 Plus(Times(Minus(1.,t),a), Times(t,b)) = -0.75    DIFFERENT
+	out naive Lerp(a=-0.875 b=-0.875 t=0.375), returning -0.75
+
+        So the difference is on Plus?
+          Plus(.5,.3125) is .875     I THINK THIS IS WRONG
+          Plus(-.5,-.3125) is -.75   I THINK THIS IS RIGHT
+        So the difference is actually on:
+          round_to_nearest_representable(.8125) -> .875
+          round_to_nearest_representable(-.8125) -> -.75
+      */
+    };
     populateTheSVG(svg, Lerp, a, b);
     let title = "(1-t)*a + t*b";
     theTitle.innerHTML = title;
@@ -388,7 +453,7 @@ registerSourceCodeLinesAndRequire([
 
   let draggingA = false;
   let draggingB = false;
-  const eventVerboseLevel = 1;
+  const eventVerboseLevel = 0;
   // https://www.mutuallyhuman.com/blog/keydown-is-the-only-keyboard-event-we-need/
   window.addEventListener("keydown", (event) => {
     if (eventVerboseLevel >= 1) console.log("keydown");
@@ -424,7 +489,7 @@ registerSourceCodeLinesAndRequire([
     const aDist = Math.abs(iy - a);
     const bDist = Math.abs(iy - b);
     const midDist = Math.abs(iy - (a+b)/2.);
-    if (midDist <= aDist && midDist <= bDist) {
+    if (midDist < aDist && midDist < bDist) {
       draggingA = true;
       draggingB = true;
     } else if (aDist <= bDist) {
