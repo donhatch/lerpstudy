@@ -6,6 +6,10 @@
 // TODO: allow adjusting minExponent too
 // TODO: show numFractionBits and minExponent
 // TODO: change names so caller only says aIntent,bIntent, to reduce confusion
+// TODO: hover-over a point should show details of calculation
+// TODO: show in fractional form
+// TODO: figure out if there's a better way!
+// TODO: show more interesting lines for the various algorithms
 
 "use strict";
 console.log("in lerp.js")
@@ -169,8 +173,10 @@ registerSourceCodeLinesAndRequire([
   //let minExponent = -5;
 
   let numFractionBits = 3;
-  let minExponent = -5;  // 4 if using 512*1024
+  let minExponent = -6;  // 4 if using 512*1024
 
+  const Round = x => round_to_nearest_representable(numFractionBits, minExponent, x);
+  const Pred = x => pred(numFractionBits, minExponent, x);
   const Succ = x => succ(numFractionBits, minExponent, x);
   const Plus = (a,b) => plus(numFractionBits, minExponent, a, b);
   const Times = (a,b) => times(numFractionBits, minExponent, a, b);
@@ -210,16 +216,30 @@ registerSourceCodeLinesAndRequire([
   const iy1 = 1.;
 
 
+  const toFractionString = x => {
+    let numerator = x;
+    let denominator = 1.;
+    while (Math.floor(numerator) != numerator) {
+      numerator *= 2.;
+      denominator *= 2.;
+    }
+    if (denominator == 1.)
+      return ""+numerator;
+    else
+      return numerator+"/"+denominator;
+  };
+
 
   const populateTheSVG = (svg, Lerp, aIntent, bIntent) => {
     CHECK.NE(bIntent, undefined);
 
-    // TODO
+    // TODO: rename
     const a = round_to_nearest_representable(numFractionBits, minExponent, aIntent);
     const b = round_to_nearest_representable(numFractionBits, minExponent, bIntent);
 
     const theTitlePart2 = document.getElementById("theTitlePart2");
-    theTitlePart2.innerHTML = "  a="+a+" b="+b;
+    //theTitlePart2.innerHTML = "  a="+a+" b="+b;
+    theTitlePart2.innerHTML = "  a="+a+"="+toFractionString(a)+"  b="+b+"="+toFractionString(b);
 
     const svgns = "http://www.w3.org/2000/svg";                                   
 
@@ -259,7 +279,7 @@ registerSourceCodeLinesAndRequire([
       const path = document.createElementNS(svgns, "path");
       setAttrs(path, {
         "stroke" : "#cccccc",
-        "shape-rendering" : "crispEdges",  // prevent antialiasing  XXX not sure if I want this
+        //"shape-rendering" : "crispEdges",  // prevent antialiasing  XXX not sure if I want this
         "d" : segs2d(segs),
       });
       return path;
@@ -312,17 +332,56 @@ registerSourceCodeLinesAndRequire([
         "stroke-width" : "3",
       });
       svg.appendChild(path);
+
+      let ozeroy = relerp(0., iy0,iy1,oy0,oy1);
+      const pathZero = makePath([[[o0,ozeroy],[o1,ozeroy]]]);
+      setAttrs(pathZero, {
+        "stroke" : "#999999",
+      });
+      svg.appendChild(pathZero);
     }
 
-    // The diagonals and dots
+
+    // Funny relevant diagonal, under the real diagonal.
+    // This is starting at a,0,
+    // and going up at slope round(b-a).
+    // That is, from a,0 to a+round(b-a).
     {
-      let o0 = relerp(0., ix0,ix1,ox0,ox1);
-      let o1 = relerp(1., ix0,ix1,ox0,ox1);
-      let oa = relerp(a, iy0,iy1,oy0,oy1);
-      let ob = relerp(b, iy0,iy1,oy0,oy1);
-      const path = makePath([[[o0,oa],[o1,ob]]]);
-      svg.appendChild(path);
+      const B = a + Round(b-a);
+      const o0x = relerp(0., ix0,ix1,ox0,ox1);
+      const o1x = relerp(1., ix0,ix1,ox0,ox1);
+      const oa = relerp(a, iy0,iy1,oy0,oy1);
+      const oB = relerp(B, iy0,iy1,oy0,oy1);
+      const funnyUpwardDiagonalPath = makePath([[[o0x,oa],[o1x,oB]]]);
+      svg.appendChild(funnyUpwardDiagonalPath);
+      const BB = Round(b-a);
+      const oBB = relerp(BB, iy0,iy1,oy0,oy1);
+      const o0y = relerp(0., iy0,iy1,oy0,oy1);
+      const anotherFunnyUpwardDiagonalPath = makePath([[[o0x,o0y],[o1x,oBB]]]);
+      svg.appendChild(anotherFunnyUpwardDiagonalPath);
     }
+
+    // The diagonals
+    {
+      const o0 = relerp(0., ix0,ix1,ox0,ox1);
+      const o1 = relerp(1., ix0,ix1,ox0,ox1);
+      const oa = relerp(a, iy0,iy1,oy0,oy1);
+      const ob = relerp(b, iy0,iy1,oy0,oy1);
+      const upwardDiagonalPath = makePath([[[o0,oa],[o1,ob]]]);
+      setAttrs(upwardDiagonalPath, {
+        "stroke" : "black",
+      });
+      svg.appendChild(upwardDiagonalPath);
+      const downwardDiagonalPath = makePath([[[o1,oa],[o0,ob]]]);
+      setAttrs(downwardDiagonalPath, {
+        "stroke" : "black",
+      });
+      svg.appendChild(downwardDiagonalPath);
+    }
+
+
+    // The dots along the diagonals.
+    // Upward red, downard green.
     for (let t = 0.; t <= 1.; t = Succ(t)) {
       const y = Lerp(a,b,t);
 
@@ -335,15 +394,6 @@ registerSourceCodeLinesAndRequire([
       circle.setAttributeNS(null, "r", "1.5");
       circle.setAttributeNS(null, "fill", "green");
       svg.appendChild(circle);
-    }
-
-    {
-      let o0 = relerp(0., ix0,ix1,ox0,ox1);
-      let o1 = relerp(1., ix0,ix1,ox0,ox1);
-      let oa = relerp(a, iy0,iy1,oy0,oy1);
-      let ob = relerp(b, iy0,iy1,oy0,oy1);
-      const path = makePath([[[o0,ob],[o1,oa]]]);
-      svg.appendChild(path);
     }
     for (let t = 0.; t <= 1.; t = Succ(t)) {
       const y = Lerp(b,a,t);
@@ -387,27 +437,6 @@ registerSourceCodeLinesAndRequire([
       const answer = Plus(Times(Minus(1.,t),a), Times(t,b));
       if (verboseLevel >= 1) console.log("    out naive Lerp(a="+STRINGIFY(a)+" b="+STRINGIFY(b)+" t="+STRINGIFY(t)+"), returning "+STRINGIFY(answer));
       return answer;
-      /*
-	in naive Lerp(a=0.875 b=0.875 t=0.375)
-	  PRINT.js:74 Minus(1.,t) = 0.625
-	  PRINT.js:74 Times(Minus(1.,t),a) = 0.5
-	  PRINT.js:74 Times(t,b) = 0.3125
-	  PRINT.js:74 Plus(Times(Minus(1.,t),a), Times(t,b)) = 0.875   DIFFERENT
-	out naive Lerp(a=0.875 b=0.875 t=0.375), returning 0.875
-	in naive Lerp(a=-0.875 b=-0.875 t=0.375)
-	  PRINT.js:74 Minus(1.,t) = 0.625
-	  PRINT.js:74 Times(Minus(1.,t),a) = -0.5
-	  PRINT.js:74 Times(t,b) = -0.3125
-	  PRINT.js:74 Plus(Times(Minus(1.,t),a), Times(t,b)) = -0.75    DIFFERENT
-	out naive Lerp(a=-0.875 b=-0.875 t=0.375), returning -0.75
-
-        So the difference is on Plus?
-          Plus(.5,.3125) is .875     I THINK THIS IS WRONG
-          Plus(-.5,-.3125) is -.75   I THINK THIS IS RIGHT
-        So the difference is actually on:
-          round_to_nearest_representable(.8125) -> .875
-          round_to_nearest_representable(-.8125) -> -.75
-      */
     };
     populateTheSVG(svg, Lerp, a, b);
     let title = "(1-t)*a + t*b";
@@ -433,6 +462,18 @@ registerSourceCodeLinesAndRequire([
     let title = "t<=.5 ? a+(b-a)*t : b-(b-a)*(1-t)";
     theTitle.innerHTML = title;
   };
+  const setLerpMethodToMaybe = () => {
+    Lerp = (a,b,t) => {
+      const answer0 = Plus(Times(Minus(1.,t),a), Times(t,b));
+      const answer = Plus(answer0,
+                          Plus(Times(Minus(1.,t),Minus(a,answer0)),
+                               Times(t,Minus(b,answer0))));
+      return answer;
+    };
+    populateTheSVG(svg, Lerp, a, b);
+    let title = "t<=.5 ? a+(b-a)*t : b-(b-a)*(1-t)";
+    theTitle.innerHTML = title;
+  };
 
   document.getElementById("lerpmethodMagic").setAttribute("checked", "");
   setLerpMethodToMagic();
@@ -445,37 +486,54 @@ registerSourceCodeLinesAndRequire([
   document.getElementById("lerpmethodTypeMeaningful").onclick = () => setLerpMethodToTypeMeaningful();
   document.getElementById("lerpmethodBidirectional").onclick = () => setLerpMethodToBidirectional();
   document.getElementById("lerpmethodBidirectionalAlt").onclick = () => setLerpMethodToBidirectionalAlt();
+  document.getElementById("lerpmethodMaybe").onclick = () => setLerpMethodToMaybe();
 
   let xOfMouseDown = undefined;
   let yOfMouseDown = undefined;
   let aOfMouseDown = undefined;
   let bOfMouseDown = undefined;
+  let xOfPreviousMouseEvent = undefined;
+  let yOfPreviousMouseEvent = undefined;
 
   let draggingA = false;
   let draggingB = false;
   const eventVerboseLevel = 0;
   // https://www.mutuallyhuman.com/blog/keydown-is-the-only-keyboard-event-we-need/
+
+  const bIsCloser = eventOffsetY => {
+    const iy = relerp(eventOffsetY, oy0,oy1, iy0,iy1);
+    return Math.abs(iy-b) < Math.abs(iy-a);
+  };
+
   window.addEventListener("keydown", (event) => {
     if (eventVerboseLevel >= 1) console.log("keydown");
     if (eventVerboseLevel >= 1) console.log("  event = ",event);
-    if (event.key === "=" || event.key === "+") {
+    if (false) {
+    } else if (event.key === "=" || event.key === "+") {
       numFractionBits += 1;
       populateTheSVG(svg, Lerp, a, b);
     } else if (event.key == "-") {
       numFractionBits -= 1;
       populateTheSVG(svg, Lerp, a, b);
+    } else if (event.key == "ArrowUp") {
+      event.preventDefault();  // prevent scrolling
+      if (bIsCloser(yOfPreviousMouseEvent)) {
+        b = Succ(b);
+      } else {
+        a = Succ(a);
+      }
+      populateTheSVG(svg, Lerp, a, b);
+    } else if (event.key == "ArrowDown") {
+      event.preventDefault();  // prevent scrolling
+      if (bIsCloser(yOfPreviousMouseEvent)) {
+        b = Pred(b);
+      } else {
+        a = Pred(a);
+      }
+      populateTheSVG(svg, Lerp, a, b);
     }
+    // event.stopPropagation(); // TODO: do I want this?
   });
-  /*
-  window.addEventListener("keypress", (event) => {
-    if (eventVerboseLevel >= 1) console.log("keypress");
-    if (eventVerboseLevel >= 1) console.log("  event = ",event);
-  });
-  window.addEventListener("keyup", (event) => {
-    if (eventVerboseLevel >= 1) console.log("keyup");
-    if (eventVerboseLevel >= 1) console.log("  event = ",event);
-  });
-  */
   svg.addEventListener("mousedown", (event) => {
     if (eventVerboseLevel >= 1) console.log("mousedown");
     if (eventVerboseLevel >= 1) console.log("  event = ",event);
@@ -485,7 +543,6 @@ registerSourceCodeLinesAndRequire([
     bOfMouseDown = b;
     const ix = relerp(event.offsetX, ox0,ox1, ix0,ix1);
     const iy = relerp(event.offsetY, oy0,oy1, iy0,iy1);
-
     const aDist = Math.abs(iy - a);
     const bDist = Math.abs(iy - b);
     const midDist = Math.abs(iy - (a+b)/2.);
@@ -497,6 +554,8 @@ registerSourceCodeLinesAndRequire([
     } else {
       draggingB = true;
     }
+    xOfPreviousMouseEvent = event.offsetX;
+    yOfPreviousMouseEvent = event.offsetY;
   });
   svg.addEventListener("mouseup", (event) => {
     if (eventVerboseLevel >= 1) console.log("mouseup");
@@ -506,17 +565,27 @@ registerSourceCodeLinesAndRequire([
     a = round_to_nearest_representable(numFractionBits, minExponent, a);
     b = round_to_nearest_representable(numFractionBits, minExponent, b);
     populateTheSVG(svg, Lerp, a, b);
+    xOfPreviousMouseEvent = event.offsetX;
+    yOfPreviousMouseEvent = event.offsetY;
   });
   svg.addEventListener("mouseenter", (event) => {
     if (eventVerboseLevel >= 1) console.log("mouseenter");
     if (eventVerboseLevel >= 1) console.log("  event = ",event);
+    xOfPreviousMouseEvent = event.offsetX;
+    yOfPreviousMouseEvent = event.offsetY;
   });
   svg.addEventListener("mouseleave", (event) => {
     if (eventVerboseLevel >= 1) console.log("mouseleave");
     if (eventVerboseLevel >= 1) console.log("  event = ",event);
+    xOfPreviousMouseEvent = event.offsetX;
+    yOfPreviousMouseEvent = event.offsetY;
   });
   svg.addEventListener("mousemove", (event) => {
-    // CBB: don't listen when mouse not down
+    // CBB: clunky order of tests.  We set {x,y}OfPreviousMouseEvent first
+    // in case of early return, but then we aren't prepared in case
+    // we want to see the actual previous in this function.
+    xOfPreviousMouseEvent = event.offsetX;
+    yOfPreviousMouseEvent = event.offsetY;
     if (!draggingA && !draggingB) return;
     if (eventVerboseLevel >= 1) console.log("mousemove with mouse down");
     if (eventVerboseLevel >= 1) console.log("  event = ",event);
