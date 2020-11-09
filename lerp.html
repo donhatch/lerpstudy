@@ -13,5 +13,30 @@
   <script src="lerp.js"></script>
  </head>
  <body>
+  <span id="theTitle"></span>
+  <table>
+   <tr>
+    <td>
+     <div id="theSVGholder" style="width:512px; height:1024px;">  <!-- XXX need to control this from inside -->
+      <svg id="theSVG"></svg>
+     </div>
+    <td>
+     <div>
+      <input type="radio" class="lerpmethodRadioButton" id="lerpmethodMagic" name="lerpmethod" value="lerpmethodMagic">
+      <label for="lerpmethodMagic">magic</label>
+      <br>
+      <br>
+      <input type="radio" class="lerpmethodRadioButton" id="lerpmethodNaive" name="lerpmethod" value="lerpmethodNaive">
+      <label for="lerpmethodNaive">(1-t)*a + t*b</label>
+      <br>
+      <br>
+      <input type="radio" class="lerpmethodRadioButton" id="lerpmethodTypeMeaningful" name="lerpmethod" value="lerpmethodTypeMeaningful">
+      <label for="lerpmethodTypeMeaningful">a + t*(b-a)</label>
+      <br>
+      <br>
+      <input type="radio" class="lerpmethodRadioButton" id="lerpmethodBidirectional" name="lerpmethod" value="lerpmethodBidirectional">
+      <label for="lerpmethodBidirectional">t &lt; 0.5 ? a + t*(b-a) : b - (1-t)*(b-a)</label>
+     </div>
+  </table>
  </body>
 </html>

@@ -144,23 +144,13 @@ registerSourceCodeLinesAndRequire([
 
   let Lerp;
   let title;
-  if (false) {
-    Lerp = (a,b,t) => round_to_nearest_representable(numFractionBits, minExponent, (1.-t)*a + t*b);
-    title = "magic actual lerp";
-  } else if (false) {
-    Lerp = (a,b,t) => Plus(Times(Minus(1.,t),a), Times(t,b));
-    title = "(1-t)*a + t*b";
-  } else if (false) {
-    Lerp = (a,b,t) => Plus(a, Times(Minus(b,a),t));
-    title = "a + (b-a)*t";
-  } else {
-    Lerp = (a,b,t) => t<.5 ? Plus(a, Times(Minus(b,a),t))
-                           : Minus(b, Times(Minus(b,a),Minus(1.,t)));
-    title = "t<.5 ? a+(b-a)*t : b-(b-a)*(1-t)";
-  }
 
-  const createTheSVG = () => {
 
+  let a = -1;
+  let b = .5;
+
+  const populateTheSVG = (svg, a, b) => {
+    CHECK.NE(b, undefined);
 
     // NOTE: the grid lines don't really look good when big, due to corners.  Hmm.
     const gridLineWidth = 1;
@@ -183,8 +173,9 @@ registerSourceCodeLinesAndRequire([
     const iy1 = 1.;
 
 
+
     const svgns = "http://www.w3.org/2000/svg";                                   
-    const svg = document.createElementNS(svgns, "svg");                 
+
     svg.setAttribute("width", ""+width+"px");
     svg.setAttribute("height", ""+height+"px");
     svg.style.position = 'absolute';
@@ -231,8 +222,8 @@ registerSourceCodeLinesAndRequire([
 
     const xs = getFloatsInRange(numFractionBits, minExponent, ix0, ix1);
     const ys = getFloatsInRange(numFractionBits, minExponent, iy0, iy1);
-    PRINT(xs);
-    PRINT(ys);
+    //PRINT(xs);
+    //PRINT(ys);
     {
       const segs = [];
       for (const x of xs) {
@@ -250,9 +241,23 @@ registerSourceCodeLinesAndRequire([
     }
 
 
-    let a = -1;
-    let b = .5;
 
+    // Horizontals at a and b
+    {
+      let o0 = relerp(0., ix0,ix1,ox0,ox1);
+      let o1 = relerp(1., ix0,ix1,ox0,ox1);
+      let oa = relerp(a, iy0,iy1,oy0,oy1);
+      let ob = relerp(b, iy0,iy1,oy0,oy1);
+      const path = makePath([[[o0,oa],[o1,oa]],
+                             [[o0,ob],[o1,ob]]]);
+      setAttrs(path, {
+        "stroke" : "red",
+        "stroke-width" : "3",
+      });
+      svg.appendChild(path);
+    }
+
+    // The diagonals and dots
     {
       let o0 = relerp(0., ix0,ix1,ox0,ox1);
       let o1 = relerp(1., ix0,ix1,ox0,ox1);
@@ -270,7 +275,7 @@ registerSourceCodeLinesAndRequire([
       const circle = document.createElementNS(svgns, "circle");
       circle.setAttributeNS(null, "cx", ""+ox);
       circle.setAttributeNS(null, "cy", ""+oy);
-      circle.setAttributeNS(null, "r", "2");
+      circle.setAttributeNS(null, "r", "1.5");
       svg.appendChild(circle);
     }
 
@@ -291,16 +296,55 @@ registerSourceCodeLinesAndRequire([
       const circle = document.createElementNS(svgns, "circle");
       circle.setAttributeNS(null, "cx", ""+ox);
       circle.setAttributeNS(null, "cy", ""+oy);
-      circle.setAttributeNS(null, "r", "2");
+      circle.setAttributeNS(null, "r", "1.5");
       svg.appendChild(circle);
     }
 
 
     return svg;
-  };  // createTheSVG
-  const svg = createTheSVG();
-  document.body.appendChild(svg);
-  document.body.innerHTML += "<pre>"+title+"</pre>";
+  };  // populateTheSVG
+
+  const svg = document.getElementById("theSVG");
+
+  const setLerpMethodToMagic = () => {
+    Lerp = (a,b,t) => round_to_nearest_representable(numFractionBits, minExponent, (1.-t)*a + t*b);
+    title = "magic actual lerp";
+    populateTheSVG(svg, a, b);
+    const titleElement = document.getElementById("theTitle");
+    titleElement.innerHTML = "<pre>"+title+"</pre>";
+  };
+  const setLerpMethodToNaive = () => {
+    Lerp = (a,b,t) => Plus(Times(Minus(1.,t),a), Times(t,b));
+    title = "(1-t)*a + t*b";
+    populateTheSVG(svg, a, b);
+    const titleElement = document.getElementById("theTitle");
+    titleElement.innerHTML = "<pre>"+title+"</pre>";
+  };
+  const setLerpMethodToTypeMeaningful = () => {
+    Lerp = (a,b,t) => Plus(a, Times(Minus(b,a),t));
+    title = "a + (b-a)*t";
+    populateTheSVG(svg, a, b);
+    const titleElement = document.getElementById("theTitle");
+    titleElement.innerHTML = "<pre>"+title+"</pre>";
+  };
+  const setLerpMethodToBidirectional = () => {
+    Lerp = (a,b,t) => t<.5 ? Plus(a, Times(Minus(b,a),t))
+                           : Minus(b, Times(Minus(b,a),Minus(1.,t)));
+    title = "t<.5 ? a+(b-a)*t : b-(b-a)*(1-t)";
+    populateTheSVG(svg, a, b);
+    const titleElement = document.getElementById("theTitle");
+    titleElement.innerHTML = "<pre>"+title+"</pre>";
+  };
+
+  setLerpMethodToMagic();
+
+
+  const lerpmethodChanged = (a) => {};
+
+  document.getElementById("lerpmethodMagic").onclick = () => setLerpMethodToMagic();
+  document.getElementById("lerpmethodNaive").onclick = () => setLerpMethodToNaive();
+  document.getElementById("lerpmethodTypeMeaningful").onclick = () => setLerpMethodToTypeMeaningful();
+  document.getElementById("lerpmethodBidirectional").onclick = () => setLerpMethodToBidirectional();
 
   console.log("    out lerp.js require callback");
 });
