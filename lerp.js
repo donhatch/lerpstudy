@@ -1,3 +1,8 @@
+// TODO: the usual event screwup, need to listen on window instead
+// TODO: the usual select-the-text screwup; how to disable?
+// TODO: why positive and negative not behaving same on naive??  set a,b to 1.pred and 1.pred.pred.pred
+
+
 "use strict";
 console.log("in lerp.js")
 registerSourceCodeLinesAndRequire([
@@ -143,36 +148,39 @@ registerSourceCodeLinesAndRequire([
   const Minus = (a,b) => minus(numFractionBits, minExponent, a, b);
 
   let Lerp;
-  let title;
 
 
   let a = -1;
   let b = .5;
 
-  const populateTheSVG = (svg, a, b) => {
-    CHECK.NE(b, undefined);
 
-    // NOTE: the grid lines don't really look good when big, due to corners.  Hmm.
-    const gridLineWidth = 1;
+  // NOTE: the grid lines don't really look good when big, due to corners.  Hmm.
+  const gridLineWidth = 1;
 
-    // works well for gridLineWidth=2...
-    //const width = 384+gridLineWidth;
-    //const height = 768+gridLineWidth;
+  // works well for gridLineWidth=2...
+  //const width = 384+gridLineWidth;
+  //const height = 768+gridLineWidth;
 
-    const width = 512+gridLineWidth;
-    const height = 1024+gridLineWidth;
+  const width = 512+gridLineWidth;
+  const height = 1024+gridLineWidth;
 
-    // input and output coords.
-    const ox0 = gridLineWidth*.5;
-    const ox1 = width-gridLineWidth*.5;
-    const oy0 = height-gridLineWidth*.5;
-    const oy1 = gridLineWidth*.5;
-    const ix0 = 0.;
-    const ix1 = 1.;
-    const iy0 = -1.;
-    const iy1 = 1.;
+  // input and output coords.
+  const ox0 = gridLineWidth*.5;
+  const ox1 = width-gridLineWidth*.5;
+  const oy0 = height-gridLineWidth*.5;
+  const oy1 = gridLineWidth*.5;
+  const ix0 = 0.;
+  const ix1 = 1.;
+  const iy0 = -1.;
+  const iy1 = 1.;
 
 
+
+  const populateTheSVG = (svg, Lerp, aIntent, bIntent) => {
+    CHECK.NE(bIntent, undefined);
+
+    const a = round_to_nearest_representable(numFractionBits, minExponent, aIntent);
+    const b = round_to_nearest_representable(numFractionBits, minExponent, bIntent);
 
     const svgns = "http://www.w3.org/2000/svg";                                   
 
@@ -181,8 +189,7 @@ registerSourceCodeLinesAndRequire([
     svg.style.position = 'absolute';
     svg.style.top = '30px';
     svg.style.left = '0px';
-    // XXX not sure I want this; it's from RocktreeProbePicture.js
-    svg.style.pointerEvents = 'none';  // make it "click-through-able", and so tooltips of underlying are functional
+    //svg.style.pointerEvents = 'none';  // to make it "click-through-able", and so tooltips of underlying are functional
     svg.style.border = "5px solid black";
     svg.innerHTML = '';  // clear old contents if any
     svg.innerHTML = (
@@ -242,12 +249,23 @@ registerSourceCodeLinesAndRequire([
 
 
 
-    // Horizontals at a and b
+    // Horizontals at a and b, and lighter at aIntent and bIntent
     {
       let o0 = relerp(0., ix0,ix1,ox0,ox1);
       let o1 = relerp(1., ix0,ix1,ox0,ox1);
       let oa = relerp(a, iy0,iy1,oy0,oy1);
       let ob = relerp(b, iy0,iy1,oy0,oy1);
+      let oaIntent = relerp(aIntent, iy0,iy1,oy0,oy1);
+      let obIntent = relerp(bIntent, iy0,iy1,oy0,oy1);
+
+      const pathIntent = makePath([[[o0,oaIntent],[o1,oaIntent]],
+                                   [[o0,obIntent],[o1,obIntent]]]);
+      setAttrs(pathIntent, {
+        "stroke" : "#ff8080",
+        "stroke-width" : "1",
+      });
+
+      svg.appendChild(pathIntent);
       const path = makePath([[[o0,oa],[o1,oa]],
                              [[o0,ob],[o1,ob]]]);
       setAttrs(path, {
@@ -276,6 +294,7 @@ registerSourceCodeLinesAndRequire([
       circle.setAttributeNS(null, "cx", ""+ox);
       circle.setAttributeNS(null, "cy", ""+oy);
       circle.setAttributeNS(null, "r", "1.5");
+      circle.setAttributeNS(null, "fill", "green");
       svg.appendChild(circle);
     }
 
@@ -297,6 +316,7 @@ registerSourceCodeLinesAndRequire([
       circle.setAttributeNS(null, "cx", ""+ox);
       circle.setAttributeNS(null, "cy", ""+oy);
       circle.setAttributeNS(null, "r", "1.5");
+      circle.setAttributeNS(null, "fill", "red");
       svg.appendChild(circle);
     }
 
@@ -308,34 +328,48 @@ registerSourceCodeLinesAndRequire([
 
   const setLerpMethodToMagic = () => {
     Lerp = (a,b,t) => round_to_nearest_representable(numFractionBits, minExponent, (1.-t)*a + t*b);
-    title = "magic actual lerp";
-    populateTheSVG(svg, a, b);
+    populateTheSVG(svg, Lerp, a, b);
+    let title = "magic actual lerp";
+    title += "  a="+a+" b="+b;
     const titleElement = document.getElementById("theTitle");
     titleElement.innerHTML = "<pre>"+title+"</pre>";
   };
   const setLerpMethodToNaive = () => {
     Lerp = (a,b,t) => Plus(Times(Minus(1.,t),a), Times(t,b));
-    title = "(1-t)*a + t*b";
-    populateTheSVG(svg, a, b);
+    populateTheSVG(svg, Lerp, a, b);
+    let title = "(1-t)*a + t*b";
+    title += "  a="+a+" b="+b;
     const titleElement = document.getElementById("theTitle");
     titleElement.innerHTML = "<pre>"+title+"</pre>";
   };
   const setLerpMethodToTypeMeaningful = () => {
     Lerp = (a,b,t) => Plus(a, Times(Minus(b,a),t));
-    title = "a + (b-a)*t";
-    populateTheSVG(svg, a, b);
+    populateTheSVG(svg, Lerp, a, b);
+    let title = "a + (b-a)*t";
+    title += "  a="+a+" b="+b;
     const titleElement = document.getElementById("theTitle");
     titleElement.innerHTML = "<pre>"+title+"</pre>";
   };
   const setLerpMethodToBidirectional = () => {
     Lerp = (a,b,t) => t<.5 ? Plus(a, Times(Minus(b,a),t))
                            : Minus(b, Times(Minus(b,a),Minus(1.,t)));
-    title = "t<.5 ? a+(b-a)*t : b-(b-a)*(1-t)";
-    populateTheSVG(svg, a, b);
+    populateTheSVG(svg, Lerp, a, b);
+    let title = "t<.5 ? a+(b-a)*t : b-(b-a)*(1-t)";
+    title += "  a="+a+" b="+b;
+    const titleElement = document.getElementById("theTitle");
+    titleElement.innerHTML = "<pre>"+title+"</pre>";
+  };
+  const setLerpMethodToBidirectionalAlt = () => {
+    Lerp = (a,b,t) => t<=.5 ? Plus(a, Times(Minus(b,a),t))
+                            : Minus(b, Times(Minus(b,a),Minus(1.,t)));
+    populateTheSVG(svg, Lerp, a, b);
+    let title = "t<=.5 ? a+(b-a)*t : b-(b-a)*(1-t)";
+    title += "  a="+a+" b="+b;
     const titleElement = document.getElementById("theTitle");
     titleElement.innerHTML = "<pre>"+title+"</pre>";
   };
 
+  document.getElementById("lerpmethodMagic").setAttribute("checked", "");
   setLerpMethodToMagic();
 
 
@@ -345,6 +379,68 @@ registerSourceCodeLinesAndRequire([
   document.getElementById("lerpmethodNaive").onclick = () => setLerpMethodToNaive();
   document.getElementById("lerpmethodTypeMeaningful").onclick = () => setLerpMethodToTypeMeaningful();
   document.getElementById("lerpmethodBidirectional").onclick = () => setLerpMethodToBidirectional();
+  document.getElementById("lerpmethodBidirectionalAlt").onclick = () => setLerpMethodToBidirectionalAlt();
+
+  let xOfMouseDown = undefined;
+  let yOfMouseDown = undefined;
+  let aOfMouseDown = undefined;
+  let bOfMouseDown = undefined;
+
+  let draggingA = false;
+  let draggingB = false;
+  const eventVerboseLevel = 0;
+  svg.addEventListener("mousedown", (event) => {
+    if (eventVerboseLevel >= 1) console.log("mousedown");
+    if (eventVerboseLevel >= 1) console.log("  event = ",event);
+    xOfMouseDown = event.offsetX;
+    yOfMouseDown = event.offsetY;
+    aOfMouseDown = a;
+    bOfMouseDown = b;
+    const ix = relerp(event.offsetX, ox0,ox1, ix0,ix1);
+    const iy = relerp(event.offsetY, oy0,oy1, iy0,iy1);
+
+    const aDist = Math.abs(iy - a);
+    const bDist = Math.abs(iy - b);
+    const midDist = Math.abs(iy - (a+b)/2.);
+    if (midDist <= aDist && midDist <= bDist) {
+      draggingA = true;
+      draggingB = true;
+    } else if (aDist <= bDist) {
+      draggingA = true;
+    } else {
+      draggingB = true;
+    }
+  });
+  svg.addEventListener("mouseup", (event) => {
+    if (eventVerboseLevel >= 1) console.log("mouseup");
+    if (eventVerboseLevel >= 1) console.log("  event = ",event);
+    draggingA = draggingB = false;
+    // Snap intents to nearest on mouse up (a and b are intents here)
+    a = round_to_nearest_representable(numFractionBits, minExponent, a);
+    b = round_to_nearest_representable(numFractionBits, minExponent, b);
+    populateTheSVG(svg, Lerp, a, b);
+  });
+  svg.addEventListener("mouseenter", (event) => {
+    if (eventVerboseLevel >= 1) console.log("mouseenter");
+    if (eventVerboseLevel >= 1) console.log("  event = ",event);
+  });
+  svg.addEventListener("mouseleave", (event) => {
+    if (eventVerboseLevel >= 1) console.log("mouseleave");
+    if (eventVerboseLevel >= 1) console.log("  event = ",event);
+  });
+  svg.addEventListener("mousemove", (event) => {
+    // CBB: don't listen when mouse not down
+    if (!draggingA && !draggingB) return;
+    if (eventVerboseLevel >= 1) console.log("mousemove with mouse down");
+    if (eventVerboseLevel >= 1) console.log("  event = ",event);
+    const ixOfMouseDown = relerp(xOfMouseDown, ox0,ox1, ix0,ix1);
+    const iyOfMouseDown = relerp(yOfMouseDown, oy0,oy1, iy0,iy1);
+    const ix = relerp(event.offsetX, ox0,ox1, ix0,ix1);
+    const iy = relerp(event.offsetY, oy0,oy1, iy0,iy1);
+    if (draggingA) a = aOfMouseDown + (iy-iyOfMouseDown);
+    if (draggingB) b = bOfMouseDown + (iy-iyOfMouseDown);
+    populateTheSVG(svg, Lerp, a, b);
+  });
 
   console.log("    out lerp.js require callback");
 });
