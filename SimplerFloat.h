@@ -130,7 +130,7 @@ class SimplerFloatUtils {
     const int verbose_level = 0;
     if (verbose_level >= 1) std::cout << "            in pred("<<DBG(numFractionBits)<<", "<<DBG(minExponent)<<", "<<DBG(x)<<")" << std::endl;
     const double answer = pred_without_checking_against_succ(numFractionBits, minExponent, x);
-    //CHECK_EQ(succ_without_checking_against_pred(numFractionBits, minExponent, answer), x);
+    CHECK_EQ(succ_without_checking_against_pred(numFractionBits, minExponent, answer), x);
     if (verbose_level >= 1) std::cout << "            out pred("<<DBG(numFractionBits)<<", "<<DBG(minExponent)<<", "<<DBG(x)<<"), returning "<<EXACT(answer) << std::endl;
     return answer;
   }
