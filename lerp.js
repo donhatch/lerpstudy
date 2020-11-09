@@ -1,7 +1,12 @@
+// BUG: why positive and negative not behaving same on naive??  set a,b to 1.pred and 1.pred.pred.pred
 // TODO: the usual event screwup, need to listen on window instead
 // TODO: the usual select-the-text screwup; how to disable?
-// TODO: why positive and negative not behaving same on naive??  set a,b to 1.pred and 1.pred.pred.pred
-
+// TODO: put the a and b labels next to the line
+// TODO: label axes
+// TODO: reconcile ability to change resolution with snapping.  I think I need to not snap?  Not sure.  Or, actually, maybe it's fine-- snapping still happens on mouse up, but if I change res and back without mousing, then no snapping happens and nothing changes.  cool.
+// TODO: allow adjusting minExponent too
+// TODO: show numFractionBits and minExponent
+// TODO: change names so caller only says aIntent,bIntent, to reduce confusion
 
 "use strict";
 console.log("in lerp.js")
@@ -147,8 +152,7 @@ registerSourceCodeLinesAndRequire([
   const Times = (a,b) => times(numFractionBits, minExponent, a, b);
   const Minus = (a,b) => minus(numFractionBits, minExponent, a, b);
 
-  let Lerp;
-
+  let Lerp;  // determined by the radio buttons
 
   let a = -1;
   let b = .5;
@@ -179,8 +183,12 @@ registerSourceCodeLinesAndRequire([
   const populateTheSVG = (svg, Lerp, aIntent, bIntent) => {
     CHECK.NE(bIntent, undefined);
 
+    // TODO
     const a = round_to_nearest_representable(numFractionBits, minExponent, aIntent);
     const b = round_to_nearest_representable(numFractionBits, minExponent, bIntent);
+
+    const theTitlePart2 = document.getElementById("theTitlePart2");
+    theTitlePart2.innerHTML = "  a="+a+" b="+b;
 
     const svgns = "http://www.w3.org/2000/svg";                                   
 
@@ -326,47 +334,39 @@ registerSourceCodeLinesAndRequire([
 
   const svg = document.getElementById("theSVG");
 
+  const theTitle = document.getElementById("theTitle");
+
   const setLerpMethodToMagic = () => {
     Lerp = (a,b,t) => round_to_nearest_representable(numFractionBits, minExponent, (1.-t)*a + t*b);
     populateTheSVG(svg, Lerp, a, b);
     let title = "magic actual lerp";
-    title += "  a="+a+" b="+b;
-    const titleElement = document.getElementById("theTitle");
-    titleElement.innerHTML = "<pre>"+title+"</pre>";
+    theTitle.innerHTML = title;
   };
   const setLerpMethodToNaive = () => {
     Lerp = (a,b,t) => Plus(Times(Minus(1.,t),a), Times(t,b));
     populateTheSVG(svg, Lerp, a, b);
     let title = "(1-t)*a + t*b";
-    title += "  a="+a+" b="+b;
-    const titleElement = document.getElementById("theTitle");
-    titleElement.innerHTML = "<pre>"+title+"</pre>";
+    theTitle.innerHTML = title;
   };
   const setLerpMethodToTypeMeaningful = () => {
     Lerp = (a,b,t) => Plus(a, Times(Minus(b,a),t));
     populateTheSVG(svg, Lerp, a, b);
     let title = "a + (b-a)*t";
-    title += "  a="+a+" b="+b;
-    const titleElement = document.getElementById("theTitle");
-    titleElement.innerHTML = "<pre>"+title+"</pre>";
+    theTitle.innerHTML = title;
   };
   const setLerpMethodToBidirectional = () => {
     Lerp = (a,b,t) => t<.5 ? Plus(a, Times(Minus(b,a),t))
                            : Minus(b, Times(Minus(b,a),Minus(1.,t)));
     populateTheSVG(svg, Lerp, a, b);
     let title = "t<.5 ? a+(b-a)*t : b-(b-a)*(1-t)";
-    title += "  a="+a+" b="+b;
-    const titleElement = document.getElementById("theTitle");
-    titleElement.innerHTML = "<pre>"+title+"</pre>";
+    theTitle.innerHTML = title;
   };
   const setLerpMethodToBidirectionalAlt = () => {
     Lerp = (a,b,t) => t<=.5 ? Plus(a, Times(Minus(b,a),t))
                             : Minus(b, Times(Minus(b,a),Minus(1.,t)));
     populateTheSVG(svg, Lerp, a, b);
     let title = "t<=.5 ? a+(b-a)*t : b-(b-a)*(1-t)";
-    title += "  a="+a+" b="+b;
-    const titleElement = document.getElementById("theTitle");
-    titleElement.innerHTML = "<pre>"+title+"</pre>";
+    theTitle.innerHTML = title;
   };
 
   document.getElementById("lerpmethodMagic").setAttribute("checked", "");
@@ -388,7 +388,29 @@ registerSourceCodeLinesAndRequire([
 
   let draggingA = false;
   let draggingB = false;
-  const eventVerboseLevel = 0;
+  const eventVerboseLevel = 1;
+  // https://www.mutuallyhuman.com/blog/keydown-is-the-only-keyboard-event-we-need/
+  window.addEventListener("keydown", (event) => {
+    if (eventVerboseLevel >= 1) console.log("keydown");
+    if (eventVerboseLevel >= 1) console.log("  event = ",event);
+    if (event.key === "=" || event.key === "+") {
+      numFractionBits += 1;
+      populateTheSVG(svg, Lerp, a, b);
+    } else if (event.key == "-") {
+      numFractionBits -= 1;
+      populateTheSVG(svg, Lerp, a, b);
+    }
+  });
+  /*
+  window.addEventListener("keypress", (event) => {
+    if (eventVerboseLevel >= 1) console.log("keypress");
+    if (eventVerboseLevel >= 1) console.log("  event = ",event);
+  });
+  window.addEventListener("keyup", (event) => {
+    if (eventVerboseLevel >= 1) console.log("keyup");
+    if (eventVerboseLevel >= 1) console.log("  event = ",event);
+  });
+  */
   svg.addEventListener("mousedown", (event) => {
     if (eventVerboseLevel >= 1) console.log("mousedown");
     if (eventVerboseLevel >= 1) console.log("  event = ",event);
