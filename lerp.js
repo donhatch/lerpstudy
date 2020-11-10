@@ -280,6 +280,18 @@ registerSourceCodeLinesAndRequire([
   let aString = getURLParameterModule.getURLParameterOr("a", "11/256");
   let bString = getURLParameterModule.getURLParameterOr("b", "1");
 
+  const toFractionString = x => {
+    let numerator = x;
+    let denominator = 1.;
+    while (Math.floor(numerator) != numerator) {
+      numerator *= 2.;
+      denominator *= 2.;
+    }
+    if (denominator == 1.)
+      return ""+numerator;
+    else
+      return numerator+"/"+denominator;
+  };
   const parseFractionString = s => {
     const parts = s.split("/");
     CHECK(parts.length == 1 || parts.length == 2);
@@ -295,7 +307,7 @@ registerSourceCodeLinesAndRequire([
 
   const xformUrlPart = urlPart=>urlPart;
   setURLParamModule.setURLAndParamsInURLBar(xformUrlPart,
-                                            [['numFractionBits',numFractionBits],['minExponent',minExponent],['a',a],['b',b]],
+                                            [['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(a)],['b',toFractionString(b)]],
                                             /*whetherToEncodeValue=*/false);  // don't encode the '/' as  %2F
 
 
@@ -510,19 +522,6 @@ registerSourceCodeLinesAndRequire([
   const iy1 = 1.;
 
 
-  const toFractionString = x => {
-    let numerator = x;
-    let denominator = 1.;
-    while (Math.floor(numerator) != numerator) {
-      numerator *= 2.;
-      denominator *= 2.;
-    }
-    if (denominator == 1.)
-      return ""+numerator;
-    else
-      return numerator+"/"+denominator;
-  };
-
 
   const populateTheSVG = (svg, Lerp, aIntent, bIntent) => {
     CHECK.NE(bIntent, undefined);
@@ -533,7 +532,8 @@ registerSourceCodeLinesAndRequire([
 
     const theTitlePart2 = document.getElementById("theTitlePart2");
     //theTitlePart2.innerHTML = "  a="+a+" b="+b;
-    theTitlePart2.innerHTML = "  a="+a+"="+toFractionString(a)+"  b="+b+"="+toFractionString(b);
+    //theTitlePart2.innerHTML = "  a="+a+"="+toFractionString(a)+"  b="+b+"="+toFractionString(b);
+    theTitlePart2.innerHTML = "  a="+toFractionString(a)+"<small><small> ="+a+"</small></small>  b="+toFractionString(b)+"<small><small> ="+b+"</small></small>";
 
     const svgns = "http://www.w3.org/2000/svg";                                   
 
@@ -714,8 +714,7 @@ registerSourceCodeLinesAndRequire([
   const setLerpMethodToMagic = () => {
     Lerp = (a,b,t) => round_to_nearest_representable(numFractionBits, minExponent, (1.-t)*a + t*b);
     populateTheSVG(svg, Lerp, a, b);
-    let title = "magic actual lerp";
-    theTitle.innerHTML = title;
+    theTitle.innerHTML = "magic actual lerp";
   };
   const setLerpMethodToNaive = () => {
     //Lerp = (a,b,t) => Plus(Times(Minus(1.,t),a), Times(t,b));
@@ -733,28 +732,24 @@ registerSourceCodeLinesAndRequire([
       return answer;
     };
     populateTheSVG(svg, Lerp, a, b);
-    let title = "(1-t)*a + t*b";
-    theTitle.innerHTML = title;
+    theTitle.innerHTML = "(1-t)*a + t*b";
   };
   const setLerpMethodToTypeMeaningful = () => {
     Lerp = (a,b,t) => Plus(a, Times(Minus(b,a),t));
     populateTheSVG(svg, Lerp, a, b);
-    let title = "a + (b-a)*t";
-    theTitle.innerHTML = title;
+    theTitle.innerHTML = "a + (b-a)*t";
   };
   const setLerpMethodToBidirectional = () => {
     Lerp = (a,b,t) => t<.5 ? Plus(a, Times(Minus(b,a),t))
                            : Minus(b, Times(Minus(b,a),Minus(1.,t)));
     populateTheSVG(svg, Lerp, a, b);
-    let title = "t<.5 ? a+(b-a)*t : b-(b-a)*(1-t)";
-    theTitle.innerHTML = title;
+    theTitle.innerHTML = "t<.5 ? a+(b-a)*t : b-(b-a)*(1-t)";
   };
   const setLerpMethodToBidirectionalAlt = () => {
     Lerp = (a,b,t) => t<=.5 ? Plus(a, Times(Minus(b,a),t))
                             : Minus(b, Times(Minus(b,a),Minus(1.,t)));
     populateTheSVG(svg, Lerp, a, b);
-    let title = "t<=.5 ? a+(b-a)*t : b-(b-a)*(1-t)";
-    theTitle.innerHTML = title;
+    theTitle.innerHTML = "t<=.5 ? a+(b-a)*t : b-(b-a)*(1-t)";
   };
   const setLerpMethodToMaybe = () => {
     Lerp = (a,b,t) => {
@@ -765,62 +760,52 @@ registerSourceCodeLinesAndRequire([
       return answer;
     };
     populateTheSVG(svg, Lerp, a, b);
-    let title = "t<=.5 ? a+(b-a)*t : b-(b-a)*(1-t)";
-    theTitle.innerHTML = title;
+    theTitle.innerHTML = "answer0 = (1-t)*a + t*b; answer0 += ((1-t)*(a-answer0) + t*(b-answer0)";
   };
   const setLerpMethodToTBlast = () => {
     Lerp = (a,b,t) => Plus(Minus(a, Times(t,a)), Times(t,b));
     populateTheSVG(svg, Lerp, a, b);
-    let title = "a - t*a + b";
-    theTitle.innerHTML = title;
+    theTitle.innerHTML = "a - t*a + b";
   };
   const setLerpMethodToAlast = () => {
     Lerp = (a,b,t) => Plus(Minus(Times(t,b), Times(t,a)), a);
     populateTheSVG(svg, Lerp, a, b);
-    let title = "b - t*a + a";
-    theTitle.innerHTML = title;
+    theTitle.innerHTML = "b - t*a + a";
   };
   const setLerpMethodToTAlast = () => {
     Lerp = (a,b,t) => Minus(Plus(a,Times(t,b)), Times(t,a));
     populateTheSVG(svg, Lerp, a, b);
-    let title = "a + b - t*a";
-    theTitle.innerHTML = title;
+    theTitle.innerHTML = "a + b - t*a";
   };
   const setLerpMethodToTBlastUsingDot = () => {
     Lerp = (a,b,t) => DotKahan([1,-t,t], [a,a,b], false);
     populateTheSVG(svg, Lerp, a, b);
-    let title = "[1,-t,t] • [a,a,b] Kahan";
-    theTitle.innerHTML = title;
+    theTitle.innerHTML = "[1,-t,t] • [a,a,b] Kahan";
   };
   const setLerpMethodToAlastUsingDot = () => {
     Lerp = (a,b,t) => DotKahan([t,-t,1], [b,a,a], false);
     populateTheSVG(svg, Lerp, a, b);
-    let title = "[t,-t,1] • [b,a,a] Kahan";
-    theTitle.innerHTML = title;
+    theTitle.innerHTML = "[t,-t,1] • [b,a,a] Kahan";
   };
   const setLerpMethodToTAlastUsingDot = () => {
     Lerp = (a,b,t) => DotKahan([1,t,-t], [a,b,a], false);
     populateTheSVG(svg, Lerp, a, b);
-    let title = "[1,t,-t] • [a,b,a] Kahan";
-    theTitle.innerHTML = title;
+    theTitle.innerHTML = "[1,t,-t] • [a,b,a] Kahan";
   };
   const setLerpMethodToTBlastUsingDotTweaked = () => {
     Lerp = (a,b,t) => DotKahan([1,-t,t], [a,a,b], true);
     populateTheSVG(svg, Lerp, a, b);
-    let title = "[1,-t,t] • [a,a,b] Kahan tweaked";
-    theTitle.innerHTML = title;
+    theTitle.innerHTML = "[1,-t,t] • [a,a,b] Kahan tweaked";
   };
   const setLerpMethodToAlastUsingDotTweaked = () => {
     Lerp = (a,b,t) => DotKahan([t,-t,1], [b,a,a], true);
     populateTheSVG(svg, Lerp, a, b);
-    let title = "[t,-t,1] • [b,a,a] Kahan tweaked";
-    theTitle.innerHTML = title;
+    theTitle.innerHTML = "[t,-t,1] • [b,a,a] Kahan tweaked";
   };
   const setLerpMethodToTAlastUsingDotTweaked = () => {
     Lerp = (a,b,t) => DotKahan([1,t,-t], [a,b,a], true);
     populateTheSVG(svg, Lerp, a, b);
-    let title = "[1,t,-t] • [a,b,a] Kahan tweaked";
-    theTitle.innerHTML = title;
+    theTitle.innerHTML = "[1,t,-t] • [a,b,a] Kahan tweaked";
   };
 
   document.getElementById("lerpmethodMagic").setAttribute("checked", "");
