@@ -1,4 +1,3 @@
-// TODO: a,b in url bar
 // TODO: the usual event screwup, need to listen on window instead
 // TODO: the usual select-the-text screwup; how to disable?
 // TODO: put the a and b labels next to the line
@@ -225,10 +224,14 @@
 "use strict";
 console.log("in lerp.js")
 registerSourceCodeLinesAndRequire([
+  "./getURLParameter.js",
+  "./setURLParam.js",
   "./PRINT.js",
   "./CHECK.js",
   "./STRINGIFY.js",
 ], function(
+  getURLParameterModule,
+  setURLParamModule,
   PRINT,
   CHECK,
   STRINGIFY,
@@ -236,6 +239,13 @@ registerSourceCodeLinesAndRequire([
 ){
   console.log("    in lerp.js require callback");
   CHECK.EQ(shouldBeUndefined, undefined);
+
+  let a = getURLParameterModule.getURLParameterFloatOr("a", -1.);
+  let b = getURLParameterModule.getURLParameterFloatOr("b", .5);
+
+  const xformUrlPart = urlPart=>urlPart;
+  setURLParamModule.setURLAndParamsInURLBar(xformUrlPart, [['a',a],['b',b]], /*whetherToEncodeValue=*/true);
+
 
   //======================================
   // Begin float utilities
@@ -394,9 +404,6 @@ registerSourceCodeLinesAndRequire([
   const Minus = (a,b) => minus(numFractionBits, minExponent, a, b);
 
   let Lerp;  // determined by the radio buttons
-
-  let a = -1;
-  let b = .5;
 
 
   // NOTE: the grid lines don't really look good when big, due to corners.  Hmm.
@@ -825,8 +832,20 @@ registerSourceCodeLinesAndRequire([
     const iyOfMouseDown = relerp(yOfMouseDown, oy0,oy1, iy0,iy1);
     const ix = relerp(event.offsetX, ox0,ox1, ix0,ix1);
     const iy = relerp(event.offsetY, oy0,oy1, iy0,iy1);
+
+    const aSnappedOld = round_to_nearest_representable(numFractionBits, minExponent, a);
+    const bSnappedOld = round_to_nearest_representable(numFractionBits, minExponent, b);
+
     if (draggingA) a = aOfMouseDown + (iy-iyOfMouseDown);
     if (draggingB) b = bOfMouseDown + (iy-iyOfMouseDown);
+
+    const aSnappedNew = round_to_nearest_representable(numFractionBits, minExponent, a);
+    const bSnappedNew = round_to_nearest_representable(numFractionBits, minExponent, b);
+
+    if (aSnappedNew != aSnappedOld || bSnappedNew != bSnappedOld) {
+      setURLParamModule.setURLAndParamsInURLBar(xformUrlPart, [['a',aSnappedNew],['b',bSnappedNew]], /*whetherToEncodeValue=*/true);
+    }
+
     populateTheSVG(svg, Lerp, a, b);
   });
 
