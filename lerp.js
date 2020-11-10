@@ -1,3 +1,6 @@
+// TODO: fractions in url
+// TODO: favicon.png or whatever
+// TODO: make the selection of lerp algorithm stick in url bar
 // TODO: the usual event screwup, need to listen on window instead
 // TODO: the usual select-the-text screwup; how to disable?
 // TODO: put the a and b labels next to the line
@@ -69,6 +72,7 @@
            1*!a +! (b-a)*!t + ((a-b+b)-a)*!t
     Ok, that's a length-3 dot product.  We should be able to do this!!
     https://accurate-algorithms.readthedocs.io/en/latest/ch05dotprod.html
+    (also same in https://readthedocs.org/projects/accurate-algorithms/downloads/pdf/latest/)
     gives algorithm Dot2, for computing a dot product.
     That algorithm is:
 
@@ -97,15 +101,36 @@
           [p,q] = TwoSum(p,h)
           s += (q + r)   (with rounding at each step)
         return p + s
+    note that the special treatment of the first pair is just an optimization.  so it's more simply expressed as:
+      def Dot2(xs,ys):
+        Hi,Lo = 0,0
+        for x,y in zip(xs,ys):
+          [hi,lo0] = TwoProduct(x,y)
+          [Hi,lo1] = TwoSum(Hi,hi)
+          Lo += (lo0 + lo1)   (with rounding at each step)
+        return Hi+Lo
 
-      in particular, Sum(v):
-        p,s = v[0],0
-        for x in v[1:]
-          p,q = TwoSum(p,x)
-          s = s(+)q
-        return p+s.
+      in particular, Sum(xs):
+        Hi,Lo = 0,0
+        for x in xs:
+          Hi,lo = TwoSum(Hi,x)
+          Lo = Lo(+)lo
+        return Hi+Lo.
       hmm, is this kahan summation?  not quite, I think.
-      probably kahan summation sets p,s = TwoSum(p,s) at each step (but can assume p is the larger, in this step, so faster?).  Not sure.
+      one potential problem is that Lo never feeds back into Hi, until the very end.  I think that's not true of Kahan!
+      probably kahan summation sets Hi,Lo = TwoSum(Hi,Lo) at each step (but can assume Hi is the larger, in this step, so faster?).  Not sure.
+
+      AH, I see what this is.
+      For each pair:
+        TwoProduct them (giving an error term)
+        Add the result to the running sum (giving another error term)
+        add the two new error terms into the running error term.
+
+      This does not seem right!  It can't be right to not let Lo feed back into Hi...
+      that means Lo can get too big for its britches and lose precision!!!
+      So what's a simple example of that??
+      Well, let's see, when a multiplication needs *all* the bits in order to be accurate...
+      e.g. 1/3 * 1/3, or something like that?
 
 
     In particular, that should tell us how to compute:
@@ -155,8 +180,8 @@
             tt = hi + yy
             hi,lo = tt, yy-(tt-hi)
           i.e.
-            temp = input[i] + lo
-            hi,lo = hi+temp, temp-(hi+temp-hi)
+            temp = input[i] + lo  (and that's the end of the old lo... which is weird, isn't it? that doesn't seem right; can't it disappear something important?)
+            hi,lo = hi+temp, temp-(temp+hi-hi)
 
         return hi,lo
 
@@ -165,10 +190,13 @@
         hi,lo = 0.,0.
         for i:
           temp = fma(xs[i],ys[i],lo)
-          hi,lo = hi+temp, temp-(hi+temp-hi)
+          hi,lo = hi+temp, temp-(temp+hi-hi)
         return hi,lo
     Huh.  How does this compare to the TwoProduct algorithm described earlier??
     And, does it coincide with "Kahan's 2x2 determinant"?  Hmm.
+
+    Oh argh, this https://indico.cern.ch/event/625333/contributions/2628505/attachments/1490516/2316655/codas_fpa.pdf
+    says "Kahan Summation Algorithm does not work for “ill-conditioned” sums  In particular if an element is larger than the sum" ... which is the case here :-(
 
 
     Ok let's explore https://stackoverflow.com/questions/39804069/robust-linear-interpolation#answer-52979923 .
@@ -240,11 +268,22 @@ registerSourceCodeLinesAndRequire([
   console.log("    in lerp.js require callback");
   CHECK.EQ(shouldBeUndefined, undefined);
 
+  //const numFractionBitsDefault = 2;
+  //const minExponentDefault = -5;
+
+  const numFractionBitsDefault = 3;
+  const minExponentDefault = -6;  // 4 if using 512*1024
+
+  let numFractionBits = getURLParameterModule.getURLParameterFloatOr("numFractionBits", numFractionBitsDefault);
+  let minExponent = getURLParameterModule.getURLParameterFloatOr("minExponent", minExponentDefault);
+
   let a = getURLParameterModule.getURLParameterFloatOr("a", -1.);
   let b = getURLParameterModule.getURLParameterFloatOr("b", .5);
 
   const xformUrlPart = urlPart=>urlPart;
-  setURLParamModule.setURLAndParamsInURLBar(xformUrlPart, [['a',a],['b',b]], /*whetherToEncodeValue=*/true);
+  setURLParamModule.setURLAndParamsInURLBar(xformUrlPart,
+                                            [['numFractionBits',numFractionBits],['minExponent',minExponent],['a',a],['b',b]],
+                                            /*whetherToEncodeValue=*/true);
 
 
   //======================================
@@ -382,6 +421,12 @@ registerSourceCodeLinesAndRequire([
     CHECK.NE(b, 0);  // we don't do nan or inf, so disallow division by 0
     return round_to_nearest_representable(numFractionBits, minExponent, a/b);
   };
+  const fma = (numFractionBits, minExponent, a, b, c) => {
+    CHECK(is_representable(numFractionBits, minExponent, a));
+    CHECK(is_representable(numFractionBits, minExponent, b));
+    CHECK(is_representable(numFractionBits, minExponent, c));
+    return round_to_nearest_representable(numFractionBits, minExponent, a*b+c);
+  };
   // End float utilities
   //======================================
 
@@ -390,18 +435,36 @@ registerSourceCodeLinesAndRequire([
     return answer;
   }
 
-  //let numFractionBits = 2;
-  //let minExponent = -5;
-
-  let numFractionBits = 3;
-  let minExponent = -6;  // 4 if using 512*1024
-
   const Round = x => round_to_nearest_representable(numFractionBits, minExponent, x);
   const Pred = x => pred(numFractionBits, minExponent, x);
   const Succ = x => succ(numFractionBits, minExponent, x);
   const Plus = (a,b) => plus(numFractionBits, minExponent, a, b);
   const Times = (a,b) => times(numFractionBits, minExponent, a, b);
   const Minus = (a,b) => minus(numFractionBits, minExponent, a, b);
+  const Fma = (a,b,c) => fma(numFractionBits, minExponent, a, b, c);
+  const DotKahan = (xs,ys,tweak) => {
+    CHECK.NE(tweak, undefined);
+    CHECK(tweak === true || tweak === false);
+    let lo = 0.;
+    let hi = 0.;
+    CHECK.EQ(xs.length, ys.length);
+    for (let i = 0; i < xs.length; ++i) {
+      const temp = Fma(xs[i],ys[i], lo);
+      lo = Minus(temp, Minus(Plus(hi,temp),hi));
+      hi = Plus(hi, temp);
+    }
+    //CHECK.EQ(Plus(hi,lo),hi);  // doesn't hold, but I'd like to understand why. wikipedia just returns hi. !?
+    // XXX wait what?  why does wikipedia not return hi+lo?  (or, rather, sum-c) ?  Ask on stackoverflow or numeric analysis stackexchange about this.
+    // There seem to be examples where it's better, and other examples where it's worse.  In particular:
+    //          [1,-t,t]*[a,a,b] has one case where it's worse (for a=11/256 b=15/16 nF=3 mE=-6)  (however it went away when I increased mE to -8) (but when I increased nF to 4, got an example where tweaking makes it better! and others where its worse)  (hmm this seems to persist even when I keep increasing nF, so maybe this is an example to use in a post of a question)
+    //          [t,-t,1]*[b,a,a] has cases where it's worse and cases where it's better!  both where the operands aren't significantly larger than the answer.  (didn't go away by increasing mE.)
+    //
+    // Keep going for simpler examples (making me think I just messed up the algorithm somewhere):
+    //          [1,-t,t]*[a,a,b] differs, for small t, even when b is 1 (a=5/512 or 3/64 or 1/8). (nF=3 mE=-6)
+    //          [t,-t,1]*[b,a,a] differs, for some t<.5, even when b is 0 (a=15/16 or 13/16 or 11/16 or 9/16) (nF=3 mE=-6).  I.e. inconsistent on -t*a + a.  That can't be right!!
+    //          
+    return tweak ? Plus(hi,lo) : hi;
+  };
 
   let Lerp;  // determined by the radio buttons
 
@@ -710,6 +773,42 @@ registerSourceCodeLinesAndRequire([
     let title = "a + b - t*a";
     theTitle.innerHTML = title;
   };
+  const setLerpMethodToTBlastUsingDot = () => {
+    Lerp = (a,b,t) => DotKahan([1,-t,t], [a,a,b], false);
+    populateTheSVG(svg, Lerp, a, b);
+    let title = "[1,-t,t] • [a,a,b] Kahan";
+    theTitle.innerHTML = title;
+  };
+  const setLerpMethodToAlastUsingDot = () => {
+    Lerp = (a,b,t) => DotKahan([t,-t,1], [b,a,a], false);
+    populateTheSVG(svg, Lerp, a, b);
+    let title = "[t,-t,1] • [b,a,a] Kahan";
+    theTitle.innerHTML = title;
+  };
+  const setLerpMethodToTAlastUsingDot = () => {
+    Lerp = (a,b,t) => DotKahan([1,t,-t], [a,b,a], false);
+    populateTheSVG(svg, Lerp, a, b);
+    let title = "[1,t,-t] • [a,b,a] Kahan";
+    theTitle.innerHTML = title;
+  };
+  const setLerpMethodToTBlastUsingDotTweaked = () => {
+    Lerp = (a,b,t) => DotKahan([1,-t,t], [a,a,b], true);
+    populateTheSVG(svg, Lerp, a, b);
+    let title = "[1,-t,t] • [a,a,b] Kahan tweaked";
+    theTitle.innerHTML = title;
+  };
+  const setLerpMethodToAlastUsingDotTweaked = () => {
+    Lerp = (a,b,t) => DotKahan([t,-t,1], [b,a,a], true);
+    populateTheSVG(svg, Lerp, a, b);
+    let title = "[t,-t,1] • [b,a,a] Kahan tweaked";
+    theTitle.innerHTML = title;
+  };
+  const setLerpMethodToTAlastUsingDotTweaked = () => {
+    Lerp = (a,b,t) => DotKahan([1,t,-t], [a,b,a], true);
+    populateTheSVG(svg, Lerp, a, b);
+    let title = "[1,t,-t] • [a,b,a] Kahan tweaked";
+    theTitle.innerHTML = title;
+  };
 
   document.getElementById("lerpmethodMagic").setAttribute("checked", "");
   setLerpMethodToMagic();
@@ -726,6 +825,12 @@ registerSourceCodeLinesAndRequire([
   document.getElementById("lerpmethodTBlast").onclick = () => setLerpMethodToTBlast();
   document.getElementById("lerpmethodAlast").onclick = () => setLerpMethodToAlast();
   document.getElementById("lerpmethodTAlast").onclick = () => setLerpMethodToTAlast();
+  document.getElementById("lerpmethodTBlastUsingDot").onclick = () => setLerpMethodToTBlastUsingDot();
+  document.getElementById("lerpmethodAlastUsingDot").onclick = () => setLerpMethodToAlastUsingDot();
+  document.getElementById("lerpmethodTAlastUsingDot").onclick = () => setLerpMethodToTAlastUsingDot();
+  document.getElementById("lerpmethodTBlastUsingDotTweaked").onclick = () => setLerpMethodToTBlastUsingDotTweaked();
+  document.getElementById("lerpmethodAlastUsingDotTweaked").onclick = () => setLerpMethodToAlastUsingDotTweaked();
+  document.getElementById("lerpmethodTAlastUsingDotTweaked").onclick = () => setLerpMethodToTAlastUsingDotTweaked();
 
   let xOfMouseDown = undefined;
   let yOfMouseDown = undefined;
@@ -843,7 +948,9 @@ registerSourceCodeLinesAndRequire([
     const bSnappedNew = round_to_nearest_representable(numFractionBits, minExponent, b);
 
     if (aSnappedNew != aSnappedOld || bSnappedNew != bSnappedOld) {
-      setURLParamModule.setURLAndParamsInURLBar(xformUrlPart, [['a',aSnappedNew],['b',bSnappedNew]], /*whetherToEncodeValue=*/true);
+      setURLParamModule.setURLAndParamsInURLBar(xformUrlPart,
+          [['numFractionBits',numFractionBits],['minExponent',minExponent],['a',aSnappedNew],['b',bSnappedNew]],
+          /*whetherToEncodeValue=*/true);
     }
 
     populateTheSVG(svg, Lerp, a, b);
