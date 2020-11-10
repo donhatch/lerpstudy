@@ -1,3 +1,4 @@
+// TODO: a,b in url bar
 // TODO: the usual event screwup, need to listen on window instead
 // TODO: the usual select-the-text screwup; how to disable?
 // TODO: put the a and b labels next to the line
@@ -10,6 +11,216 @@
 // TODO: show in fractional form
 // TODO: figure out if there's a better way!
 // TODO: show more interesting lines for the various algorithms
+/*
+  From shewchuk:
+    dekker: if |a|>=|b|:
+        Fast-two-sum(a,b):
+          x = a + b
+          b_virtual = x - a
+          y = b - b_virtual
+          return (x,y)
+          I.e.
+          return (a+b, b-(a+b-a))
+          I.e.
+          return (a+b, b-(b+a-a))  <= seems nicest maybe
+          I.e.
+          return (a+b, (a-(a+b))+b)
+          return (a+b, b+(a-(a+b)))
+
+    So that implies:
+        Fast-two-difference(a,b):
+          return (a-b, -b-(-b+a-a))
+          return (a-b, -b+(b-a+a))
+          return (a-b, (b-a+a)-b)  <= seems nicest maybe
+          return (a-b, (a-(a-b))-b)
+
+    Q: is there a symmetric version of that, that doesn't care which of a or b is bigger?
+
+
+    knuth:
+        two-sum(a,b):
+          x = a+b
+          b_virtual = x-a
+          a_virtual = x-b_virtual
+          b_roundoff = b-b_virtual
+          a_roundoff = a-a_virtual
+          y = a_roundoff+b_roundoff
+          return x,y
+          I.e.
+          return (a+b,a_roundoff+b_roundoff)
+          return (a+b,(a-a_virtual)+(b-b_virtual))
+          return (a+b,(a-(x-b_virtual))+(b-(x-a)))
+          return (a+b,(a-((a+b)-((a+b)-a)))+(b-((a+b)-a)))
+        jeez, seems too complicated
+
+
+    All right, so can we extend that into an accurate a+(b-a)*t?
+    Let -! mean exact, etc., so - means the hardware one.
+    If 0<=b<=a:
+      b-!a = (b-a, b-(b-a+a))
+    If 0<=a<=b:
+      b-!a = (b-a) +! ((a-b+b)-a)
+      So exact-ish (b-!a)*!t =
+            (b-a)*!t +! ((a-b+b)-a)*!t
+            = 
+      bleah.
+    Note, however, that this part is a 2x2 determinant (aka dot product),
+    which kahan can do exactly.  So, then just need to add a to the result?  Hmm.
+    Or, can frame it as:
+           1*!a +! (b-a)*!t + ((a-b+b)-a)*!t
+    Ok, that's a length-3 dot product.  We should be able to do this!!
+    https://accurate-algorithms.readthedocs.io/en/latest/ch05dotprod.html
+    gives algorithm Dot2, for computing a dot product.
+    That algorithm is:
+
+      function [p] = Dot2 (x, y, N)
+	[p, s] = TwoProduct (x(1), y(1));
+	for i = 2:N
+	  [h, r] = TwoProduct (x(i), y(i));
+	  [p, q] = TwoSum (p, h);
+	  s = fl(s + fl(q + r));
+	end
+	p = fl(p + s);
+      end
+
+    I.e. in python:
+      def TwoSum(a,b):  (assuming |a|>=|b|)
+        x = a(+)b
+        y = (a(-)x)(+)b = b(-)(x(-)a) = b(-)(b(+)a(-)a)
+      def TwoProduct(a,b):
+        x = a*b
+        y = fma(a,b,-x)
+        return x,y
+      def Dot2(x,y):
+        [p,s] = TwoProduct(x[0],y[0])
+        for xi,yi in zip(x,y)[1:]:
+          [h,r] = TwoProduct(xi,yi)
+          [p,q] = TwoSum(p,h)
+          s += (q + r)   (with rounding at each step)
+        return p + s
+
+      in particular, Sum(v):
+        p,s = v[0],0
+        for x in v[1:]
+          p,q = TwoSum(p,x)
+          s = s(+)q
+        return p+s.
+      hmm, is this kahan summation?  not quite, I think.
+      probably kahan summation sets p,s = TwoSum(p,s) at each step (but can assume p is the larger, in this step, so faster?).  Not sure.
+
+
+    In particular, that should tell us how to compute:
+        a*b+c as x+y
+        a*(b+c) as x+y  (since it's the same as: a*b + a*c as x+y)
+        a+b+c (since it's the same as 1*a+1*b+1*c)
+
+    1. a*b+c as x+y
+      1a: do it as a*b + c*1
+            p,s = TwoProduct(a,b)
+              x = a(*)b
+              y = fma(a,b,-x)
+            p,s = a(*)b, fma(a,b,-(a(*)b))
+            h,0 = TwoProduct(c,1) = c,0
+            p,q = TwoSum(p,h) = TwoSum(p,c) = TwoSum(a(*)b,c)  (need to test order for this)
+            s = s (+) q = fma(a,b,-(a(*)b)) (+) the y of TwoSum(a(*)b,c)
+            return p(+)s
+     1b: do it as c*1 + a*b
+            p,s = TwoProduct(c,1) = c,0
+            h,r = TwoProduct(a,b) = a(*)b, fma(a,b,-(a(*)b)))
+            p,q = TwoSum(p,h) = TwoSum(c,a(*)b)  (need to test order for this)
+            s = (q+r) = (the y of TwoSum(a(*)b,c) (+) (the y of TwoProduct(a,b))
+                      = (the y of TwoSum(a(*)b,c) (+) fma(a,b,-(a(*)b)))
+            return p(+)s
+     Yes, same answer either way.
+
+    3. a+b+c as x+y
+            p,s = TwoProduct(a,1) = a,0
+
+            h,r = TwoProduct(b,1) = b,0
+            p,q = TwoSum(p,h) = TwoSum(a,b)
+            s = s(+)(q(+)r) = 0+(the y of TwoSum(a,b))+0 = (the y of TwoSum(a,b))
+            h,r = TwoProduct(c,1
+
+    Review: kahan summation, from https://en.wikipedia.org/wiki/Kahan_summation_algorithm#The_algorithm , (reversing the sense of c for my sanity):
+
+      def KahanSum(input):
+        hi,lo = 0.,0.
+        for i:
+          yy = input[i] + lo
+          tt = hi + yy
+          lo = yy - (tt - hi)
+          hi = tt
+
+          i.e.
+            yy = input[i] + lo
+            tt = hi + yy
+            hi,lo = tt, yy-(tt-hi)
+          i.e.
+            temp = input[i] + lo
+            hi,lo = hi+temp, temp-(hi+temp-hi)
+
+        return hi,lo
+
+    So let's see, does that naturally extend to a dot product algorithm?
+      def KahanDotProduct(xs,ys):
+        hi,lo = 0.,0.
+        for i:
+          temp = fma(xs[i],ys[i],lo)
+          hi,lo = hi+temp, temp-(hi+temp-hi)
+        return hi,lo
+    Huh.  How does this compare to the TwoProduct algorithm described earlier??
+    And, does it coincide with "Kahan's 2x2 determinant"?  Hmm.
+
+
+    Ok let's explore https://stackoverflow.com/questions/39804069/robust-linear-interpolation#answer-52979923 .
+
+      diff = B-A
+        a=B
+        b=-A
+        sum = a+b = B-A
+        z = sum-a = sum-B = B-A-B
+        err1 = a-(sum-z)+(b-z) = B-(B-A-(B-A-B))+(B-(B-A-B))
+      err1 = B-(B-A-(B-A-B))+(B-(B-A-B))
+        a = diff = B-A
+        b = t
+        prod = a*b = (B-A)*t
+        err2 = fma(a,b,-prod) = fma(B-A,t,-((B-A)*t))
+      prod = (B-A)*t
+      answer = A+prod = A+(B-A)*t
+
+    Bleah.  Not sure what to do with the errs.
+
+    BUT... that method *does* illuminate how to tell
+    the exact error of multiplication!
+    That is, given a and b, a*!b is exactly x+y
+    where:
+        x = a*b
+        y = fma(a,b,-x)
+        return (x,y)
+    and x,y have no overlap.  Hmm, can we use that??
+
+    Well, we want a+!(b-!a)*!t rounded to nearest.
+    Ok, we know we can get c,d such that c+!d == b-!a, with no overlap.
+    So then we want:
+           a+!(c+!d)*!t
+        = a +! c*!t +! d*!t
+
+  ====
+  Ok now that I am maybe smarter:
+
+  lerp(a,b) = (1-t)*a + t*b
+            = a - t*a + t*b
+            = a + t*(b-a)
+
+  Hmm.  Well let's start by trying 3 more canned algorithms:
+                a - t*a + b
+                b - t*a + a
+                a + b - t*a
+      
+
+
+
+*/
 
 "use strict";
 console.log("in lerp.js")
@@ -474,6 +685,24 @@ registerSourceCodeLinesAndRequire([
     let title = "t<=.5 ? a+(b-a)*t : b-(b-a)*(1-t)";
     theTitle.innerHTML = title;
   };
+  const setLerpMethodToTBlast = () => {
+    Lerp = (a,b,t) => Plus(Minus(a, Times(t,a)), Times(t,b));
+    populateTheSVG(svg, Lerp, a, b);
+    let title = "a - t*a + b";
+    theTitle.innerHTML = title;
+  };
+  const setLerpMethodToAlast = () => {
+    Lerp = (a,b,t) => Plus(Minus(Times(t,b), Times(t,a)), a);
+    populateTheSVG(svg, Lerp, a, b);
+    let title = "b - t*a + a";
+    theTitle.innerHTML = title;
+  };
+  const setLerpMethodToTAlast = () => {
+    Lerp = (a,b,t) => Minus(Plus(a,Times(t,b)), Times(t,a));
+    populateTheSVG(svg, Lerp, a, b);
+    let title = "a + b - t*a";
+    theTitle.innerHTML = title;
+  };
 
   document.getElementById("lerpmethodMagic").setAttribute("checked", "");
   setLerpMethodToMagic();
@@ -487,6 +716,9 @@ registerSourceCodeLinesAndRequire([
   document.getElementById("lerpmethodBidirectional").onclick = () => setLerpMethodToBidirectional();
   document.getElementById("lerpmethodBidirectionalAlt").onclick = () => setLerpMethodToBidirectionalAlt();
   document.getElementById("lerpmethodMaybe").onclick = () => setLerpMethodToMaybe();
+  document.getElementById("lerpmethodTBlast").onclick = () => setLerpMethodToTBlast();
+  document.getElementById("lerpmethodAlast").onclick = () => setLerpMethodToAlast();
+  document.getElementById("lerpmethodTAlast").onclick = () => setLerpMethodToTAlast();
 
   let xOfMouseDown = undefined;
   let yOfMouseDown = undefined;
