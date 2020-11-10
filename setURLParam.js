@@ -107,13 +107,14 @@ define([
   };
 
   // returns a new urlAndParamsAndHashString.
-  var setURLPartOfURLAndParamsAndHashString = function(urlAndParamsAndHashString, xformUrlPart) {
-    if (arguments.length != 2) {
-        throw new Error("setURLPartOfURLAndParamsAndHashString got "+arguments.length+" args, expected 2");
+  var setURLPartOfURLAndParamsAndHashString = function(urlAndParamsAndHashString, xformUrlPart, whetherToEncodeValue) {
+    if (arguments.length != 3) {
+        throw new Error("setURLPartOfURLAndParamsAndHashString got "+arguments.length+" args, expected 3");
     }
-    console.log('        in setURLPartOfURLAndParamsAndHashString('+STRINGIFY(urlAndParamsAndHashString)+', xformUrl');
+    console.log('        in setURLPartOfURLAndParamsAndHashString('+STRINGIFY(urlAndParamsAndHashString)+', xformUrl, whetherToEncodeValue='+STRINGIFY(whetherToEncodeValue)+')');
     const [url,params,hash] = parseURL(urlAndParamsAndHashString);
-    const answer = formatURL([xformUrlPart(url), params, hash], true);
+    console.log('          [url,params,hash] = '+STRINGIFY([url,params,hash]));
+    const answer = formatURL([xformUrlPart(url), params, hash], whetherToEncodeValue);
     console.log('        out setURLPartOfURLAndParamsAndHashString, returning '+STRINGIFY(answer));
     return answer;
   };
@@ -125,7 +126,7 @@ define([
         throw new Error("setURLParamsInURLBar got "+arguments.length+" args, expected 3");
     }
     // CBB: whetherToEncodeValues is a hack added at the last minute, because I want things like scale=2/32^-2/10" to remain unmolested.  Probably not safe in general.
-    console.log('    in setURLParamsInURLBar(nameValuePairs='+STRINGIFY(nameValuePairs)+')');
+    console.log('    in setURLParamsInURLBar(nameValuePairs='+STRINGIFY(nameValuePairs)+', whetherToEncodeValue='+STRINGIFY(whetherToEncodeValues)+')');
     var oldUrlAndParamsAndHashString = window.location.href; // that's the thing that contains the entire query string
     console.log('      oldUrlAndParamsAndHashString = '+STRINGIFY(oldUrlAndParamsAndHashString));
     var newUrlAndParamsAndHashString = oldUrlAndParamsAndHashString;  // for starters
@@ -140,10 +141,10 @@ define([
       }
       newUrlAndParamsAndHashString = setURLParam(newUrlAndParamsAndHashString, name, value, whetherToEncodeValues);
     }
-    newUrlAndParamsAndHashString = setURLPartOfURLAndParamsAndHashString(newUrlAndParamsAndHashString, xformUrlPart);
+    newUrlAndParamsAndHashString = setURLPartOfURLAndParamsAndHashString(newUrlAndParamsAndHashString, xformUrlPart, whetherToEncodeValues);
     console.log('      newUrlAndParamsAndHashString = '+STRINGIFY(newUrlAndParamsAndHashString));
     window.history.replaceState("Object", "Title", newUrlAndParamsAndHashString);
-    console.log('    out setURLParamsInURLBar(nameValuePairs='+STRINGIFY(nameValuePairs)+')');
+    console.log('    out setURLParamsInURLBar(nameValuePairs='+STRINGIFY(nameValuePairs)+', whetherToEncodeValue='+STRINGIFY(whetherToEncodeValues)+')');
   };
 
   // Convenience for setting params without changing main part of url

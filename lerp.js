@@ -277,13 +277,26 @@ registerSourceCodeLinesAndRequire([
   let numFractionBits = getURLParameterModule.getURLParameterFloatOr("numFractionBits", numFractionBitsDefault);
   let minExponent = getURLParameterModule.getURLParameterFloatOr("minExponent", minExponentDefault);
 
-  let a = getURLParameterModule.getURLParameterFloatOr("a", -1.);
-  let b = getURLParameterModule.getURLParameterFloatOr("b", .5);
+  let aString = getURLParameterModule.getURLParameterOr("a", "11/256");
+  let bString = getURLParameterModule.getURLParameterOr("b", "1");
+
+  const parseFractionString = s => {
+    const parts = s.split("/");
+    CHECK(parts.length == 1 || parts.length == 2);
+    if (parts.length == 1) {
+      return parseFloat(parts[0]);
+    } else {
+      return parseFloat(parts[0]) / parseFloat(parts[1]);
+    }
+  };
+
+  let a = parseFractionString(aString);
+  let b = parseFractionString(bString);
 
   const xformUrlPart = urlPart=>urlPart;
   setURLParamModule.setURLAndParamsInURLBar(xformUrlPart,
                                             [['numFractionBits',numFractionBits],['minExponent',minExponent],['a',a],['b',b]],
-                                            /*whetherToEncodeValue=*/true);
+                                            /*whetherToEncodeValue=*/false);  // don't encode the '/' as  %2F
 
 
   //======================================
@@ -855,9 +868,15 @@ registerSourceCodeLinesAndRequire([
     if (false) {
     } else if (event.key === "=" || event.key === "+") {
       numFractionBits += 1;
+      setURLParamModule.setURLAndParamsInURLBar(xformUrlPart,
+          [['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(a)],['b',toFractionString(b)]],
+          /*whetherToEncodeValue=*/false);  // don't encode the '/' as  %2F
       populateTheSVG(svg, Lerp, a, b);
     } else if (event.key == "-") {
       numFractionBits -= 1;
+      setURLParamModule.setURLAndParamsInURLBar(xformUrlPart,
+          [['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(a)],['b',toFractionString(b)]],
+          /*whetherToEncodeValue=*/false);  // don't encode the '/' as  %2F
       populateTheSVG(svg, Lerp, a, b);
     } else if (event.key == "ArrowUp") {
       event.preventDefault();  // prevent scrolling
@@ -866,6 +885,9 @@ registerSourceCodeLinesAndRequire([
       } else {
         a = Succ(a);
       }
+      setURLParamModule.setURLAndParamsInURLBar(xformUrlPart,
+          [['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(a)],['b',toFractionString(b)]],
+          /*whetherToEncodeValue=*/false);  // don't encode the '/' as  %2F
       populateTheSVG(svg, Lerp, a, b);
     } else if (event.key == "ArrowDown") {
       event.preventDefault();  // prevent scrolling
@@ -874,6 +896,9 @@ registerSourceCodeLinesAndRequire([
       } else {
         a = Pred(a);
       }
+      setURLParamModule.setURLAndParamsInURLBar(xformUrlPart,
+          [['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(a)],['b',toFractionString(b)]],
+          /*whetherToEncodeValue=*/false);  // don't encode the '/' as  %2F
       populateTheSVG(svg, Lerp, a, b);
     }
     // event.stopPropagation(); // TODO: do I want this?
@@ -949,8 +974,8 @@ registerSourceCodeLinesAndRequire([
 
     if (aSnappedNew != aSnappedOld || bSnappedNew != bSnappedOld) {
       setURLParamModule.setURLAndParamsInURLBar(xformUrlPart,
-          [['numFractionBits',numFractionBits],['minExponent',minExponent],['a',aSnappedNew],['b',bSnappedNew]],
-          /*whetherToEncodeValue=*/true);
+          [['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(aSnappedNew)],['b',toFractionString(bSnappedNew)]],
+          /*whetherToEncodeValue=*/false);  // don't encode the '/' as  %2F
     }
 
     populateTheSVG(svg, Lerp, a, b);
