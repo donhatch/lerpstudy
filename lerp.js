@@ -1,11 +1,9 @@
-// TODO: setURLParamsInURLBar is too verbose when doing it on every mouse motion!
-// TODO: favicon.png or whatever
+// TODO: make lerp-favicon.png a real picture of something
 // TODO: make the selection of lerp algorithm stick in url bar
 // TODO: the usual event screwup, need to listen on window instead
 // TODO: the usual select-the-text screwup; how to disable?
-// TODO: put the a and b labels next to the line
+// TODO: put the a and b labels next to the moving line
 // TODO: label axes
-// TODO: reconcile ability to change resolution with snapping.  I think I need to not snap?  Not sure.  Or, actually, maybe it's fine-- snapping still happens on mouse up, but if I change res and back without mousing, then no snapping happens and nothing changes.  cool.
 // TODO: allow adjusting minExponent too
 // TODO: show numFractionBits and minExponent
 // TODO: change names so caller only says aIntent,bIntent, to reduce confusion
@@ -468,15 +466,19 @@ registerSourceCodeLinesAndRequire([
   const Minus = (a,b) => minus(numFractionBits, minExponent, a, b);
   const Fma = (a,b,c) => fma(numFractionBits, minExponent, a, b, c);
   const DotKahan = (xs,ys,tweak) => {
+    const verboseLevel = 1;
+    if (verboseLevel >= 1) console.log("        in DotKahan(xs="+STRINGIFY(xs)+" ys="+STRINGIFY(ys)+" tweak="+STRINGIFY(tweak)+")");
     CHECK.NE(tweak, undefined);
     CHECK(tweak === true || tweak === false);
     let lo = 0.;
     let hi = 0.;
     CHECK.EQ(xs.length, ys.length);
     for (let i = 0; i < xs.length; ++i) {
+      if (verboseLevel >= 1) console.log("              top of loop: hi="+STRINGIFY(hi)+" lo="+STRINGIFY(lo));
       const temp = Fma(xs[i],ys[i], lo);
       lo = Minus(temp, Minus(Plus(hi,temp),hi));
       hi = Plus(hi, temp);
+      if (verboseLevel >= 1) console.log("              bottom of loop: hi="+STRINGIFY(hi)+" lo="+STRINGIFY(lo));
     }
     //CHECK.EQ(Plus(hi,lo),hi);  // doesn't hold, but I'd like to understand why. wikipedia just returns hi. !?
     // XXX wait what?  why does wikipedia not return hi+lo?  (or, rather, sum-c) ?  Ask on stackoverflow or numeric analysis stackexchange about this.
@@ -487,9 +489,27 @@ registerSourceCodeLinesAndRequire([
     // Keep going for simpler examples (making me think I just messed up the algorithm somewhere):
     //          [1,-t,t]*[a,a,b] differs, for small t, even when b is 1 (a=5/512 or 3/64 or 1/8). (nF=3 mE=-6)
     //          [t,-t,1]*[b,a,a] differs, for some t<.5, even when b is 0 (a=15/16 or 13/16 or 11/16 or 9/16) (nF=3 mE=-6).  I.e. inconsistent on -t*a + a.  That can't be right!!
+    // Oh hmm, I think I need an example where it doesn't go subnormal... i.e. try to lower minExponent to be very negative.
+    // Well, yeah, this still happens then.  Hmm.
     //          
-    return tweak ? Plus(hi,lo) : hi;
+    const answer = tweak ? Plus(hi,lo) : hi;
+    if (verboseLevel >= 1) console.log("        out DotKahan(xs="+STRINGIFY(xs)+" ys="+STRINGIFY(ys)+" tweak="+STRINGIFY(tweak)+"), returning "+STRINGIFY(answer));
+    return answer;
   };
+
+  {
+    // DEBUGGING... this should not happen!!!
+    // a = 15./16.;
+    // b = 0;
+    // nF=3
+    // mE=-6
+    const t = 7/16.;
+    PRINT(DotKahan([t,-t,1],[b,a,a],false));
+    PRINT(DotKahan([t,-t,1],[b,a,a],true));
+    PRINT(DotKahan([-t,1],[a,a],false));
+    PRINT(DotKahan([-t,1],[a,a],true));
+  }
+
 
   let Lerp;  // determined by the radio buttons
 
@@ -780,32 +800,32 @@ registerSourceCodeLinesAndRequire([
   const setLerpMethodToTBlastUsingDot = () => {
     Lerp = (a,b,t) => DotKahan([1,-t,t], [a,a,b], false);
     populateTheSVG(svg, Lerp, a, b);
-    theTitle.innerHTML = "[1,-t,t] • [a,a,b] Kahan";
+    theTitle.innerHTML = "[1,-t,t] &#8226; [a,a,b] Kahan";
   };
   const setLerpMethodToAlastUsingDot = () => {
     Lerp = (a,b,t) => DotKahan([t,-t,1], [b,a,a], false);
     populateTheSVG(svg, Lerp, a, b);
-    theTitle.innerHTML = "[t,-t,1] • [b,a,a] Kahan";
+    theTitle.innerHTML = "[t,-t,1] &#8226; [b,a,a] Kahan";
   };
   const setLerpMethodToTAlastUsingDot = () => {
     Lerp = (a,b,t) => DotKahan([1,t,-t], [a,b,a], false);
     populateTheSVG(svg, Lerp, a, b);
-    theTitle.innerHTML = "[1,t,-t] • [a,b,a] Kahan";
+    theTitle.innerHTML = "[1,t,-t] &#8226; [a,b,a] Kahan";
   };
   const setLerpMethodToTBlastUsingDotTweaked = () => {
     Lerp = (a,b,t) => DotKahan([1,-t,t], [a,a,b], true);
     populateTheSVG(svg, Lerp, a, b);
-    theTitle.innerHTML = "[1,-t,t] • [a,a,b] Kahan tweaked";
+    theTitle.innerHTML = "[1,-t,t] &#8226; [a,a,b] Kahan tweaked";
   };
   const setLerpMethodToAlastUsingDotTweaked = () => {
     Lerp = (a,b,t) => DotKahan([t,-t,1], [b,a,a], true);
     populateTheSVG(svg, Lerp, a, b);
-    theTitle.innerHTML = "[t,-t,1] • [b,a,a] Kahan tweaked";
+    theTitle.innerHTML = "[t,-t,1] &#8226; [b,a,a] Kahan tweaked";
   };
   const setLerpMethodToTAlastUsingDotTweaked = () => {
     Lerp = (a,b,t) => DotKahan([1,t,-t], [a,b,a], true);
     populateTheSVG(svg, Lerp, a, b);
-    theTitle.innerHTML = "[1,t,-t] • [a,b,a] Kahan tweaked";
+    theTitle.innerHTML = "[1,t,-t] &#8226; [a,b,a] Kahan tweaked";
   };
 
   document.getElementById("lerpmethodMagic").setAttribute("checked", "");

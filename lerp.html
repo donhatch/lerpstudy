@@ -1,6 +1,8 @@
 <html>
  <head>
 
+  <link rel="icon" type="image/png" href="lerp-favicon.png" />
+
   <!--
     NOTE: this apparently requires a real server; e.g. `python -m SimpleHTTPServer`;
     otherwise I get console errors, and presumably stuff then doesn't work:
@@ -14,14 +16,15 @@
  </head>
  <body>
   <pre><span id="theTitle"></span>   <span id="theTitlePart2"></span></pre>
-  <table>
+  <table style="border: 0px solid black;">
    <tr>
-    <td>
+    <td rowspan="2" style="border: 0px solid black;">
      <div id="theSVGholder" style="width:512px; height:1024px;">  <!-- XXX need to control this from inside -->
       <svg id="theSVG"></svg>
      </div>
-    <td>
-     <div>
+    </td>
+    <td valign="top">
+     <div style="border: 1px solid black;">
       <br>
       <input type="radio" class="lerpmethodRadioButton" id="lerpmethodMagic" name="lerpmethod" value="lerpmethodMagic">
       <label for="lerpmethodMagic">magic</label>
@@ -88,7 +91,11 @@
       <label for="lerpmethodTAlastUsingDotTweaked">tweaked</label>
       <br>
 
+      <br>
+
      </div>
+    </td>
+   </tr>
   </table>
  </body>
 </html>
