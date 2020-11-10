@@ -107,28 +107,28 @@ define([
   };
 
   // returns a new urlAndParamsAndHashString.
-  var setURLPartOfURLAndParamsAndHashString = function(urlAndParamsAndHashString, xformUrlPart, whetherToEncodeValue) {
-    if (arguments.length != 3) {
-        throw new Error("setURLPartOfURLAndParamsAndHashString got "+arguments.length+" args, expected 3");
+  var setURLPartOfURLAndParamsAndHashString = function(urlAndParamsAndHashString, xformUrlPart, whetherToEncodeValue, verboseLevel) {
+    if (arguments.length != 4) {
+        throw new Error("setURLPartOfURLAndParamsAndHashString got "+arguments.length+" args, expected 4");
     }
-    console.log('        in setURLPartOfURLAndParamsAndHashString('+STRINGIFY(urlAndParamsAndHashString)+', xformUrl, whetherToEncodeValue='+STRINGIFY(whetherToEncodeValue)+')');
+    if (verboseLevel >= 1) console.log('        in setURLPartOfURLAndParamsAndHashString('+STRINGIFY(urlAndParamsAndHashString)+', xformUrl, whetherToEncodeValue='+STRINGIFY(whetherToEncodeValue)+')');
     const [url,params,hash] = parseURL(urlAndParamsAndHashString);
-    console.log('          [url,params,hash] = '+STRINGIFY([url,params,hash]));
+    if (verboseLevel >= 1) console.log('          [url,params,hash] = '+STRINGIFY([url,params,hash]));
     const answer = formatURL([xformUrlPart(url), params, hash], whetherToEncodeValue);
-    console.log('        out setURLPartOfURLAndParamsAndHashString, returning '+STRINGIFY(answer));
+    if (verboseLevel >= 1) console.log('        out setURLPartOfURLAndParamsAndHashString, returning '+STRINGIFY(answer));
     return answer;
   };
 
   // We always print to console on this, because it's kind of heavyweight.
   // Any of the values can be null, meaning unset.
-  var setURLAndParamsInURLBar = function(xformUrlPart, nameValuePairs, whetherToEncodeValues) {
-    if (arguments.length != 3) {
-        throw new Error("setURLParamsInURLBar got "+arguments.length+" args, expected 3");
+  var setURLAndParamsInURLBarWithVerboseLevel = function(xformUrlPart, nameValuePairs, whetherToEncodeValues, verboseLevel) {
+    if (arguments.length != 4) {
+        throw new Error("setURLParamsInURLBarWithVerbosity got "+arguments.length+" args, expected 4");
     }
     // CBB: whetherToEncodeValues is a hack added at the last minute, because I want things like scale=2/32^-2/10" to remain unmolested.  Probably not safe in general.
-    console.log('    in setURLParamsInURLBar(nameValuePairs='+STRINGIFY(nameValuePairs)+', whetherToEncodeValue='+STRINGIFY(whetherToEncodeValues)+')');
+    if (verboseLevel >= 1) console.log('    in setURLParamsInURLBar(nameValuePairs='+STRINGIFY(nameValuePairs)+', whetherToEncodeValue='+STRINGIFY(whetherToEncodeValues)+')');
     var oldUrlAndParamsAndHashString = window.location.href; // that's the thing that contains the entire query string
-    console.log('      oldUrlAndParamsAndHashString = '+STRINGIFY(oldUrlAndParamsAndHashString));
+    if (verboseLevel >= 1) console.log('      oldUrlAndParamsAndHashString = '+STRINGIFY(oldUrlAndParamsAndHashString));
     var newUrlAndParamsAndHashString = oldUrlAndParamsAndHashString;  // for starters
     for (var i = 0; i < nameValuePairs.length; ++i) {
       if (nameValuePairs[i].length != 2) {
@@ -141,10 +141,16 @@ define([
       }
       newUrlAndParamsAndHashString = setURLParam(newUrlAndParamsAndHashString, name, value, whetherToEncodeValues);
     }
-    newUrlAndParamsAndHashString = setURLPartOfURLAndParamsAndHashString(newUrlAndParamsAndHashString, xformUrlPart, whetherToEncodeValues);
-    console.log('      newUrlAndParamsAndHashString = '+STRINGIFY(newUrlAndParamsAndHashString));
+    newUrlAndParamsAndHashString = setURLPartOfURLAndParamsAndHashString(newUrlAndParamsAndHashString, xformUrlPart, whetherToEncodeValues, verboseLevel);
+    if (verboseLevel >= 1) console.log('      newUrlAndParamsAndHashString = '+STRINGIFY(newUrlAndParamsAndHashString));
     window.history.replaceState("Object", "Title", newUrlAndParamsAndHashString);
-    console.log('    out setURLParamsInURLBar(nameValuePairs='+STRINGIFY(nameValuePairs)+', whetherToEncodeValue='+STRINGIFY(whetherToEncodeValues)+')');
+    if (verboseLevel >= 1) console.log('    out setURLParamsInURLBar(nameValuePairs='+STRINGIFY(nameValuePairs)+', whetherToEncodeValue='+STRINGIFY(whetherToEncodeValues)+')');
+  };
+  var setURLAndParamsInURLBar = function(xformUrlPart, nameValuePairs, whetherToEncodeValues) {
+    if (arguments.length != 3) {
+        throw new Error("setURLParamsInURLBar got "+arguments.length+" args, expected 3");
+    }
+    return setURLAndParamsInURLBarWithVerboseLevel(xformUrlPart, nameValuePairs, whetherToEncodeValues, /*verboseLevel=*/1);
   };
 
   // Convenience for setting params without changing main part of url
@@ -157,6 +163,7 @@ define([
 
   let answer = {
     setURLParamsInURLBar: setURLParamsInURLBar,
+    setURLAndParamsInURLBarWithVerboseLevel: setURLAndParamsInURLBarWithVerboseLevel,
     setURLAndParamsInURLBar: setURLAndParamsInURLBar,
   };
   console.log("    out setURRLParam.js");

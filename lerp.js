@@ -1,4 +1,4 @@
-// TODO: fractions in url
+// TODO: setURLParamsInURLBar is too verbose when doing it on every mouse motion!
 // TODO: favicon.png or whatever
 // TODO: make the selection of lerp algorithm stick in url bar
 // TODO: the usual event screwup, need to listen on window instead
@@ -853,15 +853,17 @@ registerSourceCodeLinesAndRequire([
     if (false) {
     } else if (event.key === "=" || event.key === "+") {
       numFractionBits += 1;
-      setURLParamModule.setURLAndParamsInURLBar(xformUrlPart,
+      setURLParamModule.setURLAndParamsInURLBarWithVerboseLevel(xformUrlPart,
           [['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(a)],['b',toFractionString(b)]],
-          /*whetherToEncodeValue=*/false);  // don't encode the '/' as  %2F
+          /*whetherToEncodeValue=*/false,  // don't encode the '/' as  %2F
+          /*verboseLevel=*/0);
       populateTheSVG(svg, Lerp, a, b);
     } else if (event.key == "-") {
       numFractionBits -= 1;
-      setURLParamModule.setURLAndParamsInURLBar(xformUrlPart,
+      setURLParamModule.setURLAndParamsInURLBarWithVerboseLevel(xformUrlPart,
           [['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(a)],['b',toFractionString(b)]],
-          /*whetherToEncodeValue=*/false);  // don't encode the '/' as  %2F
+          /*whetherToEncodeValue=*/false,  // don't encode the '/' as  %2F
+          /*verboseLevel=*/0);
       populateTheSVG(svg, Lerp, a, b);
     } else if (event.key == "ArrowUp") {
       event.preventDefault();  // prevent scrolling
@@ -870,9 +872,10 @@ registerSourceCodeLinesAndRequire([
       } else {
         a = Succ(a);
       }
-      setURLParamModule.setURLAndParamsInURLBar(xformUrlPart,
+      setURLParamModule.setURLAndParamsInURLBarWithVerboseLevel(xformUrlPart,
           [['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(a)],['b',toFractionString(b)]],
-          /*whetherToEncodeValue=*/false);  // don't encode the '/' as  %2F
+          /*whetherToEncodeValue=*/false,  // don't encode the '/' as  %2F
+          /*verboseLevel=*/0);
       populateTheSVG(svg, Lerp, a, b);
     } else if (event.key == "ArrowDown") {
       event.preventDefault();  // prevent scrolling
@@ -881,9 +884,10 @@ registerSourceCodeLinesAndRequire([
       } else {
         a = Pred(a);
       }
-      setURLParamModule.setURLAndParamsInURLBar(xformUrlPart,
+      setURLParamModule.setURLAndParamsInURLBarWithVerboseLevel(xformUrlPart,
           [['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(a)],['b',toFractionString(b)]],
-          /*whetherToEncodeValue=*/false);  // don't encode the '/' as  %2F
+          /*whetherToEncodeValue=*/false,  // don't encode the '/' as  %2F
+          /*verboseLevel=*/0);
       populateTheSVG(svg, Lerp, a, b);
     }
     // event.stopPropagation(); // TODO: do I want this?
@@ -958,9 +962,11 @@ registerSourceCodeLinesAndRequire([
     const bSnappedNew = round_to_nearest_representable(numFractionBits, minExponent, b);
 
     if (aSnappedNew != aSnappedOld || bSnappedNew != bSnappedOld) {
-      setURLParamModule.setURLAndParamsInURLBar(xformUrlPart,
+      // Note that, while mouse is down, a and b in general aren't representable floats, so we round them when setting the URL param here
+      setURLParamModule.setURLAndParamsInURLBarWithVerboseLevel(xformUrlPart,
           [['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(aSnappedNew)],['b',toFractionString(bSnappedNew)]],
-          /*whetherToEncodeValue=*/false);  // don't encode the '/' as  %2F
+          /*whetherToEncodeValue=*/false,  // don't encode the '/' as  %2F
+          /*verboseLevel=*/0);
     }
 
     populateTheSVG(svg, Lerp, a, b);
