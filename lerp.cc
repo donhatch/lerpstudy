@@ -142,8 +142,8 @@ void counterexample_search() {
     {
       for (int tDenominator = 2; tDenominator <= 16; tDenominator *= 2) {
         // use this dDenominator only if 1-1/tDenominator is exactly representable
-        if (Float::exactFromDouble(1.-1./tDenominator).toDouble() != 1.-1./tDenominator) {
-          //std::cout << "          (skipping tDenominator="<<EXACT(tDenominator)<<")" << std::endl;
+        if ((Float(1.)-Float(1.)/Float(tDenominator)).toDouble() != 1.-1./tDenominator) {
+          std::cout << "          (skipping tDenominator="<<EXACT(tDenominator)<<" late)" << std::endl;
           continue;
         }
 
@@ -251,6 +251,10 @@ void another_counterexample_search() {
 
 int main(int, char**) {
   std::cout << "    in main" << std::endl;
+  std::cout << "      "<<DEBUG(std::numeric_limits<float>::epsilon()) << std::endl;
+  std::cout << "      "<<DEBUG(std::numeric_limits<double>::epsilon()) << std::endl;
+  std::cout << "      "<<DEBUG(std::log2(std::numeric_limits<float>::epsilon())) << std::endl;
+  std::cout << "      "<<DEBUG(std::log2(std::numeric_limits<double>::epsilon())) << std::endl;
 
   counterexample_search<1>();
   counterexample_search<2>();
