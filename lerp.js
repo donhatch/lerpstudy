@@ -1,7 +1,8 @@
 // TODO: would it be clearer in binary?
 // TODO: even/odd lines slightly darker/lighter
 // TODO: hover-over a point should show details of calculation
-// TODO: oscillating between two methods mode?  would be helpful
+// TODO: oscillating between two methods mode?  would be helpful.
+// TODO: option to circle or otherwise emphasize the wrong ones? would be helpful.  DONE!
 // TODO: browser zoom isn't faithful?? what's going on?  When I zoom in a bit, it draws more lines!
 // TODO: make lerp-favicon.png a real picture of something
 // TODO: make the selection of lerp algorithm stick in url bar
@@ -307,6 +308,7 @@ registerSourceCodeLinesAndRequire([
     let intpart = Math.floor(scratch);
     scratch -= intpart;
     answer += intpart;  // XXX WRONG if intpart >= 2
+
     if (scratch != 0.) {
       answer += ".";
       while (scratch != 0.) {
@@ -563,6 +565,8 @@ registerSourceCodeLinesAndRequire([
     return answer;
   };  // DotKahanish
   const DotButImSkeptical = (xs,ys) => {
+    const verboseLevel = 1;
+    if (verboseLevel >= 1) console.log("        in DotButImSkeptical(xs="+STRINGIFY(xs)+" ys="+STRINGIFY(ys)+")");
     let Hi = 0.;
     let Lo = 0.;
     CHECK.EQ(xs.length, ys.length);
@@ -572,7 +576,9 @@ registerSourceCodeLinesAndRequire([
       [Hi,lo1] = TwoSum(Hi,hi);
       Lo = Plus(Lo, Plus(lo, lo1));
     }
-    return Plus(Hi, Lo);
+    const answer = Plus(Hi, Lo);
+    if (verboseLevel >= 1) console.log("        out DotButImSkeptical(xs="+STRINGIFY(xs)+" ys="+STRINGIFY(ys)+"), returning "+STRINGIFY(answer));
+    return answer;
   };  // DotButImSkeptical
 
   if (false)
@@ -899,51 +905,95 @@ registerSourceCodeLinesAndRequire([
     // The dots along the diagonals.
     // Upward red, downard green.
     for (let t = 0.; t <= 1.; t = Succ(t)) {
-      const y = Lerp(a,b,t);
+      let thing_circled_in_green = undefined;
+      {
+        const y = Lerp(a,b,t);
 
-      const ox = relerp(t, ix0,ix1, ox0,ox1);
-      const oy = relerp(y, iy0,iy1, oy0,oy1);
+        const ox = relerp(t, ix0,ix1, ox0,ox1);
+        const oy = relerp(y, iy0,iy1, oy0,oy1);
 
-      const circle = document.createElementNS(svgns, "circle");
-      circle.setAttributeNS(null, "cx", ""+ox);
-      circle.setAttributeNS(null, "cy", ""+oy);
-      circle.setAttributeNS(null, "r", "1.5");
-      circle.setAttributeNS(null, "fill", "green");
-      circle.onmouseover = evt=>showTooltip(evt, makeTheTooltipText(t, (1-t)*a+t*b, y));
-      circle.onmouseout = evt=>hideTooltip();
-      svg.appendChild(circle);
-    }
-    for (let t = 0.; t <= 1.; t = Succ(t)) {
-      const y = Lerp(b,a,t);
+        if (y != round_to_nearest_representable(numFractionBits, minExponent, (1-t)*a+t*b)) {
+          const circle = document.createElementNS(svgns, "circle");
+          circle.setAttributeNS(null, "cx", ""+ox);
+          circle.setAttributeNS(null, "cy", ""+oy);
+          circle.setAttributeNS(null, "r", "4.5");
+          circle.setAttributeNS(null, "fill", "#ffffff01");  // Just a tiny bit of opacity so that tooltip will work
+          circle.setAttributeNS(null, "stroke", "green");
+          circle.setAttributeNS(null, "stroke-width", "2");
+          circle.onmouseover = evt=>showTooltip(evt, makeTheTooltipText(t, (1-t)*a+t*b, y));
+          circle.onmouseout = evt=>hideTooltip();
+          svg.appendChild(circle);
+          thing_circled_in_green = y;
+        }
 
-      const ox = relerp(t, ix0,ix1, ox0,ox1);
-      const oy = relerp(y, iy0,iy1, oy0,oy1);
-
-      const circle = document.createElementNS(svgns, "circle");
-      circle.setAttributeNS(null, "cx", ""+ox);
-      circle.setAttributeNS(null, "cy", ""+oy);
-      circle.setAttributeNS(null, "r", "1.5");
-      circle.setAttributeNS(null, "fill", "red");
-      circle.onmouseover = evt=>showTooltip(evt, makeTheTooltipText(t, (1-t)*b+t*a, y));
-      circle.onmouseout = evt=>hideTooltip();
-      svg.appendChild(circle);
-
-      // If the dot is both red and green, make it slightly bigger and orange.
-      const yOther = Lerp(a,b,t);
-      if (yOther == y) {
         const circle = document.createElementNS(svgns, "circle");
         circle.setAttributeNS(null, "cx", ""+ox);
         circle.setAttributeNS(null, "cy", ""+oy);
-        circle.setAttributeNS(null, "r", "3");
-        circle.setAttributeNS(null, "fill", "orange");
+        circle.setAttributeNS(null, "r", "1.5");
+        circle.setAttributeNS(null, "fill", "green");
+        circle.onmouseover = evt=>showTooltip(evt, makeTheTooltipText(t, (1-t)*a+t*b, y));
+        circle.onmouseout = evt=>hideTooltip();
+        svg.appendChild(circle);
+
+      }
+      {
+        const y = Lerp(b,a,t);
+
+        const ox = relerp(t, ix0,ix1, ox0,ox1);
+        const oy = relerp(y, iy0,iy1, oy0,oy1);
+
+        if (y != round_to_nearest_representable(numFractionBits, minExponent, (1-t)*b+t*a)) {
+          const circle = document.createElementNS(svgns, "circle");
+          circle.setAttributeNS(null, "cx", ""+ox);
+          circle.setAttributeNS(null, "cy", ""+oy);
+          circle.setAttributeNS(null, "r", "4.5");
+          circle.setAttributeNS(null, "fill", "#ffffff01");  // Just a tiny bit of opacity so that tooltip will work
+          circle.setAttributeNS(null, "stroke", thing_circled_in_green===y ? "orange" : "red");
+          circle.setAttributeNS(null, "stroke-width", "2");
+          circle.onmouseover = evt=>showTooltip(evt, makeTheTooltipText(t, (1-t)*a+t*b, y));
+          circle.onmouseout = evt=>hideTooltip();
+          svg.appendChild(circle);
+        }
+
+        const circle = document.createElementNS(svgns, "circle");
+        circle.setAttributeNS(null, "cx", ""+ox);
+        circle.setAttributeNS(null, "cy", ""+oy);
+        if (y == Lerp(a,b,t)) {
+          // Dot is both red and green, so make it slightly bigger and orange.
+          circle.setAttributeNS(null, "r", "3");
+          circle.setAttributeNS(null, "fill", "orange");
+        } else {
+          circle.setAttributeNS(null, "r", "1.5");
+          circle.setAttributeNS(null, "fill", "red");
+        }
         circle.onmouseover = evt=>showTooltip(evt, makeTheTooltipText(t, (1-t)*b+t*a, y));
         circle.onmouseout = evt=>hideTooltip();
         svg.appendChild(circle);
       }
     }
 
+    if (true) {
+      console.log("======");
+      //PRINT(Lerp(3/32., 3/4., .5));
+      //PRINT(Lerp(3/4., 3/32., .5));
 
+      // with nF=1 minE=-4
+      //PRINT(Lerp(1/4., 3/4., 3/16.));
+      //PRINT(1*1/4. + (-3/16.)*(1/4.) + (3/16.)*(3/4.));
+      //PRINT(DotButImSkeptical([1,-3/16.,3/16.],[1/4.,1/4.,3/4.]));
 
+      // Oh! simpler examples if b=1 ...
+      // with nF=1 minE=-10
+      // a=1/4 b=1
+      // http://localhost:8000/lerp.html?numFractionBits=1&minExponent=-10&a=3/32&b=1
+      PRINT(Lerp(1/4., 1., 3/32.));   // DotButImSkeptical says .25=1/4, should be .375=3/8
+      PRINT(Lerp(1., 1/4, 3/16.));    // DotButImSkeptical says 1, should be .75
+
+      // Let's debug the first, since increasing a<b is easier to think about
+      PRINT(DotButImSkeptical([1,-3/32.,3/32.],[1/4.,1/4.,1.]));
+
+      console.log("======");
+    }
 
     return svg;
   };  // populateTheSVG
