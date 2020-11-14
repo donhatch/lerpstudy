@@ -1,3 +1,7 @@
+// TODO: would it be clearer in binary?
+// TODO: even/odd lines slightly darker/lighter
+// TODO: hover-over a point should show details of calculation
+// TODO: oscillating between two methods mode?  would be helpful
 // TODO: browser zoom isn't faithful?? what's going on?  When I zoom in a bit, it draws more lines!
 // TODO: make lerp-favicon.png a real picture of something
 // TODO: make the selection of lerp algorithm stick in url bar
@@ -8,7 +12,6 @@
 // TODO: allow adjusting minExponent too
 // TODO: show numFractionBits and minExponent
 // TODO: change names so caller only says aIntent,bIntent, to reduce confusion
-// TODO: hover-over a point should show details of calculation
 // TODO: show in fractional form
 // TODO: figure out if there's a better way!
 // TODO: show more interesting lines for the various algorithms
@@ -294,6 +297,31 @@ registerSourceCodeLinesAndRequire([
   let aString = getURLParameterModule.getURLParameterOr("a", "11/256");
   let bString = getURLParameterModule.getURLParameterOr("b", "1");
 
+  const toBinaryString = x => {
+    let answer = "";
+    let scratch = x;
+    if (scratch < 0) {
+      scratch *= -1;
+      answer = "-";
+    }
+    let intpart = Math.floor(scratch);
+    scratch -= intpart;
+    answer += intpart;  // XXX WRONG if intpart >= 2
+    if (scratch != 0.) {
+      answer += ".";
+      while (scratch != 0.) {
+        scratch *= 2;
+        if (scratch >= 1.) {
+          answer += "1";
+          scratch -= 1.;
+        } else {
+          answer += "0";
+        }
+      }
+    }
+    return answer;
+  };
+
   const toFractionString = x => {
     let numerator = x;
     let denominator = 1.;
@@ -479,6 +507,7 @@ registerSourceCodeLinesAndRequire([
     return answer;
   }
 
+  // Functions that rely on the current values of numFractionBits and minEponent
   const Round = x => round_to_nearest_representable(numFractionBits, minExponent, x);
   const Pred = x => pred(numFractionBits, minExponent, x);
   const Succ = x => succ(numFractionBits, minExponent, x);
@@ -486,8 +515,21 @@ registerSourceCodeLinesAndRequire([
   const Times = (a,b) => times(numFractionBits, minExponent, a, b);
   const Minus = (a,b) => minus(numFractionBits, minExponent, a, b);
   const Fma = (a,b,c) => fma(numFractionBits, minExponent, a, b, c);
+  const TwoSum = (a,b) => {
+    if (Math.abs(a) < Math.abs(b)) {
+      [a,b] = [b,a];
+    }
+    const x = Plus(a,b);
+    const y = Plus(Minus(a,x), b);
+    return [x,y];
+  };
+  const TwoProduct = (a,b) => {
+    const x = Times(a,b);
+    const y = Fma(a,b,-x);
+    return [x,y];
+  };
   const DotKahanish = (xs,ys,tweak) => {
-    const verboseLevel = 1;
+    const verboseLevel = 0;
     if (verboseLevel >= 1) console.log("        in DotKahanish(xs="+STRINGIFY(xs)+" ys="+STRINGIFY(ys)+" tweak="+STRINGIFY(tweak)+")");
     CHECK.NE(tweak, undefined);
     CHECK(tweak === true || tweak === false);
@@ -519,8 +561,21 @@ registerSourceCodeLinesAndRequire([
     const answer = tweak ? Plus(hi,lo) : hi;
     if (verboseLevel >= 1) console.log("        out DotKahanish(xs="+STRINGIFY(xs)+" ys="+STRINGIFY(ys)+" tweak="+STRINGIFY(tweak)+"), returning "+STRINGIFY(answer)+"="+toFractionString(answer));
     return answer;
-  };
+  };  // DotKahanish
+  const DotButImSkeptical = (xs,ys) => {
+    let Hi = 0.;
+    let Lo = 0.;
+    CHECK.EQ(xs.length, ys.length);
+    for (let i = 0; i < xs.length; ++i) {
+      const [hi,lo] = TwoProduct(xs[i],ys[i]);
+      let lo1;
+      [Hi,lo1] = TwoSum(Hi,hi);
+      Lo = Plus(Lo, Plus(lo, lo1));
+    }
+    return Plus(Hi, Lo);
+  };  // DotButImSkeptical
 
+  if (false)
   {
     // DEBUGGING... this should not happen!!!
     // http://localhost:8000/lerp.html?numFractionBits=3&minExponent=-6&a=15/16&b=0
@@ -529,6 +584,7 @@ registerSourceCodeLinesAndRequire([
     // nF=3
     // mE=-6
     const t = 7/16.;
+    CHECK(is_representable(numFractionBits,minExponent,t));  // CBB: not reliable, if numFractionBits is set to small
     PRINT(DotKahanish([t,-t,1],[b,a,a],false));
     PRINT(DotKahanish([t,-t,1],[b,a,a],true));
     PRINT(DotKahanish([-t,1],[a,a],false));  // .5
@@ -668,25 +724,54 @@ registerSourceCodeLinesAndRequire([
       return path;
     };  // makePath
 
+    // CBB: we're using this inefficiently
+    const parity = (numFractionBits,minExponent,x) => {
+      const xsucc = succ(numFractionBits, minExponent, x);
+      return round_to_nearest_representable(numFractionBits, minExponent, (x+xsucc)/2.) === x ? 0 : 1;
+    };
+
 
     const xs = getFloatsInRange(numFractionBits, minExponent, ix0, ix1);
     const ys = getFloatsInRange(numFractionBits, minExponent, iy0, iy1);
     //PRINT(xs);
     //PRINT(ys);
     {
-      const segs = [];
+      const segsEven = [];
+      const segsOdd = [];
       for (const x of xs) {
         const ox = relerp(x, ix0,ix1, ox0,ox1);
-        segs.push([[ox,oy0],[ox,oy1]]);
+        if (parity(numFractionBits,minExponent,x) == 0) {
+          segsEven.push([[ox,oy0],[ox,oy1]]);
+        } else {
+          segsOdd.push([[ox,oy0],[ox,oy1]]);
+        }
       }
       for (const y of ys) {
         const oy = relerp(y, iy0,iy1, oy0,oy1);
-        segs.push([[ox0,oy],[ox1,oy]]);
+        if (parity(numFractionBits,minExponent,y) == 0) {
+          segsEven.push([[ox0,oy],[ox1,oy]]);
+        } else {
+          segsOdd.push([[ox0,oy],[ox1,oy]]);
+        }
       }
-      //PRINT(segs);
-      const path = makePath(segs);
-      setAttrs(path, {"stroke-width" : ""+gridLineWidth});
-      svg.appendChild(path);
+      //PRINT(segsEven);
+      //PRINT(segsOdd);
+      {
+        const path = makePath(segsOdd);
+        setAttrs(path, {
+          "stroke-width" : ""+(gridLineWidth+0),
+          "stroke" : "#dddddd",  // a bit lighter
+        });
+        svg.appendChild(path);
+      }
+      {
+        const path = makePath(segsEven);
+        setAttrs(path, {
+          "stroke-width" : ""+(gridLineWidth+0),
+          "stroke" : "#bbbbbb",  // a bit darker
+        });
+        svg.appendChild(path);
+      }
     }
 
 
@@ -719,7 +804,7 @@ registerSourceCodeLinesAndRequire([
       let ozeroy = relerp(0., iy0,iy1,oy0,oy1);
       const pathZero = makePath([[[o0,ozeroy],[o1,ozeroy]]]);
       setAttrs(pathZero, {
-        "stroke" : "#999999",
+        "stroke" : "#888888",  // darker than the other horizontals
       });
       svg.appendChild(pathZero);
     }
@@ -763,6 +848,54 @@ registerSourceCodeLinesAndRequire([
     }
 
 
+    // https://stackoverflow.com/questions/10643426/how-to-add-a-tooltip-to-an-svg-graphic#answer-50543963
+    const showTooltip = (evt,text) => {
+      let tooltip = document.getElementById("tooltip");
+      tooltip.innerHTML = text;
+      tooltip.style.display = "block";
+      tooltip.style.left = evt.pageX + 10 + 'px';
+      tooltip.style.top = evt.pageY + 10 + 'px';
+    };
+    const hideTooltip = () => {
+      const tooltip = document.getElementById("tooltip");
+      tooltip.style.display = "none";
+    };
+
+    const makeTheTooltipText = (t,exact,approx) => {
+      if (false)
+        return ("t="+t+" -> exact="+toFractionString(exact)
+               +" ["+toFractionString(round_down_to_representable(numFractionBits,minExponent,exact))
+               +" "+toFractionString((round_down_to_representable(numFractionBits,minExponent,exact) + round_up_to_representable(numFractionBits,minExponent,exact)) / 2.)
+               +" "+toFractionString(round_up_to_representable(numFractionBits,minExponent,exact))+"]"
+               +" -> ="+toFractionString(approx)
+               +"");
+      const relevantNumbers = [
+        exact,
+        round_down_to_representable(numFractionBits,minExponent,exact),
+        (round_down_to_representable(numFractionBits,minExponent,exact) + round_up_to_representable(numFractionBits,minExponent,exact)) / 2.,
+        round_up_to_representable(numFractionBits,minExponent,exact),
+      ].sort();
+
+      const relevantNumberFractionStrings = [];
+      const relevantNumberBinaryStrings = [];
+      for (let i = 0; i < relevantNumbers.length; ++i) {
+        if (i == 0 || relevantNumbers[i] != relevantNumbers[i-1]) {
+          relevantNumberFractionStrings.push(toFractionString(relevantNumbers[i]));
+          relevantNumberBinaryStrings.push(toBinaryString(relevantNumbers[i]));
+        }
+      }
+
+      let answer = "t="+toFractionString(t)+" ["+relevantNumberFractionStrings.join(" ")+"] -> "+toFractionString(approx);
+      if (approx == round_to_nearest_representable(numFractionBits,minExponent,exact)) {
+        answer += " (correct)";
+      } else {
+        answer += " (WRONG)";
+      }
+      answer += "<br>"
+      answer += "t="+toBinaryString(t)+" ["+relevantNumberBinaryStrings.join(" ")+"] -> "+toBinaryString(approx);
+
+      return answer;
+    };
     // The dots along the diagonals.
     // Upward red, downard green.
     for (let t = 0.; t <= 1.; t = Succ(t)) {
@@ -776,6 +909,8 @@ registerSourceCodeLinesAndRequire([
       circle.setAttributeNS(null, "cy", ""+oy);
       circle.setAttributeNS(null, "r", "1.5");
       circle.setAttributeNS(null, "fill", "green");
+      circle.onmouseover = evt=>showTooltip(evt, makeTheTooltipText(t, (1-t)*a+t*b, y));
+      circle.onmouseout = evt=>hideTooltip();
       svg.appendChild(circle);
     }
     for (let t = 0.; t <= 1.; t = Succ(t)) {
@@ -789,8 +924,25 @@ registerSourceCodeLinesAndRequire([
       circle.setAttributeNS(null, "cy", ""+oy);
       circle.setAttributeNS(null, "r", "1.5");
       circle.setAttributeNS(null, "fill", "red");
+      circle.onmouseover = evt=>showTooltip(evt, makeTheTooltipText(t, (1-t)*b+t*a, y));
+      circle.onmouseout = evt=>hideTooltip();
       svg.appendChild(circle);
+
+      // If the dot is both red and green, make it slightly bigger and orange.
+      const yOther = Lerp(a,b,t);
+      if (yOther == y) {
+        const circle = document.createElementNS(svgns, "circle");
+        circle.setAttributeNS(null, "cx", ""+ox);
+        circle.setAttributeNS(null, "cy", ""+oy);
+        circle.setAttributeNS(null, "r", "3");
+        circle.setAttributeNS(null, "fill", "orange");
+        circle.onmouseover = evt=>showTooltip(evt, makeTheTooltipText(t, (1-t)*b+t*a, y));
+        circle.onmouseout = evt=>hideTooltip();
+        svg.appendChild(circle);
+      }
     }
+
+
 
 
     return svg;
@@ -896,6 +1048,21 @@ registerSourceCodeLinesAndRequire([
     populateTheSVG(svg, Lerp, a, b);
     theTitle.innerHTML = "[1,t,-t] &#8226; [a,b,a] Kahan tweaked";
   };
+  const setLerpMethodToTBlastUsingDotSmarter = () => {
+    Lerp = (a,b,t) => DotButImSkeptical([1,-t,t], [a,a,b], true);
+    populateTheSVG(svg, Lerp, a, b);
+    theTitle.innerHTML = "[1,-t,t] &#8226; [a,a,b] Kahan tweaked";
+  };
+  const setLerpMethodToAlastUsingDotSmarter = () => {
+    Lerp = (a,b,t) => DotButImSkeptical([t,-t,1], [b,a,a], true);
+    populateTheSVG(svg, Lerp, a, b);
+    theTitle.innerHTML = "[t,-t,1] &#8226; [b,a,a] Kahan tweaked";
+  };
+  const setLerpMethodToTAlastUsingDotSmarter = () => {
+    Lerp = (a,b,t) => DotButImSkeptical([1,t,-t], [a,b,a], true);
+    populateTheSVG(svg, Lerp, a, b);
+    theTitle.innerHTML = "[1,t,-t] &#8226; [a,b,a] Kahan tweaked";
+  };
 
   document.getElementById("lerpmethodMagic").setAttribute("checked", "");
   setLerpMethodToMagic();
@@ -918,6 +1085,9 @@ registerSourceCodeLinesAndRequire([
   document.getElementById("lerpmethodTBlastUsingDotTweaked").onclick = () => setLerpMethodToTBlastUsingDotTweaked();
   document.getElementById("lerpmethodAlastUsingDotTweaked").onclick = () => setLerpMethodToAlastUsingDotTweaked();
   document.getElementById("lerpmethodTAlastUsingDotTweaked").onclick = () => setLerpMethodToTAlastUsingDotTweaked();
+  document.getElementById("lerpmethodTBlastUsingDotSmarter").onclick = () => setLerpMethodToTBlastUsingDotSmarter();
+  document.getElementById("lerpmethodAlastUsingDotSmarter").onclick = () => setLerpMethodToAlastUsingDotSmarter();
+  document.getElementById("lerpmethodTAlastUsingDotSmarter").onclick = () => setLerpMethodToTAlastUsingDotSmarter();
 
   let xOfMouseDown = undefined;
   let yOfMouseDown = undefined;

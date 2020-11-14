@@ -75,6 +75,8 @@
       <label for="lerpmethodTBlastUsingDot">[1,-t,t] &#8226; [a,a,b] using Kahan-ish summation</label>
       <input type="radio" class="lerpmethodRadioButton" id="lerpmethodTBlastUsingDotTweaked" name="lerpmethod" value="lerpmethodTBlastUsingDotTweaked">
       <label for="lerpmethodTBlastUsingDotTweaked">tweaked</label>
+      <input type="radio" class="lerpmethodRadioButton" id="lerpmethodTBlastUsingDotSmarter" name="lerpmethod" value="lerpmethodTBlastUsingDotSmarter">
+      <label for="lerpmethodTBlastUsingDotSmarter">smarter</label>
       <br>
 
       <br>
@@ -82,6 +84,8 @@
       <label for="lerpmethodAlastUsingDot">[t,-t,1] &#8226; [b,a,a] using Kahan-ish summation</label>
       <input type="radio" class="lerpmethodRadioButton" id="lerpmethodAlastUsingDotTweaked" name="lerpmethod" value="lerpmethodAlastUsingDotTweaked">
       <label for="lerpmethodAlastUsingDotTweaked">tweaked</label>
+      <input type="radio" class="lerpmethodRadioButton" id="lerpmethodAlastUsingDotSmarter" name="lerpmethod" value="lerpmethodAlastUsingDotSmarter">
+      <label for="lerpmethodAlastUsingDotSmarter">smarter</label>
       <br>
 
       <br>
@@ -89,6 +93,8 @@
       <label for="lerpmethodTAlastUsingDot">[1,t,-t] &#8226; [a,b,a] using Kahan-ish summation</label>
       <input type="radio" class="lerpmethodRadioButton" id="lerpmethodTAlastUsingDotTweaked" name="lerpmethod" value="lerpmethodTAlastUsingDotTweaked">
       <label for="lerpmethodTAlastUsingDotTweaked">tweaked</label>
+      <input type="radio" class="lerpmethodRadioButton" id="lerpmethodTAlastUsingDotSmarter" name="lerpmethod" value="lerpmethodTAlastUsingDotSmarter">
+      <label for="lerpmethodTAlastUsingDotSmarter">smarter</label>
       <br>
 
       <br>
@@ -97,5 +103,9 @@
     </td>
    </tr>
   </table>
+
+  <!-- https://stackoverflow.com/questions/10643426/how-to-add-a-tooltip-to-an-svg-graphic#answer-50543963 -->
+  <div id="tooltip" display="none" style="position:absolute; display:none; background-color:white;"></div>
+
  </body>
 </html>
