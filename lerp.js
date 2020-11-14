@@ -1,3 +1,4 @@
+// TODO: browser zoom isn't faithful?? what's going on?  When I zoom in a bit, it draws more lines!
 // TODO: make lerp-favicon.png a real picture of something
 // TODO: make the selection of lerp algorithm stick in url bar
 // TODO: the usual event screwup, need to listen on window instead
@@ -11,7 +12,19 @@
 // TODO: show in fractional form
 // TODO: figure out if there's a better way!
 // TODO: show more interesting lines for the various algorithms
+
 /*
+  Q: is epsilon 2^-52 or 2^-53?
+  PA: https://en.wikipedia.org/wiki/Double-precision_floating-point_format
+      says:
+      - it's 2^-53
+      - but that means the max relative rounding error... *spacing*
+        between 1 and the next number is actually 2^-52, because
+        there are 52 bits of fraction.  Hmm weird,
+        that's not the definition of epsilon I'm familiar with, I don't think?
+        Right, std::numeric_limits<double>::epsilon is 2^-52, not 2^-53.
+        Yeah, https://en.wikipedia.org/wiki/Machine_epsilon shows 2 different definitions. [b] is the one used by numeric_limits.  Yeah it says all that.
+
   From shewchuk:
     dekker: if |a|>=|b|:
         Fast-two-sum(a,b):
@@ -85,7 +98,8 @@
       end
 
     I.e. in python:
-      def TwoSum(a,b):  (assuming |a|>=|b|)
+      def TwoSum(a,b):
+        ... swap if necessary so that |a|>=|b| ...
         x = a(+)b
         y = (a(-)x)(+)b = b(-)(x(-)a) = b(-)(b(+)a(-)a)
       def TwoProduct(a,b):
@@ -117,6 +131,7 @@
       hmm, is this kahan summation?  not quite, I think.
       one potential problem is that Lo never feeds back into Hi, until the very end.  I think that's not true of Kahan!
       probably kahan summation sets Hi,Lo = TwoSum(Hi,Lo) at each step (but can assume Hi is the larger, in this step, so faster?).  Not sure.
+      At any rate, does it hurt to normalize at each step??  That is: Hi,Lo = TwoSum(Hi,Lo), but without needing the swap check at the beginning, probably.
 
       AH, I see what this is.
       For each pair:
@@ -190,6 +205,7 @@
           temp = fma(xs[i],ys[i],lo)
           hi,lo = hi+temp, temp-(temp+hi-hi)
         return hi,lo
+    (Oh, realized this later, this isn't a faithful extension)
     Huh.  How does this compare to the TwoProduct algorithm described earlier??
     And, does it coincide with "Kahan's 2x2 determinant"?  Hmm.
 
@@ -302,6 +318,11 @@ registerSourceCodeLinesAndRequire([
 
   let a = parseFractionString(aString);
   let b = parseFractionString(bString);
+
+  //a = round_to_nearest_representable(a);
+  //b = round_to_nearest_representable(b);
+
+
 
   const xformUrlPart = urlPart=>urlPart;
   setURLParamModule.setURLAndParamsInURLBar(xformUrlPart,
@@ -465,20 +486,22 @@ registerSourceCodeLinesAndRequire([
   const Times = (a,b) => times(numFractionBits, minExponent, a, b);
   const Minus = (a,b) => minus(numFractionBits, minExponent, a, b);
   const Fma = (a,b,c) => fma(numFractionBits, minExponent, a, b, c);
-  const DotKahan = (xs,ys,tweak) => {
+  const DotKahanish = (xs,ys,tweak) => {
     const verboseLevel = 1;
-    if (verboseLevel >= 1) console.log("        in DotKahan(xs="+STRINGIFY(xs)+" ys="+STRINGIFY(ys)+" tweak="+STRINGIFY(tweak)+")");
+    if (verboseLevel >= 1) console.log("        in DotKahanish(xs="+STRINGIFY(xs)+" ys="+STRINGIFY(ys)+" tweak="+STRINGIFY(tweak)+")");
     CHECK.NE(tweak, undefined);
     CHECK(tweak === true || tweak === false);
     let lo = 0.;
     let hi = 0.;
     CHECK.EQ(xs.length, ys.length);
     for (let i = 0; i < xs.length; ++i) {
-      if (verboseLevel >= 1) console.log("              top of loop: hi="+STRINGIFY(hi)+" lo="+STRINGIFY(lo));
+      if (verboseLevel >= 1) console.log("              top of loop: hi="+toFractionString(hi)+" lo="+toFractionString(lo));
       const temp = Fma(xs[i],ys[i], lo);
+      if (verboseLevel >= 1) console.log("                temp = Fma("+xs[i]+"*"+ys[i]+" + "+STRINGIFY(lo)+") = "+STRINGIFY(temp));
+      if (verboseLevel >= 1) console.log("                temp = Fma("+toFractionString(xs[i])+"*"+toFractionString(ys[i])+" + "+toFractionString(lo)+") = "+toFractionString(temp));
       lo = Minus(temp, Minus(Plus(hi,temp),hi));
       hi = Plus(hi, temp);
-      if (verboseLevel >= 1) console.log("              bottom of loop: hi="+STRINGIFY(hi)+" lo="+STRINGIFY(lo));
+      if (verboseLevel >= 1) console.log("              bottom of loop: hi="+toFractionString(hi)+" lo="+toFractionString(lo));
     }
     //CHECK.EQ(Plus(hi,lo),hi);  // doesn't hold, but I'd like to understand why. wikipedia just returns hi. !?
     // XXX wait what?  why does wikipedia not return hi+lo?  (or, rather, sum-c) ?  Ask on stackoverflow or numeric analysis stackexchange about this.
@@ -491,23 +514,69 @@ registerSourceCodeLinesAndRequire([
     //          [t,-t,1]*[b,a,a] differs, for some t<.5, even when b is 0 (a=15/16 or 13/16 or 11/16 or 9/16) (nF=3 mE=-6).  I.e. inconsistent on -t*a + a.  That can't be right!!
     // Oh hmm, I think I need an example where it doesn't go subnormal... i.e. try to lower minExponent to be very negative.
     // Well, yeah, this still happens then.  Hmm.
+    // Isn't it supposed to be that lo is the error in hi?  I.e. if lo!=0, then hi+lo should not be representable!
     //          
     const answer = tweak ? Plus(hi,lo) : hi;
-    if (verboseLevel >= 1) console.log("        out DotKahan(xs="+STRINGIFY(xs)+" ys="+STRINGIFY(ys)+" tweak="+STRINGIFY(tweak)+"), returning "+STRINGIFY(answer));
+    if (verboseLevel >= 1) console.log("        out DotKahanish(xs="+STRINGIFY(xs)+" ys="+STRINGIFY(ys)+" tweak="+STRINGIFY(tweak)+"), returning "+STRINGIFY(answer)+"="+toFractionString(answer));
     return answer;
   };
 
   {
     // DEBUGGING... this should not happen!!!
+    // http://localhost:8000/lerp.html?numFractionBits=3&minExponent=-6&a=15/16&b=0
     // a = 15./16.;
     // b = 0;
     // nF=3
     // mE=-6
     const t = 7/16.;
-    PRINT(DotKahan([t,-t,1],[b,a,a],false));
-    PRINT(DotKahan([t,-t,1],[b,a,a],true));
-    PRINT(DotKahan([-t,1],[a,a],false));
-    PRINT(DotKahan([-t,1],[a,a],true));
+    PRINT(DotKahanish([t,-t,1],[b,a,a],false));
+    PRINT(DotKahanish([t,-t,1],[b,a,a],true));
+    PRINT(DotKahanish([-t,1],[a,a],false));  // .5
+    PRINT(DotKahanish([-t,1],[a,a],true));  // .5625
+    // Oh!  And the answer is... this is *not* a case of plain old Kahan summation!
+    // The difference is, t*a is not expressible, so it got approximated... and lo did indeed get the error of that,
+    // but now we're down an execution path that Kahan didn't anticipate!  Hmm.
+    // Should really see what Kahan says about 2x2 determinant.
+    // That algorithm, for ad-bc, is:
+    //    w = b*c
+    //    e = fma(-b,c, w)
+    //    f = fma(a,d, -w)
+    //    x = f + e
+    // Let's translate that into easier-to-understand lo,hi terms.
+    //    bc_hi = w = b*c
+    //    bc_lo = -e = fma(b,c, w) = fma(b,c, bc_hi)
+    //    answer_hi = f = fma(a,d, -w) = fma(a,d, -bc_hi)
+    //    answer = f + e = answer_hi - bc_lo
+    // And let's translate it into easier-to-understand ad+bc terms instead (dot product).
+    //    bc_hi = b*c
+    //    bc_lo = fma(b,c, -bc_hi)
+    //    answer_hi = fma(a,d, bc_hi)
+    //    answer = answer_hi + bc_lo = fma(a,d, bc_hi) + fma(b,c, -bc_hi)
+    // And morph it more towards an algorithm for dot products...
+    //    hi = b*c
+    //    lo = fma(b,c, -hi)
+    //    next_hi = fma(a,d, hi)
+    //    next_lo = lo (?)  that's not right
+    // Q: I know how to get the lo part of x*y: that's fma(x,y,-x*y).
+    //    But how do I get the lo part of fma(x,y,z)?  I think maybe that's needed for general dot product?
+    // A: well, that Dot2 algorithm does the loop as follows (but it seems non-ideal in terms of feedback):
+    //      [hi,lo0] = TwoProduct(x,y)
+    //      [Hi,lo1] = TwoSum(Hi,hi)
+    //      Lo += (lo0 + lo1)   (with rounding at each step)
+    //    Where:
+    //      TwoProduct(x,y) = (x*y, fma(x,y,-x*y))
+    //      TwoSum(a,b) = b(-)(b(+)a(-)a)   ASSUMING |a|>=|b|
+    //    hmm.  That's not using as many fma's as Kahan's, is it?  Weird.
+    //    In particular, for 2x2 det: kahan's uses 2 fma's, whereas Dot2 uses only one.  Hmm.
+    //
+    // Q: surely there are other references for how to do a good dot product using fma,
+    //    since I now think readthedocs's Dot2 is bogus? (which is based on ogita, which claims
+    //    twice precision, but I'm not sure I believe it)
+    // PA: argh, most references on the web refer to ogita's or readthedocs which are the same thing and I think not right
+    //    There is something: "Choosing a Twice More Accurate Dot Product Implementation" by graillat et al,
+    //    I have the abstract which seems to imply they have 6 algorithms and maybe know what they are talking about?
+    //        
+    // 
   }
 
 
@@ -798,32 +867,32 @@ registerSourceCodeLinesAndRequire([
     theTitle.innerHTML = "a + b - t*a";
   };
   const setLerpMethodToTBlastUsingDot = () => {
-    Lerp = (a,b,t) => DotKahan([1,-t,t], [a,a,b], false);
+    Lerp = (a,b,t) => DotKahanish([1,-t,t], [a,a,b], false);
     populateTheSVG(svg, Lerp, a, b);
     theTitle.innerHTML = "[1,-t,t] &#8226; [a,a,b] Kahan";
   };
   const setLerpMethodToAlastUsingDot = () => {
-    Lerp = (a,b,t) => DotKahan([t,-t,1], [b,a,a], false);
+    Lerp = (a,b,t) => DotKahanish([t,-t,1], [b,a,a], false);
     populateTheSVG(svg, Lerp, a, b);
     theTitle.innerHTML = "[t,-t,1] &#8226; [b,a,a] Kahan";
   };
   const setLerpMethodToTAlastUsingDot = () => {
-    Lerp = (a,b,t) => DotKahan([1,t,-t], [a,b,a], false);
+    Lerp = (a,b,t) => DotKahanish([1,t,-t], [a,b,a], false);
     populateTheSVG(svg, Lerp, a, b);
     theTitle.innerHTML = "[1,t,-t] &#8226; [a,b,a] Kahan";
   };
   const setLerpMethodToTBlastUsingDotTweaked = () => {
-    Lerp = (a,b,t) => DotKahan([1,-t,t], [a,a,b], true);
+    Lerp = (a,b,t) => DotKahanish([1,-t,t], [a,a,b], true);
     populateTheSVG(svg, Lerp, a, b);
     theTitle.innerHTML = "[1,-t,t] &#8226; [a,a,b] Kahan tweaked";
   };
   const setLerpMethodToAlastUsingDotTweaked = () => {
-    Lerp = (a,b,t) => DotKahan([t,-t,1], [b,a,a], true);
+    Lerp = (a,b,t) => DotKahanish([t,-t,1], [b,a,a], true);
     populateTheSVG(svg, Lerp, a, b);
     theTitle.innerHTML = "[t,-t,1] &#8226; [b,a,a] Kahan tweaked";
   };
   const setLerpMethodToTAlastUsingDotTweaked = () => {
-    Lerp = (a,b,t) => DotKahan([1,t,-t], [a,b,a], true);
+    Lerp = (a,b,t) => DotKahanish([1,t,-t], [a,b,a], true);
     populateTheSVG(svg, Lerp, a, b);
     theTitle.innerHTML = "[1,t,-t] &#8226; [a,b,a] Kahan tweaked";
   };
