@@ -386,7 +386,8 @@ registerSourceCodeLinesAndRequire([
     }
     answer += ")";
     return answer;
-  }
+  };
+  let PRINTDEBUG = PRINT.makePRINTlikeFunction('PRINTDEBUG', (expr, value) => console.log(expr+" = "+toDebugString(value)));
 
   const toFractionString = x => {
     CHECK.NE(x, undefined);
@@ -587,7 +588,8 @@ registerSourceCodeLinesAndRequire([
     const verboseLevel = 0;
     if (verboseLevel >= 1) console.log("in linear_expansion_sum(numFractionBits="+numFractionBits+" minExponent="+minExponent+" e="+STRINGIFY(e)+" f="+STRINGIFY(f)+")");
     const allow_zeros = false;  // should be false, but can set to true to get more insight into what's going on
-    // largest to smallest (opposite from paper's convention)
+    // largest to smallest (opposite from paper's convention).
+    // We do *not* require nonoverlappingness, just so that we can use this function sumwhat illegally for simple sums of arbitrarily many things (although more than 2**(nF+2)+2 1's fails)
     {
       let previous = 0;
       for (let i = 0; i < e.length; ++i) {
@@ -647,6 +649,11 @@ registerSourceCodeLinesAndRequire([
       if (allow_zeros || Q != 0) answer.push(Q);
     }
     answer.reverse();
+    for (let i = 0; i < answer.length-1; ++i) {
+      CHECK.GT(Math.abs(answer[i]), Math.abs(answer[i+1]));
+      //CHECK.EQ(plus(numFractionBits, minExponent, answer[i], answer[i+1]), answer[i]);  // this is true only if it was true of inputs, which we aren't requiring
+    }
+
     if (verboseLevel >= 1) console.log("out linear_expansion_sum(numFractionBits="+numFractionBits+" minExponent="+minExponent+" e="+STRINGIFY(e)+" f="+STRINGIFY(f)+"), returning "+STRINGIFY(answer));
     return answer;
   };  // linear_expansion_sum
@@ -660,9 +667,15 @@ registerSourceCodeLinesAndRequire([
     let f = e;
     while (true) {
       const g = linear_expansion_sum(numFractionBits, minExponent, f, []);
-      if (expansions_are_same(f, g)) return f;
+      if (expansions_are_same(f, g)) break;
       f = g;
     }
+    // Some sanity checking...
+    for (let i = 0; i < f.length-1; ++i) {
+      CHECK.GT(Math.abs(f[i]), Math.abs(f[i+1]));
+      CHECK.EQ(plus(numFractionBits, minExponent, f[i], f[i+1]), f[i]);
+    }
+    return f;
   };  // canonicalize_linear_expansion
 
   const split = (numFractionBits, minExponent, a) => {
@@ -723,11 +736,66 @@ registerSourceCodeLinesAndRequire([
     return answer;
   };  // scale_expansion
   const approximate = (numFractionBits, minExponent, e) => {
+    // Note, this can get it wrong in the case where it looks like two ties but wasn't a tie
     for (let i = 0; i < e.length-1; ++i) CHECK.GE(e[i], e[i+1]);  // nonincreasing magnitudes
     let answer = 0;
     for (let i = e.length-1; i >= 0; --i) answer += e[i];
     return answer;
   };  // approximate
+  const round_canonical_expansion_to_nearest = (numFractionBits, minExponent, e) => {
+    if (e.length == 0) return 0;
+    if (e.length <= 2) return e[0];
+    if ((e[1]<0) !== (e[2]<0)) return e[0];  // the two-ties-in-same-direction-give-wrong-answer thing can't happen
+    // It's almost surely e[0].  The only case when it isn't is if:
+    //  - e[1] and e[2] have the same sign, and
+    //  - e[1] has only one bit, and it's the next bit after e[0]
+    // (that's *almost* the condition. probably needs more detail, especially if more elements than that)
+    // Example: nF=3: 1/2 + 1/32 + 1/512 = .1 + .00001 + .000000001 = .100010001
+    // In this case, the correct answer is .1001, not .1000.
+
+    // we don't bother doing the 2* operation in nF precision since that's definitely representable exactly.
+    const answerMaybe = plus(numFractionBits, minExponent, e[0], 2*e[1]);
+    if (answerMaybe == e[0]) return e[0];
+    CHECK(answerMaybe == succ(numFractionBits, minExponent, e[0]) || answerMaybe == pred(numFractionBits, minExponent, e[0]));
+    if (minus(numFractionBits, minExponent, answerMaybe, e[0]) !== 2*e[1])  return e[0];
+
+
+    return answerMaybe;
+    /*
+    PRINTDEBUG(e);
+    PRINTDEBUG(answer);
+    PRINTDEBUG(succ(numFractionBits, minExponent, e[0]));
+    PRINTDEBUG(pred(numFractionBits, minExponent, e[0]));
+    //CHECK(answer == succ(numFractionBits, minExponent, e[0]) || answer == pred(numFractionBits, minExponent, e[0]));
+    return answer;
+    */
+  };  // round_expansion_to_nearest
+
+  const dot_exact_expansion = (numFractionBits, minExponent, as,bs) => {
+    CHECK.EQ(as.length, bs.length);
+    const addends = [];
+    for (let i = 0; i < as.length; ++i) {
+      let hi,lo;
+      [hi,lo] = two_product_using_fma(numFractionBits, minExponent, as[i], bs[i]);
+      addends.push(hi);
+      addends.push(lo);
+    }
+
+    addends.sort((a,b)=>(Math.abs(a)<Math.abs(b)?1:Math.abs(a)>Math.abs(b)?-1:0));  // descending magnitudes
+
+    const answer = canonicalize_linear_expansion(numFractionBits, minExponent, 
+                                                 linear_expansion_sum(numFractionBits, minExponent, addends, []));
+    return answer;
+  };  // dot_correct_expansion
+  const dot_correct = (numFractionBits, minExponent, as,bs) => {
+    const verboseLevel = 0;
+    if (verboseLevel >= 1) console.log("in dot_correct(numFractionBits="+numFractionBits+" minExponent="+minExponent+" as="+toDebugString(as)+" bs="+toDebugString(bs)+")");
+    const answer_canonical_expansion = dot_exact_expansion(numFractionBits, minExponent, as,bs);
+    if (verboseLevel >= 1) console.log("  answer_canonical_expansion = "+toDebugString(answer_canonical_expansion));
+    const answer = round_canonical_expansion_to_nearest(numFractionBits, minExponent, answer_canonical_expansion);
+    if (verboseLevel >= 1) console.log("out dot_correct(numFractionBits="+numFractionBits+" minExponent="+minExponent+" as="+toDebugString(as)+" bs="+toDebugString(bs)+"), returning "+toDebugString(answer));
+    return answer;
+  };  // dot_correct
 
   if (true)
   {
@@ -865,7 +933,7 @@ registerSourceCodeLinesAndRequire([
   PRINT(exact_lerp_cross_your_fingers(1/8, 1, 1/128));
   PRINT(exact_lerp_cross_your_fingers(15/64, 1, 1/512));
 
-  const correct_lerp = (numFractionBits, minExponent, a, b, t) => {
+  const magic_correct_lerp = (numFractionBits, minExponent, a, b, t) => {
     CHECK(is_representable(numFractionBits, minExponent, a));
     CHECK(is_representable(numFractionBits, minExponent, b));
     CHECK(is_representable(numFractionBits, minExponent, t));
@@ -942,7 +1010,7 @@ registerSourceCodeLinesAndRequire([
   const DotButImSkeptical = (xs,ys) => {
     let verboseLevel = 0;
     if (skeptical_verbose_level_override !== undefined) verboseLevel = skeptical_verbose_level_override;
-    if (verboseLevel >= 1) console.log("        in DotButImSkeptical(xs="+STRINGIFY(xs)+" ys="+STRINGIFY(ys)+")");
+    if (verboseLevel >= 1) console.log("        in DotButImSkeptical(xs="+toDebugString(xs)+" ys="+toDebugString(ys)+")");
     let Hi = 0.;
     let Lo = 0.;
     let Exact = 0.;  // just for debugging
@@ -971,13 +1039,33 @@ registerSourceCodeLinesAndRequire([
       if (verboseLevel >= 1) console.log("            Hi="+toDebugString(Hi)+" Lo="+toDebugString(Lo)+" Hi+Lo="+toDebugString(Hi+Lo)+"->"+Round(Hi+Lo)+" Exact="+toDebugString(Exact)+"->"+toDebugString(Round(Exact))+"");
     }
     const answer = Plus(Hi, Lo);
-    if (verboseLevel >= 1) console.log("        out DotButImSkeptical(xs="+STRINGIFY(xs)+" ys="+STRINGIFY(ys)+"), returning "+STRINGIFY(answer));
+    if (verboseLevel >= 1) console.log("        out DotButImSkeptical(xs="+toDebugString(xs)+" ys="+toDebugString(ys)+"), returning "+toDebugString(answer));
     return answer;
   };  // DotButImSkeptical
+  const DotCorrect = (xs,ys) => {
+    return dot_correct(numFractionBits, minExponent, xs, ys);
+  };
+
+  if (true) {
+    // DEBUGGING "smartest"... this really should not happen, it's supposed to be exact!
+    // http://localhost:8000/lerp.html?numFractionBits=3&minExponent=-10&a=0&b=13/16  with any of the "smartest" algorithms checked, t=11/32, descending
+    // Exact answer is 273/512
+    // Hmm, I think this might be the pathological case, I'm probably not protecting against it properly.
+    //     exact answer is: 0.100010001
+    //     which is a little bit higher than the halfway point 0.10001 between representable 0.1000 and 0.1001.
+    //     so, should round to: 0.1001
+    //           but rounds to:   0.1000
+    const a = 13/16;
+    const b = 0;
+    const t = 11/32;
+    PRINT(DotCorrect([1,-t,t],[a,a,b]));
+    PRINT(magic_correct_lerp(numFractionBits, minExponent, a,b,t));
+    //return;
+  }
 
   if (false)
   {
-    // DEBUGGING... this should not happen!!!
+    // DEBUGGING... this should not happen!!!  ok I've convinced myself that it does, I guess
     // http://localhost:8000/lerp.html?numFractionBits=3&minExponent=-6&a=15/16&b=0
     // a = 15./16.;
     // b = 0;
@@ -1008,6 +1096,7 @@ registerSourceCodeLinesAndRequire([
     //    bc_lo = fma(b,c, -bc_hi)
     //    answer_hi = fma(a,d, bc_hi)
     //    answer = answer_hi + bc_lo = fma(a,d, bc_hi) + fma(b,c, -bc_hi)
+    // Q: is that exact??? (i.e. the actually correctly rounded answer?)
     // And morph it more towards an algorithm for dot products...
     //    hi = b*c
     //    lo = fma(b,c, -hi)
@@ -1366,7 +1455,8 @@ registerSourceCodeLinesAndRequire([
       }
     }
 
-    if (true) {
+    if (false) {
+      // DEBUGGING ... can probably remove this at some point
       console.log("======");
       if (false) {
         PRINT(Lerp(3/32., 3/4., .5));
@@ -1413,7 +1503,7 @@ registerSourceCodeLinesAndRequire([
   const theTitle = document.getElementById("theTitle");
 
   const setLerpMethodToMagic = () => {
-    Lerp = (a,b,t) => correct_lerp(numFractionBits, minExponent, a,b,t);
+    Lerp = (a,b,t) => magic_correct_lerp(numFractionBits, minExponent, a,b,t);
     populateTheSVG(svg, Lerp, a, b);
     theTitle.innerHTML = "magic actual lerp";
   };
@@ -1543,6 +1633,21 @@ registerSourceCodeLinesAndRequire([
     populateTheSVG(svg, Lerp, a, b);
     theTitle.innerHTML = "[1,t,-t] &#8226; [a,b,a] smarter";
   };
+  const setLerpMethodToTBlastUsingDotSmartest = () => {
+    Lerp = (a,b,t) => DotCorrect([1,-t,t], [a,a,b], true);
+    populateTheSVG(svg, Lerp, a, b);
+    theTitle.innerHTML = "[1,-t,t] &#8226; [a,a,b] smartest";
+  };
+  const setLerpMethodToAlastUsingDotSmartest = () => {
+    Lerp = (a,b,t) => DotCorrect([t,-t,1], [b,a,a], true);
+    populateTheSVG(svg, Lerp, a, b);
+    theTitle.innerHTML = "[t,-t,1] &#8226; [b,a,a] smartest";
+  };
+  const setLerpMethodToTAlastUsingDotSmartest = () => {
+    Lerp = (a,b,t) => DotCorrect([1,t,-t], [a,b,a], true);
+    populateTheSVG(svg, Lerp, a, b);
+    theTitle.innerHTML = "[1,t,-t] &#8226; [a,b,a] smartest";
+  };
 
   document.getElementById("lerpmethodMagic").setAttribute("checked", "");
   setLerpMethodToMagic();
@@ -1571,6 +1676,9 @@ registerSourceCodeLinesAndRequire([
   document.getElementById("lerpmethodTBlastUsingDotSmarter").onclick = () => setLerpMethodToTBlastUsingDotSmarter();
   document.getElementById("lerpmethodAlastUsingDotSmarter").onclick = () => setLerpMethodToAlastUsingDotSmarter();
   document.getElementById("lerpmethodTAlastUsingDotSmarter").onclick = () => setLerpMethodToTAlastUsingDotSmarter();
+  document.getElementById("lerpmethodTBlastUsingDotSmartest").onclick = () => setLerpMethodToTBlastUsingDotSmartest();
+  document.getElementById("lerpmethodAlastUsingDotSmartest").onclick = () => setLerpMethodToAlastUsingDotSmartest();
+  document.getElementById("lerpmethodTAlastUsingDotSmartest").onclick = () => setLerpMethodToTAlastUsingDotSmartest();
 
   let xOfMouseDown = undefined;
   let yOfMouseDown = undefined;
