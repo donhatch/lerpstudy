@@ -1,10 +1,8 @@
-// TODO: make the selection of lerp algorithm persist in url bar
-// TODO: would it all be clearer in binary?  what's cool is we don't really need to specify whether binary or decimal, it can't be ambiguous (decimal ends in 5, binary ends in 1)
-// TODO: even/odd lines slightly darker/lighter
-// TODO: hover-over a point should show details of calculation
-// TODO: oscillating between two methods mode?  would be helpful.
-// TODO: option to circle or otherwise emphasize the wrong ones? would be helpful.  DONE!
+// TODO: smarter picking?  how? pick on the svg and loop over all objects in it?
 // TODO: browser zoom isn't faithful?? what's going on?  When I zoom in a bit, it draws more lines!
+// TODO: "smartest" seems perfect, but only if minExponent is sufficiently low.  can we make it perfect even with not-so-low minE?
+// TODO: make the selection of lerp algorithm persist in url bar
+// TODO: oscillating between two methods mode?  could be helpful, although the most common thing we want, that is, comparison with magic exact, is accompliced via the ringed dots
 // TODO: make lerp-favicon.png a real picture of something
 // TODO: the usual event screwup, need to listen on window instead
 // TODO: the usual select-the-text screwup; how to disable?
@@ -85,7 +83,7 @@
       b-!a = (b-a) +! ((a-b+b)-a)
       So exact-ish (b-!a)*!t =
             (b-a)*!t +! ((a-b+b)-a)*!t
-            = 
+            =
       bleah.
     Note, however, that this part is a 2x2 determinant (aka dot product),
     which kahan can do exactly.  So, then just need to add a to the result?  Hmm.
@@ -267,7 +265,7 @@
                 a - t*a + b
                 b - t*a + a
                 a + b - t*a
-      
+
 
 
 
@@ -749,26 +747,25 @@ registerSourceCodeLinesAndRequire([
     // It's almost surely e[0].  The only case when it isn't is if:
     //  - e[1] and e[2] have the same sign, and
     //  - e[1] has only one bit, and it's the next bit after e[0]
-    // (that's *almost* the condition. probably needs more detail, especially if more elements than that)
     // Example: nF=3: 1/2 + 1/32 + 1/512 = .1 + .00001 + .000000001 = .100010001
     // In this case, the correct answer is .1001, not .1000.
 
     // we don't bother doing the 2* operation in nF precision since that's definitely representable exactly.
-    const answerMaybe = plus(numFractionBits, minExponent, e[0], 2*e[1]);
-    if (answerMaybe == e[0]) return e[0];
-    CHECK(answerMaybe == succ(numFractionBits, minExponent, e[0]) || answerMaybe == pred(numFractionBits, minExponent, e[0]));
+
+
+    const answerMaybe = e[1]>0 ? succ(numFractionBits, minExponent, e[0]) : pred(numFractionBits, minExponent, e[0]);
     if (minus(numFractionBits, minExponent, answerMaybe, e[0]) !== 2*e[1])  return e[0];
-
-
     return answerMaybe;
-    /*
-    PRINTDEBUG(e);
-    PRINTDEBUG(answer);
-    PRINTDEBUG(succ(numFractionBits, minExponent, e[0]));
-    PRINTDEBUG(pred(numFractionBits, minExponent, e[0]));
-    //CHECK(answer == succ(numFractionBits, minExponent, e[0]) || answer == pred(numFractionBits, minExponent, e[0]));
-    return answer;
-    */
+
+    // SUBTLETY:  barely-overlappingness isn't what we naively think it is, at a power of 2!
+    // Example: nF=3, the expressible numbers near 1 are:
+    //           1.011
+    //           1.010
+    //           1.001
+    //           1.000
+    //           0.1111
+    //           0.1110
+    //
   };  // round_expansion_to_nearest
 
   const dot_exact_expansion = (numFractionBits, minExponent, as,bs) => {
@@ -783,7 +780,7 @@ registerSourceCodeLinesAndRequire([
 
     addends.sort((a,b)=>(Math.abs(a)<Math.abs(b)?1:Math.abs(a)>Math.abs(b)?-1:0));  // descending magnitudes
 
-    const answer = canonicalize_linear_expansion(numFractionBits, minExponent, 
+    const answer = canonicalize_linear_expansion(numFractionBits, minExponent,
                                                  linear_expansion_sum(numFractionBits, minExponent, addends, []));
     return answer;
   };  // dot_correct_expansion
@@ -897,7 +894,7 @@ registerSourceCodeLinesAndRequire([
       }
       const bminusa = linear_expansion_sum(numFractionBits, minExponent, [b], [-a]);
       const bminusa_times_t = scale_expansion(numFractionBits, minExponent, bminusa, t);
-      const answer_expansion = canonicalize_linear_expansion(numFractionBits, minExponent, 
+      const answer_expansion = canonicalize_linear_expansion(numFractionBits, minExponent,
                                                              linear_expansion_sum(numFractionBits, minExponent, [a], bminusa_times_t));
       // Ok here's the part where we have to be careful.
       // If we naively sum the parts of answer_expansion, in its precision, we may get the wrong answer,
@@ -1000,7 +997,7 @@ registerSourceCodeLinesAndRequire([
     // Oh hmm, I think I need an example where it doesn't go subnormal... i.e. try to lower minExponent to be very negative.
     // Well, yeah, this still happens then.  Hmm.
     // Isn't it supposed to be that lo is the error in hi?  I.e. if lo!=0, then hi+lo should not be representable!
-    //          
+    //
     const answer = tweak ? Plus(hi,lo) : hi;
     if (verboseLevel >= 1) console.log("        out DotKahanish(xs="+STRINGIFY(xs)+" ys="+STRINGIFY(ys)+" tweak="+STRINGIFY(tweak)+"), returning "+STRINGIFY(answer)+"="+toFractionString(answer));
     return answer;
@@ -1120,8 +1117,8 @@ registerSourceCodeLinesAndRequire([
     // PA: argh, most references on the web refer to ogita's or readthedocs which are the same thing and I think not right
     //    There is something: "Choosing a Twice More Accurate Dot Product Implementation" by graillat et al,
     //    I have the abstract which seems to imply they have 6 algorithms and maybe know what they are talking about?
-    //        
-    // 
+    //
+    //
   }
 
 
@@ -1169,7 +1166,7 @@ registerSourceCodeLinesAndRequire([
     //theTitlePart2.innerHTML = "  a="+a+"="+toFractionString(a)+"  b="+b+"="+toFractionString(b);
     theTitlePart2.innerHTML = "  a="+toFractionString(a)+"<small><small> ="+toBinaryString(a)+"="+a+"</small></small>  b="+toFractionString(b)+"<small><small> ="+toBinaryString(b)+"="+b+"</small></small>";
 
-    const svgns = "http://www.w3.org/2000/svg";                                   
+    const svgns = "http://www.w3.org/2000/svg";
 
     svg.setAttribute("width", ""+width+"px");
     svg.setAttribute("height", ""+height+"px");
