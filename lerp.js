@@ -29,6 +29,12 @@
         Right, std::numeric_limits<double>::epsilon is 2^-52, not 2^-53.
         Yeah, https://en.wikipedia.org/wiki/Machine_epsilon shows 2 different definitions. [b] is the one used by numeric_limits.  Yeah it says all that.
 
+  Q: how do I do arbitrary precision floating point, as a list of non-overlapping doubles x0+x1+x2+... as many as are needed?
+     Seems like, for example, I should be able to do, at least, arbitrary summation, by splitting each number into same number of parts
+     according to the min and max exponent, then doing the sum in those parts, then recombining??
+     I think I need to start by understanding shewchuk: https://people.eecs.berkeley.edu/~jrs/papers/robust-predicates.pdf
+     Yes, he operates in this framework.  Cool.
+
   From shewchuk:
     dekker: if |a|>=|b|:
         Fast-two-sum(a,b):
@@ -298,7 +304,40 @@ registerSourceCodeLinesAndRequire([
   let aString = getURLParameterModule.getURLParameterOr("a", "11/256");
   let bString = getURLParameterModule.getURLParameterOr("b", "1");
 
+  const parseBinaryFloat = s => {
+    CHECK.NE(s, undefined);
+    let sign = 1;
+    let i = 0;
+    if (i < s.length && s[i] === '-') {
+      sign *= -1;
+      i++;
+    }
+    let answer = 0;
+    while (i < s.length && (s[i] === '0' || s[i] === '1')) {
+      answer = answer*2 + (s[i++]-'0');
+    }
+    if (i < s.length && s[i] == '.') {
+      i++;
+      let multiplier = .5;
+      while (i < s.length && (s[i] === '0' || s[i] === '1')) {
+        answer += (s[i++]-'0')*multiplier;
+        multiplier *= .5;
+      }
+    }
+    answer *= sign;
+    return answer;
+  };  // parseBinaryFloat
   const toBinaryString = x => {
+    CHECK.NE(x, undefined);
+    const toBinaryStringOfInt = i => {
+      let answer = ''+(i%2);
+      i = Math.floor(i/2);
+      while (i != 0) {
+        answer = (i%2) + answer;
+        i = Math.floor(i/2);
+      }
+      return answer;
+    };
     let answer = "";
     let scratch = x;
     if (scratch < 0) {
@@ -307,11 +346,10 @@ registerSourceCodeLinesAndRequire([
     }
     let intpart = Math.floor(scratch);
     scratch -= intpart;
-    answer += intpart;  // XXX WRONG if intpart >= 2
-
-    if (scratch != 0.) {
+    answer += toBinaryStringOfInt(intpart);
+    if (scratch !== 0.) {
       answer += ".";
-      while (scratch != 0.) {
+      while (scratch !== 0.) {
         scratch *= 2;
         if (scratch >= 1.) {
           answer += "1";
@@ -324,6 +362,7 @@ registerSourceCodeLinesAndRequire([
     return answer;
   };
   const toDebugString = x => {
+    CHECK.NE(x, undefined);
     const answers = [
       ""+x,
       toBinaryString(x),
@@ -340,6 +379,7 @@ registerSourceCodeLinesAndRequire([
   }
 
   const toFractionString = x => {
+    CHECK.NE(x, undefined);
     let numerator = x;
     let denominator = 1.;
     while (Math.floor(numerator) != numerator) {
@@ -352,6 +392,7 @@ registerSourceCodeLinesAndRequire([
       return numerator+"/"+denominator;
   };
   const parseFractionString = s => {
+    CHECK.NE(s, undefined);
     const parts = s.split("/");
     CHECK(parts.length == 1 || parts.length == 2);
     if (parts.length == 1) {
@@ -516,6 +557,293 @@ registerSourceCodeLinesAndRequire([
     CHECK(is_representable(numFractionBits, minExponent, c));
     return round_to_nearest_representable(numFractionBits, minExponent, a*b+c);
   };
+
+  // Stuff from https://people.eecs.berkeley.edu/~jrs/papers/robust-predicates.pdf
+  const fast_two_sum = (numFractionBits, minExponent, a, b) => {
+    CHECK.NE(b, undefined);
+    // "fast" means we *know* |a|>=|b|, rather than sorting them.
+    CHECK.GE(Math.abs(a), Math.abs(b));
+    const x = plus(numFractionBits, minExponent, a, b);
+    const b_virtual  = minus(numFractionBits, minExponent, x, a);
+    const y = minus(numFractionBits, minExponent,  b, b_virtual);
+    return [x,y];
+  };
+  const two_sum = (numFractionBits, minExponent, a, b) => {
+    if (Math.abs(a) >= Math.abs(b)) return fast_two_sum(numFractionBits, minExponent, a, b);
+    else return fast_two_sum(numFractionBits, minExponent, b, a);
+  };
+  const linear_expansion_sum = (numFractionBits, minExponent, e, f) => {
+    CHECK.NE(f, undefined);
+    const verboseLevel = 0;
+    if (verboseLevel >= 1) console.log("in linear_expansion_sum(numFractionBits="+numFractionBits+" minExponent="+minExponent+" e="+STRINGIFY(e)+" f="+STRINGIFY(f)+")");
+    const allow_zeros = false;  // should be false, but can set to true to get more insight into what's going on
+    // largest to smallest (opposite from paper's convention)
+    {
+      let previous = 0;
+      for (let i = 0; i < e.length; ++i) {
+        if (previous == 0) {
+          previous = Math.abs(e[i]);
+        } else {
+          CHECK.LE(Math.abs(e[i]), previous);
+        }
+      }
+      previous = 0;
+      for (let i = 0; i < f.length; ++i) {
+        if (previous == 0) {
+          previous = Math.abs(f[i]);
+        } else {
+          CHECK.LE(Math.abs(f[i]), previous);
+        }
+      }
+    }
+    // merge e and f into a single sequence g, in order of nonincreasing magnitude (opposite of what's in the paper)
+    const g = [];
+    {
+      let i = 0;
+      let j = 0;
+      while (i < e.length && j < f.length) {
+        if (Math.abs(e[i]) >= Math.abs(f[j])) {
+          g.push(e[i++]);
+        } else {
+          g.push(f[j++]);
+        }
+      }
+      while (i < e.length) g.push(e[i++]);
+      while (j < f.length) g.push(f[j++]);
+      CHECK.EQ(i, e.length);
+      CHECK.EQ(j, f.length);
+    }
+    if (verboseLevel >= 1) console.log("  g = "+STRINGIFY(g));
+    const answer = [];
+    {
+      let Q = 0;
+      let q = 0;
+      for (let i = g.length-1; i >= 0; --i) {
+        if (verboseLevel >= 1) console.log("      adding g["+i+"] = "+STRINGIFY(g[i]));
+        let R_i, h_iminus2;
+        if (false) {  // argh! this fails when fed (2**(nF+2)+3) 1's!
+          [R_i, h_iminus2] = fast_two_sum(numFractionBits, minExponent, g[i], q);
+        } else {
+          [R_i, h_iminus2] = two_sum(numFractionBits, minExponent, g[i], q);
+        }
+        if (i >= g.length-2) {
+          CHECK.EQ(h_iminus2, 0);
+        } else {
+          if (allow_zeros || h_iminus2 != 0) answer.push(h_iminus2);
+        }
+        [Q,q] = two_sum(numFractionBits, minExponent, Q,R_i);
+      }
+      if (allow_zeros || q != 0) answer.push(q);
+      if (allow_zeros || Q != 0) answer.push(Q);
+    }
+    answer.reverse();
+    if (verboseLevel >= 1) console.log("out linear_expansion_sum(numFractionBits="+numFractionBits+" minExponent="+minExponent+" e="+STRINGIFY(e)+" f="+STRINGIFY(f)+"), returning "+STRINGIFY(answer));
+    return answer;
+  };  // linear_expansion_sum
+
+  const expansions_are_same = (e, f) => {
+    if (e.length != f.length) return false;
+    for (let i = 0; i < e.length; ++i) if (e[i] != f[i]) return false;
+    return true;
+  };  // expansions_are_same
+  const canonicalize_linear_expansion = (numFractionBits, minExponent, e) => {
+    let f = e;
+    while (true) {
+      const g = linear_expansion_sum(numFractionBits, minExponent, f, []);
+      if (expansions_are_same(f, g)) return f;
+      f = g;
+    }
+  };  // canonicalize_linear_expansion
+
+  const split = (numFractionBits, minExponent, a) => {
+    CHECK.GE(numFractionBits, 3);  // that's what the paper says, not sure why.  TODO: check whether it fails for 2 and/or 1
+    const multiplier = 2**Math.ceil(numFractionBits/2) + 1;
+    const c = times(numFractionBits, minExponent, multiplier, a);
+    const a_big = minus(numFractionBits, minExponent, c, a);
+    const a_hi = minus(numFractionBits, minExponent, c, a_big);
+    const a_lo = minus(numFractionBits, minExponent, a, a_hi);
+    CHECK.EQ(a_hi+a_lo, a);
+    CHECK.EQ(plus(numFractionBits, minExponent, a_hi, a_lo), a);
+    return [a_hi,a_lo];
+  };  // split
+  const two_product = (numFractionBits, minExponent, a, b) => {
+    CHECK.NE(b, undefined);
+    const x = times(numFractionBits, minExponent, a, b);
+    let a_hi, a_lo, b_hi, b_lo;
+    [a_hi, a_lo] = split(numFractionBits, minExponent, a);
+    [b_hi, b_lo] = split(numFractionBits, minExponent, b);
+    const err1 = minus(numFractionBits, minExponent, x, times(numFractionBits, minExponent, a_hi, b_hi));
+    const err2 = minus(numFractionBits, minExponent, err1, times(numFractionBits, minExponent, a_lo, b_hi));
+    const err3 = minus(numFractionBits, minExponent, err2, times(numFractionBits, minExponent, a_hi, b_lo));
+    const y = minus(numFractionBits, minExponent, times(numFractionBits, minExponent, a_lo, b_lo), err3);
+    return [x,y];
+  };  // two_product
+  const scale_expansion = (numFractionBits, minExponent, e, b) => {
+    const verboseLevel = 0;
+    if (verboseLevel >= 1) console.log("in scale_expansion(numFractionBits="+numFractionBits+" minExponent="+minExponent+" e="+STRINGIFY(e)+" b="+toDebugString(b)+")");
+    for (let i = 0; i < e.length-1; ++i) CHECK.GE(Math.abs(e[i]), Math.abs(e[i+1]));  // nonincreasing magnitudes
+    if (e.length == 0) return [];
+    const answer = []
+    {
+      let Q, h;
+      [Q,h] = two_product(numFractionBits, minExponent, e[e.length-1], b);
+      if (h != 0) answer.push(h);
+      if (verboseLevel >= 1) console.log("  initial Q,h = "+Q+","+h);
+      for (let i = e.length-1-1; i >= 0; --i) {
+        let T,t;
+        [T,t] = two_product(numFractionBits, minExponent, e[i], b);
+        [Q,h] = two_sum(numFractionBits, minExponent, Q,t);
+        if (h != 0) answer.push(h);
+        [Q,h] = fast_two_sum(numFractionBits, minExponent, T,Q);
+        if (h != 0) answer.push(h);
+      }
+      if (Q != 0) answer.push(Q)
+    }
+    answer.reverse();
+    if (verboseLevel >= 1) console.log("out scale_expansion(numFractionBits="+numFractionBits+" minExponent="+minExponent+" e="+STRINGIFY(e)+" b="+STRINGIFY(b)+"), returning "+STRINGIFY(answer));
+    return answer;
+  };  // scale_expansion
+  const approximate = (numFractionBits, minExponent, e) => {
+    for (let i = 0; i < e.length-1; ++i) CHECK.GE(e[i], e[i+1]);  // nonincreasing magnitudes
+    let answer = 0;
+    for (let i = e.length-1; i >= 0; --i) answer += e[i];
+    return answer;
+  };  // approximate
+
+  if (true)
+  {
+    let xs = [];
+    if (false)
+    {
+      let x = 5*1024;
+      for (let i = 0; i < 30; ++i) {
+        xs.push(round_to_nearest_representable(numFractionBits, minExponent, x));
+        x /= 8;
+      }
+    }
+    if (false) {
+      // Demonstrate that (sort-of-)canonicalization happens,
+      // in that full values are pushed to the front.
+      // Still has negatives, I think, which is weird?  Hmm.  But maybe it makes sense?
+      xs.push(2**(numFractionBits+1));  // 4 -> 32 = 100000
+      xs.push(2**numFractionBits + 1);  // 4 -> 17 = 010001
+    }
+    if (false) {
+      // Let's see if I get canonicalization from 1's.
+      // What I see is: for nF=3: the lower-order part goes:
+      //    0,0,0 when it can, or
+      //    -1,0,1,0, -1,0,1,0,  when it can, or
+      //    0,1,2,-1,0,1,-2,-1, 0,1,2,-1,-2, or
+      //    0,1,2,3,4,-3,-2,-1,0,1,2,3,-4, or
+      //    0,1,2,3,4,5,6,7,8,-7,-6,-5,-4,-3,-2,-1,0,1,2,3,4,5,6,7,-8, or...
+      // (interesting, there *is* still some redundancy, I wonder if I can get rid of that?)
+      // (that is, the "period" (mega-base) can be 2**(n+1)+1 instead of 2**(n+1) ?)
+      const n = 19;
+      for (let i = 0; i < n; ++i) {
+        xs.push(1);
+      }
+    }
+    if (true) {
+      // Okay let's start with something ambiguous, does it canonicalize?
+      // E.g. for nF=3, 17 can be expressed as 16+1 (seems to be canonical) or 18-1.
+      //xs.push(2**(numFractionBits+1));
+      //xs.push(1);
+      xs.push(2**(numFractionBits+1)+2);
+      xs.push(-1);
+      // YES, it seems to canonicalize 18-1 to 16+1!  Hooray!
+    }
+
+    for (let ipass = 0; ipass < 100; ++ipass) {
+      PRINT(ipass);
+      PRINT(xs);
+      PRINT(xs.length);
+      for (let i = 0; i < xs.length; ++i) { console.log("      xs["+i+"] = "+toDebugString(xs[i])); }
+      const ys = linear_expansion_sum(numFractionBits, minExponent, xs, []);
+      if (expansions_are_same(xs, ys)) {
+        console.log("  stationary after ipass="+ipass+"!");
+        break;
+      }
+      xs = ys;
+    }
+
+    if (false) {
+      console.log("  returning early!");
+      return;
+    }
+  }
+
+
+  // CBB: the numFractionBits and minExponent here are unrelated to anything else in the program
+  const exact_lerp_cross_your_fingers = (a, b, t, should_be_undefined) => {
+    CHECK.NE(t, undefined);
+    CHECK.EQ(should_be_undefined, undefined);
+    const exact0 = (1-t)*a + t*b;
+    const exact1 = a-t*a+t*b;
+    const exact2 = t*b-t*a+a;
+    const exact3 = a+t*b-t*a;
+
+    const T = 1-(1-t);
+    CHECK.EQ(1-T, 1-t);
+    const exact4 = (1-t)*a + T*b;
+    const exact5 = a-T*a+T*b;
+    const exact6 = T*b-T*a+a;
+    const exact7 = a+T*b-T*a;
+
+    CHECK.EQ(exact0, exact1);
+    CHECK.EQ(exact0, exact2);
+    CHECK.EQ(exact0, exact3);
+    CHECK.EQ(exact0, exact4);
+    CHECK.EQ(exact0, exact4);
+    CHECK.EQ(exact0, exact5);
+    CHECK.EQ(exact0, exact6);
+    CHECK.EQ(exact0, exact7);
+    // That's still not conclusive, and in fact it may not be exactly representable at all.
+    // Okay, let's do it for real.
+    {
+      let numFractionBits = 3;  // TODO: see if I trust 2; there's currently a CHECK failure due to something in the paper, but I don't understand why
+      const minExponent = -100;
+      while (!is_representable(numFractionBits, minExponent, a)
+          || !is_representable(numFractionBits, minExponent, b)
+          || !is_representable(numFractionBits, minExponent, t)) {
+        // CBB: we assume it's due to numFractionBits, although it could be due to minExponent instead
+        numFractionBits++;
+      }
+      const bminusa = linear_expansion_sum(numFractionBits, minExponent, [b], [-a]);
+      const bminusa_times_t = scale_expansion(numFractionBits, minExponent, bminusa, t);
+      const answer_expansion = canonicalize_linear_expansion(numFractionBits, minExponent, 
+                                                             linear_expansion_sum(numFractionBits, minExponent, [a], bminusa_times_t));
+      // Ok here's the part where we have to be careful.
+      // If we naively sum the parts of answer_expansion, in its precision, we may get the wrong answer,
+      // e.g. something just on the odd side of a tie, in the given precision, may get rounded to the tie, and then wrongly rounded to even.
+      // However, the point here is just to confirm something we think is exact (done in native precision, which is probably much more than nF)
+      // so we'll proceed anyway.
+      let answer = 0;
+      for (let i = answer_expansion.length-1; i >= 0; --i) {
+        answer += answer_expansion[i];
+      }
+      CHECK.EQ(answer, exact0);
+    }
+
+    return exact0;
+  };
+
+  PRINT(scale_expansion(3, -7, [1/16], 1/64));  // XXX it's zero??  wtf?  OH that's because of minExponent, I bet
+  PRINT(exact_lerp_cross_your_fingers(0, 1/16, 1/64));
+  PRINT(exact_lerp_cross_your_fingers(0, 13/16, 1/64));
+  PRINT(exact_lerp_cross_your_fingers(0, 15/16, 1/64));
+  PRINT(exact_lerp_cross_your_fingers(0, 7/8, 1/128));
+  PRINT(exact_lerp_cross_your_fingers(0, 3/4, 1/256));
+  PRINT(exact_lerp_cross_your_fingers(1/8, 1, 1/128));
+  PRINT(exact_lerp_cross_your_fingers(15/64, 1, 1/512));
+
+  const correct_lerp = (numFractionBits, minExponent, a, b, t) => {
+    CHECK(is_representable(numFractionBits, minExponent, a));
+    CHECK(is_representable(numFractionBits, minExponent, b));
+    CHECK(is_representable(numFractionBits, minExponent, t));
+    const exact_I_hope = exact_lerp_cross_your_fingers(a, b, t);
+    const answer = round_to_nearest_representable(numFractionBits, minExponent, exact_I_hope);
+    return answer;
+  };
   // End float utilities
   //======================================
 
@@ -583,7 +911,7 @@ registerSourceCodeLinesAndRequire([
   let skeptical_double_check_hack_xxx = false;
   let skeptical_verbose_level_override = undefined;
   const DotButImSkeptical = (xs,ys) => {
-    let verboseLevel = 1;
+    let verboseLevel = 0;
     if (skeptical_verbose_level_override !== undefined) verboseLevel = skeptical_verbose_level_override;
     if (verboseLevel >= 1) console.log("        in DotButImSkeptical(xs="+STRINGIFY(xs)+" ys="+STRINGIFY(ys)+")");
     let Hi = 0.;
@@ -957,7 +1285,7 @@ registerSourceCodeLinesAndRequire([
           circle.setAttributeNS(null, "fill", "#ffffff01");  // Just a tiny bit of opacity so that tooltip will work
           circle.setAttributeNS(null, "stroke", "green");
           circle.setAttributeNS(null, "stroke-width", "2");
-          circle.onmouseover = evt=>showTooltip(evt, makeTheTooltipText(t, (1-t)*a+t*b, y));
+          circle.onmouseover = evt=>showTooltip(evt, makeTheTooltipText(t, exact_lerp_cross_your_fingers(a,b,t), y));
           circle.onmouseout = evt=>hideTooltip();
           svg.appendChild(circle);
           thing_circled_in_green = y;
@@ -968,7 +1296,7 @@ registerSourceCodeLinesAndRequire([
         circle.setAttributeNS(null, "cy", ""+oy);
         circle.setAttributeNS(null, "r", "1.5");
         circle.setAttributeNS(null, "fill", "green");
-        circle.onmouseover = evt=>showTooltip(evt, makeTheTooltipText(t, (1-t)*a+t*b, y));
+        circle.onmouseover = evt=>showTooltip(evt, makeTheTooltipText(t, exact_lerp_cross_your_fingers(a,b,t), y));
         circle.onmouseout = evt=>hideTooltip();
         svg.appendChild(circle);
 
@@ -987,7 +1315,7 @@ registerSourceCodeLinesAndRequire([
           circle.setAttributeNS(null, "fill", "#ffffff01");  // Just a tiny bit of opacity so that tooltip will work
           circle.setAttributeNS(null, "stroke", thing_circled_in_green===y ? "orange" : "red");
           circle.setAttributeNS(null, "stroke-width", "2");
-          circle.onmouseover = evt=>showTooltip(evt, makeTheTooltipText(t, (1-t)*b+t*a, y));
+          circle.onmouseover = evt=>showTooltip(evt, makeTheTooltipText(t, exact_lerp_cross_your_fingers(b,a,t), y));
           circle.onmouseout = evt=>hideTooltip();
           svg.appendChild(circle);
         }
@@ -1003,7 +1331,7 @@ registerSourceCodeLinesAndRequire([
           circle.setAttributeNS(null, "r", "1.5");
           circle.setAttributeNS(null, "fill", "red");
         }
-        circle.onmouseover = evt=>showTooltip(evt, makeTheTooltipText(t, (1-t)*b+t*a, y));
+        circle.onmouseover = evt=>showTooltip(evt, makeTheTooltipText(t, exact_lerp_cross_your_fingers(b,a,t), y));
         circle.onmouseout = evt=>hideTooltip();
         svg.appendChild(circle);
       }
@@ -1056,7 +1384,7 @@ registerSourceCodeLinesAndRequire([
   const theTitle = document.getElementById("theTitle");
 
   const setLerpMethodToMagic = () => {
-    Lerp = (a,b,t) => round_to_nearest_representable(numFractionBits, minExponent, (1.-t)*a + t*b);
+    Lerp = (a,b,t) => correct_lerp(numFractionBits, minExponent, a,b,t);
     populateTheSVG(svg, Lerp, a, b);
     theTitle.innerHTML = "magic actual lerp";
   };
