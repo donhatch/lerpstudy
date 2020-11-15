@@ -666,7 +666,10 @@ registerSourceCodeLinesAndRequire([
     CHECK.EQ(plus(numFractionBits, minExponent, a_hi, a_lo), a);
     return [a_hi,a_lo];
   };  // split
+
   const two_product = (numFractionBits, minExponent, a, b) => {
+    // From shewchuk's paper.
+    // TODO: can this be done using fma?  The paper assumed we don't have fma.
     CHECK.NE(b, undefined);
     const x = times(numFractionBits, minExponent, a, b);
     let a_hi, a_lo, b_hi, b_lo;
@@ -1434,8 +1437,15 @@ registerSourceCodeLinesAndRequire([
     populateTheSVG(svg, Lerp, a, b);
     theTitle.innerHTML = "answer0 = (1-t)*a + t*b; answer0 += ((1-t)*(a-answer0) + t*(b-answer0)";
   };
+
   const setLerpMethodToTBlast = () => {
     Lerp = (a,b,t) => Plus(Minus(a, Times(t,a)), Times(t,b));
+    populateTheSVG(svg, Lerp, a, b);
+    theTitle.innerHTML = "a - t*a + b";
+  };
+  const setLerpMethodToTBlastAtTwicePrecision = () => {
+    //Lerp = (a,b,t) => Plus(Minus(a, Times(t,a)), Times(t,b));
+    Lerp = (a,b,t) => Round(plus(2*numFractionBits,2*minExponent,minus(2*numFractionBits,2*minExponent,a, times(2*numFractionBits,2*minExponent,t,a)), times(2*numFractionBits,2*minExponent,t,b)));
     populateTheSVG(svg, Lerp, a, b);
     theTitle.innerHTML = "a - t*a + b";
   };
@@ -1444,11 +1454,24 @@ registerSourceCodeLinesAndRequire([
     populateTheSVG(svg, Lerp, a, b);
     theTitle.innerHTML = "b - t*a + a";
   };
+  const setLerpMethodToAlastAtTwicePrecision = () => {
+    //Lerp = (a,b,t) => Plus(Minus(Times(t,b), Times(t,a)), a);
+    Lerp = (a,b,t) => Round(plus(2*numFractionBits,2*minExponent,minus(2*numFractionBits,2*minExponent,times(2*numFractionBits,2*minExponent,t,b), times(2*numFractionBits,2*minExponent,t,a)), a));
+    populateTheSVG(svg, Lerp, a, b);
+    theTitle.innerHTML = "b - t*a + a";
+  };
   const setLerpMethodToTAlast = () => {
     Lerp = (a,b,t) => Minus(Plus(a,Times(t,b)), Times(t,a));
     populateTheSVG(svg, Lerp, a, b);
     theTitle.innerHTML = "a + b - t*a";
   };
+  const setLerpMethodToTAlastAtTwicePrecision = () => {
+    //Lerp = (a,b,t) => Minus(Plus(a,Times(t,b)), Times(t,a));
+    Lerp = (a,b,t) => Round(minus(2*numFractionBits,2*minExponent,plus(2*numFractionBits,2*minExponent,a,times(2*numFractionBits,2*minExponent,t,b)), times(2*numFractionBits,2*minExponent,t,a)));
+    populateTheSVG(svg, Lerp, a, b);
+    theTitle.innerHTML = "a + b - t*a";
+  };
+
   const setLerpMethodToTBlastUsingDot = () => {
     Lerp = (a,b,t) => DotKahanish([1,-t,t], [a,a,b], false);
     populateTheSVG(svg, Lerp, a, b);
@@ -1508,8 +1531,11 @@ registerSourceCodeLinesAndRequire([
   document.getElementById("lerpmethodBidirectionalAlt").onclick = () => setLerpMethodToBidirectionalAlt();
   document.getElementById("lerpmethodMaybe").onclick = () => setLerpMethodToMaybe();
   document.getElementById("lerpmethodTBlast").onclick = () => setLerpMethodToTBlast();
+  document.getElementById("lerpmethodTBlastAtTwicePrecision").onclick = () => setLerpMethodToTBlastAtTwicePrecision();
   document.getElementById("lerpmethodAlast").onclick = () => setLerpMethodToAlast();
+  document.getElementById("lerpmethodAlastAtTwicePrecision").onclick = () => setLerpMethodToAlastAtTwicePrecision();
   document.getElementById("lerpmethodTAlast").onclick = () => setLerpMethodToTAlast();
+  document.getElementById("lerpmethodTAlastAtTwicePrecision").onclick = () => setLerpMethodToTAlastAtTwicePrecision();
   document.getElementById("lerpmethodTBlastUsingDot").onclick = () => setLerpMethodToTBlastUsingDot();
   document.getElementById("lerpmethodAlastUsingDot").onclick = () => setLerpMethodToAlastUsingDot();
   document.getElementById("lerpmethodTAlastUsingDot").onclick = () => setLerpMethodToTAlastUsingDot();
