@@ -363,6 +363,16 @@ registerSourceCodeLinesAndRequire([
   };
   const toDebugString = x => {
     CHECK.NE(x, undefined);
+    if (Array.isArray(x)) {
+      let answer = "[";
+      for (let i = 0; i < x.length; ++i) {
+        if (i > 0) answer += ",";
+        answer += toDebugString(x[i]);
+      }
+      answer += "]";
+      return answer;
+    }
+
     const answers = [
       ""+x,
       toBinaryString(x),
@@ -621,7 +631,7 @@ registerSourceCodeLinesAndRequire([
       for (let i = g.length-1; i >= 0; --i) {
         if (verboseLevel >= 1) console.log("      adding g["+i+"] = "+STRINGIFY(g[i]));
         let R_i, h_iminus2;
-        if (false) {  // argh! this fails when fed (2**(nF+2)+3) 1's!
+        if (false) {  // argh! this fails when fed (2**(nF+2)+3) 1's!    OH that violates this function's contract anyway! it's supposed to be just two addends, each of which is a nonintersecting series.  so, whatever.
           [R_i, h_iminus2] = fast_two_sum(numFractionBits, minExponent, g[i], q);
         } else {
           [R_i, h_iminus2] = two_sum(numFractionBits, minExponent, g[i], q);
@@ -681,6 +691,12 @@ registerSourceCodeLinesAndRequire([
     const y = minus(numFractionBits, minExponent, times(numFractionBits, minExponent, a_lo, b_lo), err3);
     return [x,y];
   };  // two_product
+  const two_product_using_fma = (numFractionBits, minExponent, a, b) => {
+    // Ah, cool!  So the value of fma here is that it it saves all that work of two_product above.
+    let hi = times(numFractionBits, minExponent, a, b);
+    let lo = fma(numFractionBits, minExponent, a, b, -hi);
+    return [hi, lo];
+  };  // two_product_using_fma
   const scale_expansion = (numFractionBits, minExponent, e, b) => {
     const verboseLevel = 0;
     if (verboseLevel >= 1) console.log("in scale_expansion(numFractionBits="+numFractionBits+" minExponent="+minExponent+" e="+STRINGIFY(e)+" b="+toDebugString(b)+")");
@@ -825,6 +841,16 @@ registerSourceCodeLinesAndRequire([
         answer += answer_expansion[i];
       }
       CHECK.EQ(answer, exact0);
+
+      if (false) {
+        // Q: Does canonicalization always chooses the right answer for the first component anyway?
+        // A: Oh, it is *not* true.  Actually the logic for canonicalization does exactly the wrong thing!  That is, it chooses the right choice locally,
+        // which is the wrong choice globally due to two it thinking there are two tiebreaks when it isn't really a tie.
+        // The following tests that hypothesis; it fails.
+        PRINT(toDebugString(answer_expansion));
+        PRINT(toDebugString(round_to_nearest_representable(numFractionBits, minExponent, answer)));
+        CHECK.EQ(round_to_nearest_representable(numFractionBits, minExponent, answer), answer_expansion.length>0?answer_expansion[0]:0);
+      }
     }
 
     return exact0;
