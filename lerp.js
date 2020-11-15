@@ -1,11 +1,11 @@
-// TODO: would it be clearer in binary?
+// TODO: make the selection of lerp algorithm persist in url bar
+// TODO: would it all be clearer in binary?  what's cool is we don't really need to specify whether binary or decimal, it can't be ambiguous (decimal ends in 5, binary ends in 1)
 // TODO: even/odd lines slightly darker/lighter
 // TODO: hover-over a point should show details of calculation
 // TODO: oscillating between two methods mode?  would be helpful.
 // TODO: option to circle or otherwise emphasize the wrong ones? would be helpful.  DONE!
 // TODO: browser zoom isn't faithful?? what's going on?  When I zoom in a bit, it draws more lines!
 // TODO: make lerp-favicon.png a real picture of something
-// TODO: make the selection of lerp algorithm stick in url bar
 // TODO: the usual event screwup, need to listen on window instead
 // TODO: the usual select-the-text screwup; how to disable?
 // TODO: put the a and b labels next to the moving line
@@ -323,6 +323,21 @@ registerSourceCodeLinesAndRequire([
     }
     return answer;
   };
+  const toDebugString = x => {
+    const answers = [
+      ""+x,
+      toBinaryString(x),
+      toFractionString(x),
+    ];
+    let answer = "("+answers[0];
+    for (let i = 1; i < answers.length; ++i) {  // skip 0
+      if (answers[i] != answers[i-1]) {
+        answer += "="+answers[i];
+      }
+    }
+    answer += ")";
+    return answer;
+  }
 
   const toFractionString = x => {
     let numerator = x;
@@ -523,6 +538,7 @@ registerSourceCodeLinesAndRequire([
     }
     const x = Plus(a,b);
     const y = Plus(Minus(a,x), b);
+    CHECK.EQ(a+b, x+y);  // This can fail, I think, but let's keep it in place til it does
     return [x,y];
   };
   const TwoProduct = (a,b) => {
@@ -564,17 +580,38 @@ registerSourceCodeLinesAndRequire([
     if (verboseLevel >= 1) console.log("        out DotKahanish(xs="+STRINGIFY(xs)+" ys="+STRINGIFY(ys)+" tweak="+STRINGIFY(tweak)+"), returning "+STRINGIFY(answer)+"="+toFractionString(answer));
     return answer;
   };  // DotKahanish
+  let skeptical_double_check_hack_xxx = false;
+  let skeptical_verbose_level_override = undefined;
   const DotButImSkeptical = (xs,ys) => {
-    const verboseLevel = 1;
+    let verboseLevel = 1;
+    if (skeptical_verbose_level_override !== undefined) verboseLevel = skeptical_verbose_level_override;
     if (verboseLevel >= 1) console.log("        in DotButImSkeptical(xs="+STRINGIFY(xs)+" ys="+STRINGIFY(ys)+")");
     let Hi = 0.;
     let Lo = 0.;
+    let Exact = 0.;  // just for debugging
     CHECK.EQ(xs.length, ys.length);
     for (let i = 0; i < xs.length; ++i) {
+      if (verboseLevel >= 1) console.log("          i = "+i+": "+toDebugString(xs[i])+"*"+toDebugString(ys[i]));
+      if (verboseLevel >= 1) console.log("            Hi="+toDebugString(Hi)+" Lo="+toDebugString(Lo)+" Hi+Lo="+toDebugString(Hi+Lo)+"->"+Round(Hi+Lo)+" Exact="+toDebugString(Exact)+"->"+toDebugString(Round(Exact))+"");
+      Exact += xs[i]*ys[i];
       const [hi,lo] = TwoProduct(xs[i],ys[i]);
+      if (skeptical_double_check_hack_xxx) {
+        CHECK.EQ(hi+lo, xs[i]*ys[i]);
+      }
       let lo1;
       [Hi,lo1] = TwoSum(Hi,hi);
       Lo = Plus(Lo, Plus(lo, lo1));
+      if (verboseLevel >= 1) console.log("              lo="+toDebugString(lo)+" lo1="+toDebugString(lo1));
+
+      if (verboseLevel >= 1) console.log("            Hi="+toDebugString(Hi)+" Lo="+toDebugString(Lo)+" Hi+Lo="+toDebugString(Hi+Lo)+"->"+Round(Hi+Lo)+" Exact="+toDebugString(Exact)+"->"+toDebugString(Round(Exact))+"");
+      if (true) {  // Might this help?  This is the part I was worried about, but it actually doesn't seem to be the part where I'm losing accuracy the worst
+        let Hi1,Lo1;
+        [Hi1,Lo1] = TwoSum(Hi,Lo);
+        //CHECK.EQ(Hi1,Hi);
+        //CHECK.EQ(Lo1,Lo);
+        [Hi,Lo] = [Hi1,Lo1];
+      }
+      if (verboseLevel >= 1) console.log("            Hi="+toDebugString(Hi)+" Lo="+toDebugString(Lo)+" Hi+Lo="+toDebugString(Hi+Lo)+"->"+Round(Hi+Lo)+" Exact="+toDebugString(Exact)+"->"+toDebugString(Round(Exact))+"");
     }
     const answer = Plus(Hi, Lo);
     if (verboseLevel >= 1) console.log("        out DotButImSkeptical(xs="+STRINGIFY(xs)+" ys="+STRINGIFY(ys)+"), returning "+STRINGIFY(answer));
@@ -645,7 +682,7 @@ registerSourceCodeLinesAndRequire([
   let Lerp;  // determined by the radio buttons
 
 
-  // NOTE: the grid lines don't really look good when big, due to corners.  Hmm.
+  // NOTE: the grid lines don't really look good when width is >1, due to corners.  Would need to place the ends more carefully.
   const gridLineWidth = 1;
 
   // works well for gridLineWidth=2...
@@ -684,7 +721,7 @@ registerSourceCodeLinesAndRequire([
     const theTitlePart2 = document.getElementById("theTitlePart2");
     //theTitlePart2.innerHTML = "  a="+a+" b="+b;
     //theTitlePart2.innerHTML = "  a="+a+"="+toFractionString(a)+"  b="+b+"="+toFractionString(b);
-    theTitlePart2.innerHTML = "  a="+toFractionString(a)+"<small><small> ="+a+"</small></small>  b="+toFractionString(b)+"<small><small> ="+b+"</small></small>";
+    theTitlePart2.innerHTML = "  a="+toFractionString(a)+"<small><small> ="+toBinaryString(a)+"="+a+"</small></small>  b="+toFractionString(b)+"<small><small> ="+toBinaryString(b)+"="+b+"</small></small>";
 
     const svgns = "http://www.w3.org/2000/svg";                                   
 
@@ -903,7 +940,7 @@ registerSourceCodeLinesAndRequire([
       return answer;
     };
     // The dots along the diagonals.
-    // Upward red, downard green.
+    // Upward green, downward red.
     for (let t = 0.; t <= 1.; t = Succ(t)) {
       let thing_circled_in_green = undefined;
       {
@@ -950,7 +987,7 @@ registerSourceCodeLinesAndRequire([
           circle.setAttributeNS(null, "fill", "#ffffff01");  // Just a tiny bit of opacity so that tooltip will work
           circle.setAttributeNS(null, "stroke", thing_circled_in_green===y ? "orange" : "red");
           circle.setAttributeNS(null, "stroke-width", "2");
-          circle.onmouseover = evt=>showTooltip(evt, makeTheTooltipText(t, (1-t)*a+t*b, y));
+          circle.onmouseover = evt=>showTooltip(evt, makeTheTooltipText(t, (1-t)*b+t*a, y));
           circle.onmouseout = evt=>hideTooltip();
           svg.appendChild(circle);
         }
@@ -974,23 +1011,39 @@ registerSourceCodeLinesAndRequire([
 
     if (true) {
       console.log("======");
-      //PRINT(Lerp(3/32., 3/4., .5));
-      //PRINT(Lerp(3/4., 3/32., .5));
+      if (false) {
+        PRINT(Lerp(3/32., 3/4., .5));
+        PRINT(Lerp(3/4., 3/32., .5));
+      }
 
-      // with nF=1 minE=-4
-      //PRINT(Lerp(1/4., 3/4., 3/16.));
-      //PRINT(1*1/4. + (-3/16.)*(1/4.) + (3/16.)*(3/4.));
-      //PRINT(DotButImSkeptical([1,-3/16.,3/16.],[1/4.,1/4.,3/4.]));
+      if (false) {
+        // with nF=1 minE=-4
+        PRINT(Lerp(1/4., 3/4., 3/16.));
+        PRINT(1*1/4. + (-3/16.)*(1/4.) + (3/16.)*(3/4.));
+        PRINT(DotButImSkeptical([1,-3/16.,3/16.],[1/4.,1/4.,3/4.]));
+      }
 
-      // Oh! simpler examples if b=1 ...
-      // with nF=1 minE=-10
-      // a=1/4 b=1
-      // http://localhost:8000/lerp.html?numFractionBits=1&minExponent=-10&a=3/32&b=1
-      PRINT(Lerp(1/4., 1., 3/32.));   // DotButImSkeptical says .25=1/4, should be .375=3/8
-      PRINT(Lerp(1., 1/4, 3/16.));    // DotButImSkeptical says 1, should be .75
+      if (false) {
+        // Oh! simpler examples if b=1 ...
+        // with nF=1 minE=-10
+        // a=1/4 b=1
+        // http://localhost:8000/lerp.html?numFractionBits=1&minExponent=-10&a=3/32&b=1
+        PRINT(Lerp(1/4., 1., 3/32.));   // DotButImSkeptical says .25=1/4, should be .375=3/8
+        PRINT(Lerp(1., 1/4, 3/16.));    // DotButImSkeptical says 1, should be .75
 
-      // Let's debug the first, since increasing a<b is easier to think about
-      PRINT(DotButImSkeptical([1,-3/32.,3/32.],[1/4.,1/4.,1.]));
+        // Let's debug the first, since increasing a<b is easier to think about
+        PRINT(DotButImSkeptical([1,-3/32.,3/32.],[1/4.,1/4.,1.]));
+      }
+      if (true) {
+        // Even simpler...
+        // http://localhost:8000/lerp.html?numFractionBits=1&minExponent=-6&a=3/4&b=1
+        skeptical_double_check_hack_xxx = true;
+        skeptical_verbose_level_override = 1;
+        PRINT(Lerp(3/4, 1, 3/8));  // DotButImSkeptical says 1, should be 3/4.  Exact is 27/32.
+        PRINT(DotButImSkeptical([1,-3/8,3/8],[3/4,3/4,1]));
+        skeptical_double_check_hack_xxx = false;
+        skeptical_verbose_level_override = undefined;
+      }
 
       console.log("======");
     }
@@ -1101,17 +1154,17 @@ registerSourceCodeLinesAndRequire([
   const setLerpMethodToTBlastUsingDotSmarter = () => {
     Lerp = (a,b,t) => DotButImSkeptical([1,-t,t], [a,a,b], true);
     populateTheSVG(svg, Lerp, a, b);
-    theTitle.innerHTML = "[1,-t,t] &#8226; [a,a,b] Kahan tweaked";
+    theTitle.innerHTML = "[1,-t,t] &#8226; [a,a,b] smarter";
   };
   const setLerpMethodToAlastUsingDotSmarter = () => {
     Lerp = (a,b,t) => DotButImSkeptical([t,-t,1], [b,a,a], true);
     populateTheSVG(svg, Lerp, a, b);
-    theTitle.innerHTML = "[t,-t,1] &#8226; [b,a,a] Kahan tweaked";
+    theTitle.innerHTML = "[t,-t,1] &#8226; [b,a,a] smarter";
   };
   const setLerpMethodToTAlastUsingDotSmarter = () => {
     Lerp = (a,b,t) => DotButImSkeptical([1,t,-t], [a,b,a], true);
     populateTheSVG(svg, Lerp, a, b);
-    theTitle.innerHTML = "[1,t,-t] &#8226; [a,b,a] Kahan tweaked";
+    theTitle.innerHTML = "[1,t,-t] &#8226; [a,b,a] smarter";
   };
 
   document.getElementById("lerpmethodMagic").setAttribute("checked", "");
