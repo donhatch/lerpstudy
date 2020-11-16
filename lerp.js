@@ -1152,7 +1152,18 @@ registerSourceCodeLinesAndRequire([
   const iy0 = -1.;
   const iy1 = 1.;
 
-
+  // https://stackoverflow.com/questions/10643426/how-to-add-a-tooltip-to-an-svg-graphic#answer-50543963
+  const showTooltip = (evt,text) => {
+    let tooltip = document.getElementById("tooltip");
+    tooltip.innerHTML = text;
+    tooltip.style.display = "block";
+    tooltip.style.left = evt.pageX + 10 + 'px';
+    tooltip.style.top = evt.pageY + 10 + 'px';
+  };
+  const hideTooltip = () => {
+    const tooltip = document.getElementById("tooltip");
+    tooltip.style.display = "none";
+  };
 
   const populateTheSVG = (svg, Lerp, aIntent, bIntent) => {
     CHECK.NE(bIntent, undefined);
@@ -1334,19 +1345,6 @@ registerSourceCodeLinesAndRequire([
     }
 
 
-    // https://stackoverflow.com/questions/10643426/how-to-add-a-tooltip-to-an-svg-graphic#answer-50543963
-    const showTooltip = (evt,text) => {
-      let tooltip = document.getElementById("tooltip");
-      tooltip.innerHTML = text;
-      tooltip.style.display = "block";
-      tooltip.style.left = evt.pageX + 10 + 'px';
-      tooltip.style.top = evt.pageY + 10 + 'px';
-    };
-    const hideTooltip = () => {
-      const tooltip = document.getElementById("tooltip");
-      tooltip.style.display = "none";
-    };
-
     const makeTheTooltipText = (t,exact,approx) => {
       if (false)
         return ("t="+t+" -> exact="+toFractionString(exact)
@@ -1393,6 +1391,7 @@ registerSourceCodeLinesAndRequire([
         const oy = relerp(y, iy0,iy1, oy0,oy1);
 
         if (y != round_to_nearest_representable(numFractionBits, minExponent, (1-t)*a+t*b)) {
+          // Draw a ring around it
           const circle = document.createElementNS(svgns, "circle");
           circle.setAttributeNS(null, "cx", ""+ox);
           circle.setAttributeNS(null, "cy", ""+oy);
@@ -1411,6 +1410,7 @@ registerSourceCodeLinesAndRequire([
         circle.setAttributeNS(null, "cy", ""+oy);
         circle.setAttributeNS(null, "r", "1.5");
         circle.setAttributeNS(null, "fill", "green");
+        circle.classList.add("hoverable");
         circle.onmouseover = evt=>showTooltip(evt, makeTheTooltipText(t, exact_lerp_cross_your_fingers(a,b,t), y));
         circle.onmouseout = evt=>hideTooltip();
         svg.appendChild(circle);
@@ -1423,6 +1423,7 @@ registerSourceCodeLinesAndRequire([
         const oy = relerp(y, iy0,iy1, oy0,oy1);
 
         if (y != round_to_nearest_representable(numFractionBits, minExponent, (1-t)*b+t*a)) {
+          // Draw a ring around it
           const circle = document.createElementNS(svgns, "circle");
           circle.setAttributeNS(null, "cx", ""+ox);
           circle.setAttributeNS(null, "cy", ""+oy);
@@ -1446,6 +1447,7 @@ registerSourceCodeLinesAndRequire([
           circle.setAttributeNS(null, "r", "1.5");
           circle.setAttributeNS(null, "fill", "red");
         }
+        circle.classList.add("hoverable");
         circle.onmouseover = evt=>showTooltip(evt, makeTheTooltipText(t, exact_lerp_cross_your_fingers(b,a,t), y));
         circle.onmouseout = evt=>hideTooltip();
         svg.appendChild(circle);
@@ -1786,37 +1788,63 @@ registerSourceCodeLinesAndRequire([
     yOfPreviousMouseEvent = event.offsetY;
   });
   svg.addEventListener("mousemove", (event) => {
-    // CBB: clunky order of tests.  We set {x,y}OfPreviousMouseEvent first
-    // in case of early return, but then we aren't prepared in case
-    // we want to see the actual previous in this function.
+    if (draggingA || draggingB) {
+      if (eventVerboseLevel >= 1) console.log("mousemove with mouse down");
+      if (eventVerboseLevel >= 1) console.log("  event = ",event);
+      const ixOfMouseDown = relerp(xOfMouseDown, ox0,ox1, ix0,ix1);
+      const iyOfMouseDown = relerp(yOfMouseDown, oy0,oy1, iy0,iy1);
+      const ix = relerp(event.offsetX, ox0,ox1, ix0,ix1);
+      const iy = relerp(event.offsetY, oy0,oy1, iy0,iy1);
+
+      const aSnappedOld = round_to_nearest_representable(numFractionBits, minExponent, a);
+      const bSnappedOld = round_to_nearest_representable(numFractionBits, minExponent, b);
+
+      if (draggingA) a = aOfMouseDown + (iy-iyOfMouseDown);
+      if (draggingB) b = bOfMouseDown + (iy-iyOfMouseDown);
+
+      const aSnappedNew = round_to_nearest_representable(numFractionBits, minExponent, a);
+      const bSnappedNew = round_to_nearest_representable(numFractionBits, minExponent, b);
+
+      if (aSnappedNew != aSnappedOld || bSnappedNew != bSnappedOld) {
+        // Note that, while mouse is down, a and b in general aren't representable floats, so we round them when setting the URL param here
+        setURLParamModule.setURLAndParamsInURLBarWithVerboseLevel(xformUrlPart,
+            [['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(aSnappedNew)],['b',toFractionString(bSnappedNew)]],
+            /*whetherToEncodeValue=*/false,  // don't encode the '/' as  %2F
+            /*verboseLevel=*/0);
+      }
+
+      populateTheSVG(svg, Lerp, a, b);
+    } else {
+      // See if we are close to any circles.  This is wildly inefficient.
+      const hoverables = svg.getElementsByClassName("hoverable");
+      //PRINT(hoverables.length);
+      //PRINT(hoverables);
+      let closestIndex = -1;
+      let closestDist2 = -1;
+      for (let i = 0; i < hoverables.length; ++i) {
+        const hoverable = hoverables[i];
+        CHECK.EQ(hoverable.tagName, "circle");
+        const cx = parseFloat(hoverable.getAttributeNS(null, "cx"));
+        const cy = parseFloat(hoverable.getAttributeNS(null, "cy"));
+        const thisDist2 = (cx-event.offsetX)**2 + (cy-event.offsetY)**2;
+        if (closestIndex == -1 || thisDist2 < closestDist2) {
+          closestIndex = i;
+          closestDist2 = thisDist2;
+        }
+      }
+      //PRINT(closestIndex);
+      if (closestIndex !== -1) {
+        const threshold = 10;
+        if (closestDist2 <= threshold**2) {
+          const closestDist = Math.sqrt(closestDist2);
+          hoverables[closestIndex].onmouseover(event);
+        } else {
+          hideTooltip();
+        }
+      }
+    }
     xOfPreviousMouseEvent = event.offsetX;
     yOfPreviousMouseEvent = event.offsetY;
-    if (!draggingA && !draggingB) return;
-    if (eventVerboseLevel >= 1) console.log("mousemove with mouse down");
-    if (eventVerboseLevel >= 1) console.log("  event = ",event);
-    const ixOfMouseDown = relerp(xOfMouseDown, ox0,ox1, ix0,ix1);
-    const iyOfMouseDown = relerp(yOfMouseDown, oy0,oy1, iy0,iy1);
-    const ix = relerp(event.offsetX, ox0,ox1, ix0,ix1);
-    const iy = relerp(event.offsetY, oy0,oy1, iy0,iy1);
-
-    const aSnappedOld = round_to_nearest_representable(numFractionBits, minExponent, a);
-    const bSnappedOld = round_to_nearest_representable(numFractionBits, minExponent, b);
-
-    if (draggingA) a = aOfMouseDown + (iy-iyOfMouseDown);
-    if (draggingB) b = bOfMouseDown + (iy-iyOfMouseDown);
-
-    const aSnappedNew = round_to_nearest_representable(numFractionBits, minExponent, a);
-    const bSnappedNew = round_to_nearest_representable(numFractionBits, minExponent, b);
-
-    if (aSnappedNew != aSnappedOld || bSnappedNew != bSnappedOld) {
-      // Note that, while mouse is down, a and b in general aren't representable floats, so we round them when setting the URL param here
-      setURLParamModule.setURLAndParamsInURLBarWithVerboseLevel(xformUrlPart,
-          [['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(aSnappedNew)],['b',toFractionString(bSnappedNew)]],
-          /*whetherToEncodeValue=*/false,  // don't encode the '/' as  %2F
-          /*verboseLevel=*/0);
-    }
-
-    populateTheSVG(svg, Lerp, a, b);
   });
 
   console.log("    out lerp.js require callback");
