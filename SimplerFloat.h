@@ -202,6 +202,11 @@ class SimplerFloat {
     CHECK_NE(that.x_, 0.);
     return nearestFromDouble(numFractionBits_, minExponent_, x_ / that.x_);
   }
+  static SimplerFloat fma(const SimplerFloat &a, const SimplerFloat &b, const SimplerFloat &c) {
+    a.CheckCompatible(b);
+    a.CheckCompatible(c);
+    return nearestFromDouble(a.numFractionBits_, a.minExponent_, a.x_ * b.x_ + c.x_);
+  }
 
   int numFractionBits() { return numFractionBits_; }
   int minExponent() { return minExponent_; }

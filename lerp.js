@@ -1,4 +1,3 @@
-// TODO: smarter picking?  how? pick on the svg and loop over all objects in it?
 // TODO: browser zoom isn't faithful?? what's going on?  When I zoom in a bit, it draws more lines!
 // TODO: "smartest" seems perfect, but only if minExponent is sufficiently low.  can we make it perfect even with not-so-low minE?
 // TODO: make the selection of lerp algorithm persist in url bar
@@ -31,7 +30,7 @@
      Seems like, for example, I should be able to do, at least, arbitrary summation, by splitting each number into same number of parts
      according to the min and max exponent, then doing the sum in those parts, then recombining??
      I think I need to start by understanding shewchuk: https://people.eecs.berkeley.edu/~jrs/papers/robust-predicates.pdf
-     Yes, he operates in this framework.  Cool.
+     Yes, he operates in this framework.  Cool.  Done.
 
   From shewchuk:
     dekker: if |a|>=|b|:
@@ -451,17 +450,17 @@ registerSourceCodeLinesAndRequire([
   const round_to_nearest_representable_without_checking_against_opposite = (numFractionBits, minExponent, x) => {
     CHECK.NE(x, undefined);
     const verboseLevel = 0;
-    if (verboseLevel >= 1) console.log("            in round_to_nearest_representable(numFractionBits="+STRINGIFY(numFractionBits)+", minExponent="+STRINGIFY(minExponent)+", x="+STRINGIFY(x)+")");
+    if (verboseLevel >= 1) console.log("            in round_to_nearest_representable(numFractionBits="+STRINGIFY(numFractionBits)+", minExponent="+STRINGIFY(minExponent)+", x="+toDebugString(x)+")");
     const quantum = get_rounding_quantum(numFractionBits, minExponent, x);
-    if (verboseLevel >= 1) console.log("              quantum = "+STRINGIFY(quantum));
+    if (verboseLevel >= 1) console.log("              quantum = "+toDebugString(quantum));
     const Lo = Math.floor(x/quantum);
     const Hi = Math.ceil(x/quantum);
-    if (verboseLevel >= 1) console.log("              Lo = "+STRINGIFY(Lo));
-    if (verboseLevel >= 1) console.log("              Hi = "+STRINGIFY(Hi));
+    if (verboseLevel >= 1) console.log("              Lo = "+toDebugString(Lo));
+    if (verboseLevel >= 1) console.log("              Hi = "+toDebugString(Hi));
     let answer;
     if (Lo == Hi) {
       answer = Lo*quantum;
-      if (verboseLevel >= 1) console.log("            out round_to_nearest_representable(numFractionBits="+STRINGIFY(numFractionBits)+", minExponent="+STRINGIFY(minExponent)+", x="+STRINGIFY(x)+"), returning Lo*quantum="+STRINGIFY(Lo*quantum)+" because Lo==Hi");
+      if (verboseLevel >= 1) console.log("            out round_to_nearest_representable(numFractionBits="+STRINGIFY(numFractionBits)+", minExponent="+STRINGIFY(minExponent)+", x="+STRINGIFY(x)+"), returning Lo*quantum="+toDebugString(Lo*quantum)+" because Lo==Hi");
     } else {
       const lo = Lo*quantum;
       const hi = Hi*quantum;
@@ -475,6 +474,7 @@ registerSourceCodeLinesAndRequire([
         answer = hi;
       }
     }
+    if (verboseLevel >= 1) console.log("            out round_to_nearest_representable(numFractionBits="+STRINGIFY(numFractionBits)+", minExponent="+STRINGIFY(minExponent)+", x="+STRINGIFY(x)+"), returning Lo*quantum="+toDebugString(answer));
     return answer;
   };
 
@@ -503,12 +503,12 @@ registerSourceCodeLinesAndRequire([
   const succ_without_checking_against_pred = (numFractionBits, minExponent, x) => {
     CHECK.NE(x, undefined);
     let verboseLevel = 0;
-    if (verboseLevel >= 1) console.log("            in succ_without_checking_against_pred(numFractionBits="+STRINGIFY(numFractionBits)+", minExponent="+STRINGIFY(minExponent)+", x="+STRINGIFY(x)+")");
+    if (verboseLevel >= 1) console.log("            in succ_without_checking_against_pred(numFractionBits="+STRINGIFY(numFractionBits)+", minExponent="+STRINGIFY(minExponent)+", x="+toDebugString(x)+")");
     CHECK(is_representable(numFractionBits, minExponent, x));
     const quantum = get_rounding_quantum(numFractionBits, minExponent, x);
     // quantum is not exactly what we want.  but it's not more than a couple of orders of magnitude off.
     const answer = round_up_to_representable(numFractionBits, minExponent, x + quantum/4.);
-    if (verboseLevel >= 1) console.log("            out succ_without_checking_against_pred(numFractionBits="+STRINGIFY(numFractionBits)+", minExponent="+STRINGIFY(minExponent)+", x="+STRINGIFY(x)+"), returning "+STRINGIFY(answer));
+    if (verboseLevel >= 1) console.log("            out succ_without_checking_against_pred(numFractionBits="+STRINGIFY(numFractionBits)+", minExponent="+STRINGIFY(minExponent)+", x="+toDebugString(x)+"), returning "+toDebugString(answer));
     CHECK.GT(answer, x);
     CHECK(is_representable(numFractionBits, minExponent, answer));
     CHECK(!is_representable(numFractionBits, minExponent, (x+answer)/2.));
@@ -529,14 +529,14 @@ registerSourceCodeLinesAndRequire([
   const getFloatsInRange = (numFractionBits, minExponent, a, b) => {
     CHECK.NE(b, undefined);
     let verboseLevel = 0;
-    if (verboseLevel >= 1) console.log("        in getFloatsInRange(numFractionBits="+STRINGIFY(numFractionBits)+", minExponent="+STRINGIFY(minExponent)+", a="+STRINGIFY(a)+", b="+STRINGIFY(b)+")");
+    if (verboseLevel >= 1) console.log("        in getFloatsInRange(numFractionBits="+STRINGIFY(numFractionBits)+", minExponent="+STRINGIFY(minExponent)+", a="+toDebugString(a)+", b="+toDebugString(b)+")");
     const first = round_up_to_representable(numFractionBits, minExponent, a);
     const last = round_down_to_representable(numFractionBits, minExponent, b);
     const answer = [];
     for (let x = first; x <= last; x = succ(numFractionBits, minExponent, x)) {
       answer.push(x);
     }
-    if (verboseLevel >= 1) console.log("        out getFloatsInRange(numFractionBits="+STRINGIFY(numFractionBits)+", minExponent="+STRINGIFY(minExponent)+", a="+STRINGIFY(a)+", b="+STRINGIFY(b)+"), returning "+STRINGIFY(answer));
+    if (verboseLevel >= 1) console.log("        out getFloatsInRange(numFractionBits="+STRINGIFY(numFractionBits)+", minExponent="+STRINGIFY(minExponent)+", a="+toDebugString(a)+", b="+toDebugString(b)+"), returning "+toDebugString(answer));
     return answer;
   };
   const plus = (numFractionBits, minExponent, a, b) => {
@@ -584,7 +584,7 @@ registerSourceCodeLinesAndRequire([
   const linear_expansion_sum = (numFractionBits, minExponent, e, f) => {
     CHECK.NE(f, undefined);
     const verboseLevel = 0;
-    if (verboseLevel >= 1) console.log("in linear_expansion_sum(numFractionBits="+numFractionBits+" minExponent="+minExponent+" e="+STRINGIFY(e)+" f="+STRINGIFY(f)+")");
+    if (verboseLevel >= 1) console.log("in linear_expansion_sum(numFractionBits="+numFractionBits+" minExponent="+minExponent+" e="+toDebugString(e)+" f="+toDebugString(f)+")");
     const allow_zeros = false;  // should be false, but can set to true to get more insight into what's going on
     // largest to smallest (opposite from paper's convention).
     // We do *not* require nonoverlappingness, just so that we can use this function sumwhat illegally for simple sums of arbitrarily many things (although more than 2**(nF+2)+2 1's fails)
@@ -623,13 +623,13 @@ registerSourceCodeLinesAndRequire([
       CHECK.EQ(i, e.length);
       CHECK.EQ(j, f.length);
     }
-    if (verboseLevel >= 1) console.log("  g = "+STRINGIFY(g));
+    if (verboseLevel >= 1) console.log("  g = "+toDebugString(g));
     const answer = [];
     {
       let Q = 0;
       let q = 0;
       for (let i = g.length-1; i >= 0; --i) {
-        if (verboseLevel >= 1) console.log("      adding g["+i+"] = "+STRINGIFY(g[i]));
+        if (verboseLevel >= 1) console.log("      adding g["+i+"] = "+toDebugString(g[i]));
         let R_i, h_iminus2;
         if (false) {  // argh! this fails when fed (2**(nF+2)+3) 1's!    OH that violates this function's contract anyway! it's supposed to be just two addends, each of which is a nonintersecting series.  so, whatever.
           [R_i, h_iminus2] = fast_two_sum(numFractionBits, minExponent, g[i], q);
@@ -652,9 +652,16 @@ registerSourceCodeLinesAndRequire([
       //CHECK.EQ(plus(numFractionBits, minExponent, answer[i], answer[i+1]), answer[i]);  // this is true only if it was true of inputs, which we aren't requiring
     }
 
-    if (verboseLevel >= 1) console.log("out linear_expansion_sum(numFractionBits="+numFractionBits+" minExponent="+minExponent+" e="+STRINGIFY(e)+" f="+STRINGIFY(f)+"), returning "+STRINGIFY(answer));
+    if (verboseLevel >= 1) console.log("out linear_expansion_sum(numFractionBits="+numFractionBits+" minExponent="+minExponent+" e="+toDebugString(e)+" f="+toDebugString(f)+"), returning "+STRINGIFY(answer));
     return answer;
   };  // linear_expansion_sum
+
+  const my_normalize_expansion = (numFractionBits, minExponent, e) => {
+    // No assumptions on order at all, I don't think... although probably if it starts in increasing order, it'll be O(n^2)
+    const answer = [...e];
+    if (verboseLevel >= 1) console.log("out my_normalize_expansion(numFractionBits="+numFractionBits+" minExponent="+minExponent+" e="+toDebugString(e)+"), returning "+toDebugString(answer));
+    return answer;
+  };
 
   const expansions_are_same = (e, f) => {
     if (e.length != f.length) return false;
@@ -662,17 +669,35 @@ registerSourceCodeLinesAndRequire([
     return true;
   };  // expansions_are_same
   const canonicalize_linear_expansion = (numFractionBits, minExponent, e) => {
+    const verboseLevel = 1;
+    if (verboseLevel >= 1) console.log("in canonicalize_linear_expansion(numFractionBits="+numFractionBits+" minExponent="+minExponent+" e="+toDebugString(e)+")");
     let f = e;
+    let nPasses = 0;
     while (true) {
+      if (verboseLevel >= 1) console.log("  after "+nPasses+ " pass"+(nPasses==1?"":"es")+": "+toDebugString(f));
+      if (verboseLevel >= 1) {
+        for (let i = 0; i < f.length; ++i) {
+          if (verboseLevel >= 1) console.log("      f["+i+"] = "+toBinaryString(f[i]));
+        }
+      }
       const g = linear_expansion_sum(numFractionBits, minExponent, f, []);
-      if (expansions_are_same(f, g)) break;
+      if (expansions_are_same(f, g)) {
+        if (verboseLevel >= 1) console.log("  stationary after "+nPasses+" pass"+(nPasses==1?"":"es")+"!");
+        break;
+      }
       f = g;
+      nPasses++;
+      if (nPasses > 2*e.length) {
+        if (verboseLevel >= 1) console.log("  THAT'S RIDICULOUS, STOPPING");
+        break;
+      }
     }
     // Some sanity checking...
     for (let i = 0; i < f.length-1; ++i) {
       CHECK.GT(Math.abs(f[i]), Math.abs(f[i+1]));
       CHECK.EQ(plus(numFractionBits, minExponent, f[i], f[i+1]), f[i]);
     }
+    if (verboseLevel >= 1) console.log("out canonicalize_linear_expansion(numFractionBits="+numFractionBits+" minExponent="+minExponent+" e="+STRINGIFY(e)+"), returning "+toDebugString(f));
     return f;
   };  // canonicalize_linear_expansion
 
@@ -797,12 +822,12 @@ registerSourceCodeLinesAndRequire([
   if (true)
   {
     let xs = [];
-    if (false)
+    if (true)
     {
-      let x = 5*1024;
-      for (let i = 0; i < 30; ++i) {
-        xs.push(round_to_nearest_representable(numFractionBits, minExponent, x));
-        x /= 8;
+      let x = Math.floor(2**(numFractionBits+2)/3);
+      for (let i = 0; i < 2; ++i) {
+        xs.push(round_to_nearest_representable(numFractionBits, -100, x));
+        x /= 2**(numFractionBits+1);
       }
     }
     if (false) {
@@ -827,7 +852,7 @@ registerSourceCodeLinesAndRequire([
         xs.push(1);
       }
     }
-    if (true) {
+    if (false) {
       // Okay let's start with something ambiguous, does it canonicalize?
       // E.g. for nF=3, 17 can be expressed as 16+1 (seems to be canonical) or 18-1.
       //xs.push(2**(numFractionBits+1));
@@ -837,20 +862,9 @@ registerSourceCodeLinesAndRequire([
       // YES, it seems to canonicalize 18-1 to 16+1!  Hooray!
     }
 
-    for (let ipass = 0; ipass < 100; ++ipass) {
-      PRINT(ipass);
-      PRINT(xs);
-      PRINT(xs.length);
-      for (let i = 0; i < xs.length; ++i) { console.log("      xs["+i+"] = "+toDebugString(xs[i])); }
-      const ys = linear_expansion_sum(numFractionBits, minExponent, xs, []);
-      if (expansions_are_same(xs, ys)) {
-        console.log("  stationary after ipass="+ipass+"!");
-        break;
-      }
-      xs = ys;
-    }
+    PRINT(canonicalize_linear_expansion(numFractionBits, -100, xs));
 
-    if (false) {
+    if (true) {
       console.log("  returning early!");
       return;
     }
@@ -1085,15 +1099,19 @@ registerSourceCodeLinesAndRequire([
     //    x = f + e
     // Let's translate that into easier-to-understand lo,hi terms.
     //    bc_hi = w = b*c
-    //    bc_lo = -e = fma(b,c, w) = fma(b,c, bc_hi)
-    //    answer_hi = f = fma(a,d, -w) = fma(a,d, -bc_hi)
+    //    bc_lo = -e = fma(b,c, w) = fma(b,c, -bc_hi)
+    //    answer_hi = f = fma(a,d, -w) = fma(a,d, -bc_hi)   // although answer_hi might be a misnomer
     //    answer = f + e = answer_hi - bc_lo
     // And let's translate it into easier-to-understand ad+bc terms instead (dot product).
     //    bc_hi = b*c
     //    bc_lo = fma(b,c, -bc_hi)
-    //    answer_hi = fma(a,d, bc_hi)
+    //    answer_hi = fma(a,d, bc_hi)   // although answer_hi might be a misnomer
     //    answer = answer_hi + bc_lo = fma(a,d, bc_hi) + fma(b,c, -bc_hi)
     // Q: is that exact??? (i.e. the actually correctly rounded answer?)
+    // PA: well, think about how it could go wrong...
+    //     maybe if the LHS is a tie, and the RHS would move the original LHS into a tie that *should* be resolved the other way?
+    //     or, maybe even the RHS should be a tiebreaker but is just too small to manage it?  I think that's more likely.
+
     // And morph it more towards an algorithm for dot products...
     //    hi = b*c
     //    lo = fma(b,c, -hi)
@@ -1101,7 +1119,7 @@ registerSourceCodeLinesAndRequire([
     //    next_lo = lo (?)  that's not right
     // Q: I know how to get the lo part of x*y: that's fma(x,y,-x*y).
     //    But how do I get the lo part of fma(x,y,z)?  I think maybe that's needed for general dot product?
-    // A: well, that Dot2 algorithm does the loop as follows (but it seems non-ideal in terms of feedback):
+    // A: well, that multiple-papers Dot2 algorithm does the loop as follows (but it seems non-ideal in terms of feedback):
     //      [hi,lo0] = TwoProduct(x,y)
     //      [Hi,lo1] = TwoSum(Hi,hi)
     //      Lo += (lo0 + lo1)   (with rounding at each step)
@@ -1411,6 +1429,7 @@ registerSourceCodeLinesAndRequire([
         circle.setAttributeNS(null, "r", "1.5");
         circle.setAttributeNS(null, "fill", "green");
         circle.classList.add("hoverable");
+        // Note that this onmouseover is also used by an event listener on the svg that does friendlier hovering (distance based).
         circle.onmouseover = evt=>showTooltip(evt, makeTheTooltipText(t, exact_lerp_cross_your_fingers(a,b,t), y));
         circle.onmouseout = evt=>hideTooltip();
         svg.appendChild(circle);

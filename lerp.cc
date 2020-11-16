@@ -206,6 +206,7 @@ void describe_actual_counterexample()
 }  // describe_actual_counterexample
 
 // Search for a counterexample to:  a<b,  a+1/2(b-a) <= b-1/2(b-a)
+// DID NOT FIND!  Confirms.
 template<int FractionBits>
 void another_counterexample_search() {
   std::cout << "        in another_counterexample_search<FractionBits="<<FractionBits<<">" << std::endl;
@@ -239,12 +240,74 @@ void another_counterexample_search() {
           std::cout << std::endl;
         }
       }
-
-
     }
   }
   std::cout << "        out another_counterexample_search<FractionBits="<<FractionBits<<">" << std::endl;
 }
+
+// Search for a counterexample to Kahan's 2x2 determinant (or dot) algorithm that uses FMA
+//    bc_hi = b*c
+//    bc_lo = fma(b,c, -bc_hi)
+//    answer_hi = fma(a,d, bc_hi)   // although answer_hi might be a misnomer
+//    answer = answer_hi + bc_lo = fma(a,d, bc_hi) + fma(b,c, -bc_hi)
+// oh this is absurd, there is a whole paper on this, it does *not* claim to be exact!  https://www.ams.org/journals/mcom/2013-82-284/S0025-5718-2013-02679-8/S0025-5718-2013-02679-8.pdf
+template<int FractionBits>
+void dot2x2_counterexample_search() {
+  std::cout << "        in dot2x2_counterexample_search<FractionBits="<<FractionBits<<">" << std::endl;
+  using Float = SimplerFloatTemplated<FractionBits, -2>;
+
+  //const Float min = Float(1./4);
+  //const Float max = Float(4.);
+
+  //const Float min = Float(1./2);
+  //const Float max = Float(2.);
+
+  const Float min = Float(1.);
+  const Float max = Float(2.);
+
+  for (Float a = min; a <= max; a = a.succ()) {
+    for (Float b = min; b <= max; b = b.succ()) {
+      for (Float c = b; c <= max; c = c.succ()) {
+        for (Float d = a; d <= max; d = d.succ()) {
+          // Same sign ad+bc...
+          if (true) {
+            const Float bc_hi = b*c;
+            const Float bc_lo = Float::fma(b,c, -bc_hi);
+            const Float answer_hi = Float::fma(a,d, bc_hi);  // might be a misnomer
+            const Float answer = answer_hi + bc_lo;
+            std::cout << "======" << std::endl;
+            PRINT(a);
+            PRINT(b);
+            PRINT(c);
+            PRINT(d);
+            PRINT(a.toDouble()*d.toDouble());
+            PRINT(b.toDouble()*c.toDouble());
+            PRINT(bc_hi);
+            PRINT(bc_lo);
+            PRINT(bc_hi.toDouble()+bc_lo.toDouble());
+            CHECK_EQ(bc_hi.toDouble()+bc_lo.toDouble(), b.toDouble()*c.toDouble());
+            PRINT(a*d);
+            PRINT(b*c);
+            PRINT(a.toDouble()*d.toDouble()+b.toDouble()*c.toDouble());
+
+            CHECK_EQ(answer.toDouble(), Float::nearestFromDouble(a.toDouble()*d.toDouble()+b.toDouble()*c.toDouble()).toDouble());
+            CHECK_EQ(answer, Float::nearestFromDouble(a.toDouble()*d.toDouble()+b.toDouble()*c.toDouble()));  // same thing, I think
+          }
+          // Opposite sign ad-bc...
+          if (false) {
+            const Float bc_hi = b*c;
+            const Float bc_lo = Float::fma(b,c, -bc_hi);
+            const Float answer_hi = Float::fma(a,d, -bc_hi);
+            const Float answer = answer_hi - bc_lo;
+            CHECK_EQ(answer.toDouble(), Float::nearestFromDouble(a.toDouble()*d.toDouble()-b.toDouble()*c.toDouble()).toDouble());
+            CHECK_EQ(answer, Float::nearestFromDouble(a.toDouble()*d.toDouble()-b.toDouble()*c.toDouble()));  // same thing, I think
+          }
+        }
+      }
+    }
+  }
+  std::cout << "        out dot2x2_counterexample_search<FractionBits="<<FractionBits<<">" << std::endl;
+}  // third_counterexample_search
 
 
 
@@ -256,17 +319,32 @@ int main(int, char**) {
   std::cout << "      "<<DEBUG(std::log2(std::numeric_limits<float>::epsilon())) << std::endl;
   std::cout << "      "<<DEBUG(std::log2(std::numeric_limits<double>::epsilon())) << std::endl;
 
-  counterexample_search<1>();
-  counterexample_search<2>();
-  counterexample_search<3>();
-  counterexample_search<4>();
-  counterexample_search<5>();
+  if (true) {
+    //dot2x2_counterexample_search<0>();
+    //dot2x2_counterexample_search<1>();
+    dot2x2_counterexample_search<2>();
+    dot2x2_counterexample_search<3>();
+    dot2x2_counterexample_search<4>();
+    dot2x2_counterexample_search<5>();
+    dot2x2_counterexample_search<6>();
+    return 33;
+  }
 
-  if ((false)) {
+  if (true) {
+    counterexample_search<1>();
+    counterexample_search<2>();
+    counterexample_search<3>();
+    counterexample_search<4>();
+    counterexample_search<5>();
+  }
+
+  if (true) {
     describe_actual_counterexample<float>();
     describe_actual_counterexample<double>();
     describe_actual_counterexample<long double>();
+  }
 
+  if (false) {  // ran these, didn't find anything
     another_counterexample_search<1>();
     another_counterexample_search<2>();
     another_counterexample_search<4>();
