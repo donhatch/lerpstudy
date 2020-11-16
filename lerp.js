@@ -1,3 +1,5 @@
+// TODO: fail http://localhost:8000/lerp.html?numFractionBits=4&minExponent=-12&a=5/32&b=13/16
+
 // TODO: browser zoom isn't faithful?? what's going on?  When I zoom in a bit, it draws more lines!
 // TODO: "smartest" seems perfect, but only if minExponent is sufficiently low.  can we make it perfect even with not-so-low minE?
 // TODO: make the selection of lerp algorithm persist in url bar
@@ -658,10 +660,65 @@ registerSourceCodeLinesAndRequire([
 
   const my_normalize_expansion = (numFractionBits, minExponent, e) => {
     // No assumptions on order at all, I don't think... although probably if it starts in increasing order, it'll be O(n^2)
+    const verboseLevel = 0;
+    if (verboseLevel >= 1) console.log("in my_normalize_expansion(numFractionBits="+numFractionBits+" minExponent="+minExponent+" e="+toDebugString(e)+")");
+    const ridiculous_number_of_iterations = 2*e.length**2;
     const answer = [...e];
+    let nIn = answer.length;
+    let iIn = 0;
+    let nOut = 0;
+    let number_of_iterations = 0;
+    while (iIn < nIn) {
+      if (verboseLevel >= 1) console.log("  top of loop: nOut="+nOut+" iIn="+iIn+" nIn="+nIn+"  "+toDebugString(answer.slice(0,nOut))+toDebugString(answer.slice(nOut,iIn))+toDebugString(answer.slice(iIn,nIn)));
+      // Invariant: answer[0..nOut-1] are normalized,
+      // and the sum of answer[0..nOut-1] and answer[iIn..nIn] is the sum.
+      if (answer[iIn] === 0.) {
+        iIn++;
+      } else if (nOut === 0) {
+        answer[nOut++] = answer[iIn++];
+      } else {
+        const a = answer[nOut-1];
+        const b = answer[iIn];
+        if (verboseLevel >= 1) console.log("    a="+toDebugString(a)+" b="+toDebugString(b));
+        let x,y;
+        [x,y] = two_sum(numFractionBits, minExponent, a, b);
+        if (verboseLevel >= 1) console.log("    x="+toDebugString(x)+" y="+toDebugString(y));
+        if (x == a && b == y) {
+          if (verboseLevel >= 1) console.log("    no change; advancing");
+          answer[nOut++] = answer[iIn++];
+        } else if (x === 0 && y === 0) {
+          if (verboseLevel >= 1) console.log("    both zero");
+          --nOut;
+          nIn++;
+        } else if (y === 0) {
+          if (verboseLevel >= 1) console.log("    only y is 0");
+          --nOut;
+          answer[iIn] = x;
+        } else {  // both nonzero
+          if (verboseLevel >= 1) console.log("    both nonzero");
+          --nOut;
+          answer[iIn] = y;
+          --iIn;
+          answer[iIn] = x;
+        }
+      }
+      number_of_iterations++;
+      CHECK.LT(number_of_iterations, ridiculous_number_of_iterations);
+
+      // TODO: these bounds are empirical.  Need to prove it, or replace it with something provable.
+      CHECK.LE(number_of_iterations, e.length==0 ? 0 : e.length==1 ? 1 : e.length==2 ? 4 : e.length==3 ? 10 : e.length==4 ? 13 : e.length==5 ? 15 : -6);
+
+      // 3 needed 11: ???
+      // 4 needed 13: http://localhost:8000/lerp.html?numFractionBits=5&minExponent=-15&a=-45/256&b=17/32 smartest
+      // 5 needed 15: http://localhost:8000/lerp.html?numFractionBits=4&minExponent=-15&a=-31/512&b=3/8 smartest
+
+      if (verboseLevel >= 1) console.log("  bottom of loop: nOut="+nOut+" iIn="+iIn+" nIn="+nIn+"  "+toDebugString(answer.slice(0,nOut))+toDebugString(answer.slice(nOut,iIn))+toDebugString(answer.slice(iIn,nIn)));
+    }
+    answer.length = nOut;
     if (verboseLevel >= 1) console.log("out my_normalize_expansion(numFractionBits="+numFractionBits+" minExponent="+minExponent+" e="+toDebugString(e)+"), returning "+toDebugString(answer));
     return answer;
-  };
+  };  // my_normalize_expansion
+  PRINT(my_normalize_expansion(numFractionBits, minExponent, [1,1]));
 
   const expansions_are_same = (e, f) => {
     if (e.length != f.length) return false;
@@ -669,7 +726,7 @@ registerSourceCodeLinesAndRequire([
     return true;
   };  // expansions_are_same
   const canonicalize_linear_expansion = (numFractionBits, minExponent, e) => {
-    const verboseLevel = 1;
+    const verboseLevel = 0;
     if (verboseLevel >= 1) console.log("in canonicalize_linear_expansion(numFractionBits="+numFractionBits+" minExponent="+minExponent+" e="+toDebugString(e)+")");
     let f = e;
     let nPasses = 0;
@@ -697,6 +754,7 @@ registerSourceCodeLinesAndRequire([
       CHECK.GT(Math.abs(f[i]), Math.abs(f[i+1]));
       CHECK.EQ(plus(numFractionBits, minExponent, f[i], f[i+1]), f[i]);
     }
+    CHECK.EQ(''+f, ''+my_normalize_expansion(numFractionBits, minExponent, e));
     if (verboseLevel >= 1) console.log("out canonicalize_linear_expansion(numFractionBits="+numFractionBits+" minExponent="+minExponent+" e="+STRINGIFY(e)+"), returning "+toDebugString(f));
     return f;
   };  // canonicalize_linear_expansion
@@ -864,7 +922,7 @@ registerSourceCodeLinesAndRequire([
 
     PRINT(canonicalize_linear_expansion(numFractionBits, -100, xs));
 
-    if (true) {
+    if (false) {
       console.log("  returning early!");
       return;
     }
@@ -919,7 +977,11 @@ registerSourceCodeLinesAndRequire([
       for (let i = answer_expansion.length-1; i >= 0; --i) {
         answer += answer_expansion[i];
       }
-      CHECK.EQ(answer, exact0);
+      CHECK.EQ(answer, exact0);  // XXX PUT THE CANDLE BACK.  I think maybe this fails in case of underflow? or maybe not.
+      // http://localhost:8000/lerp.html?numFractionBits=4&minExponent=-10&a=-23/64&b=21/256
+      // http://localhost:8000/lerp.html?numFractionBits=4&minExponent=-15&a=-13/64&b=31/32
+      // http://localhost:8000/lerp.html?numFractionBits=4&minExponent=-15&a=3/8&b=31/32
+      // http://localhost:8000/lerp.html?numFractionBits=4&minExponent=-15&a=3/8&b=1
 
       if (false) {
         // Q: Does canonicalization always chooses the right answer for the first component anyway?
@@ -1065,12 +1127,12 @@ registerSourceCodeLinesAndRequire([
     //     exact answer is: 0.100010001
     //     which is a little bit higher than the halfway point 0.10001 between representable 0.1000 and 0.1001.
     //     so, should round to: 0.1001
-    //           but rounds to:   0.1000
+    //         but rounds to:   0.1000
     const a = 13/16;
     const b = 0;
     const t = 11/32;
-    PRINT(DotCorrect([1,-t,t],[a,a,b]));
-    PRINT(magic_correct_lerp(numFractionBits, minExponent, a,b,t));
+    //PRINT(DotCorrect([1,-t,t],[a,a,b]));  // not safe if numFractionBits is 2, so don't do it
+    PRINT(magic_correct_lerp(3, -10, a,b,t));
     //return;
   }
 
