@@ -671,7 +671,7 @@ registerSourceCodeLinesAndRequire([
     while (iIn < nIn) {
       if (verboseLevel >= 1) console.log("  top of loop: nOut="+nOut+" iIn="+iIn+" nIn="+nIn+"  "+toDebugString(answer.slice(0,nOut))+toDebugString(answer.slice(nOut,iIn))+toDebugString(answer.slice(iIn,nIn)));
       // Invariant: answer[0..nOut-1] are normalized,
-      // and the sum of answer[0..nOut-1] and answer[iIn..nIn] is the sum.
+      // and the sum of answer[0..nOut-1] and answer[iIn..nIn] is the actual um.
       if (answer[iIn] === 0.) {
         iIn++;
       } else if (nOut === 0) {
@@ -692,10 +692,12 @@ registerSourceCodeLinesAndRequire([
           nIn++;
         } else if (y === 0) {
           if (verboseLevel >= 1) console.log("    only y is 0");
+          CHECK.NE(x, a);
           --nOut;
           answer[iIn] = x;
         } else {  // both nonzero
           if (verboseLevel >= 1) console.log("    both nonzero");
+          CHECK.NE(x, a);
           --nOut;
           answer[iIn] = y;
           --iIn;
@@ -716,6 +718,8 @@ registerSourceCodeLinesAndRequire([
     }
     answer.length = nOut;
     if (verboseLevel >= 1) console.log("out my_normalize_expansion(numFractionBits="+numFractionBits+" minExponent="+minExponent+" e="+toDebugString(e)+"), returning "+toDebugString(answer));
+    for (let i = 0; i < answer.length; ++i) CHECK.NE(answer[i], 0.);
+    for (let i = 0; i < answer.length-1; ++i) CHECK.EQ(plus(numFractionBits, minExponent, answer[i], answer[i+1]), answer[i]);
     return answer;
   };  // my_normalize_expansion
   PRINT(my_normalize_expansion(numFractionBits, minExponent, [1,1]));
@@ -725,6 +729,8 @@ registerSourceCodeLinesAndRequire([
     for (let i = 0; i < e.length; ++i) if (e[i] != f[i]) return false;
     return true;
   };  // expansions_are_same
+
+  // TODO: I think I'm deprecating this in favor of my_normalize_expansion? not sure
   const canonicalize_linear_expansion = (numFractionBits, minExponent, e) => {
     const verboseLevel = 0;
     if (verboseLevel >= 1) console.log("in canonicalize_linear_expansion(numFractionBits="+numFractionBits+" minExponent="+minExponent+" e="+toDebugString(e)+")");
@@ -760,30 +766,50 @@ registerSourceCodeLinesAndRequire([
   };  // canonicalize_linear_expansion
 
   const split = (numFractionBits, minExponent, a) => {
+    // From shewchuk's paper.  The short paper hardcodes the split point to be ceil(nF/2).
     CHECK.GE(numFractionBits, 3);  // that's what the paper says, not sure why.  TODO: check whether it fails for 2 and/or 1
-    const multiplier = 2**Math.ceil(numFractionBits/2) + 1;
+    const splitPoint = Math.ceil(numFractionBits/2);  // the long paper actually allows any split point s such that p/2 <= s <= p-1.
+    const multiplier = 2**splitPoint + 1;
     const c = times(numFractionBits, minExponent, multiplier, a);
     const a_big = minus(numFractionBits, minExponent, c, a);
     const a_hi = minus(numFractionBits, minExponent, c, a_big);
     const a_lo = minus(numFractionBits, minExponent, a, a_hi);
     CHECK.EQ(a_hi+a_lo, a);
     CHECK.EQ(plus(numFractionBits, minExponent, a_hi, a_lo), a);
+
+    // a_hi should have width (at most) nF-splitPoint
+    CHECK(is_representable(numFractionBits-splitPoint, minExponent, a_hi));
+    // a_lo should have width (at most) splitPoint-1
+    CHECK(is_representable(splitPoint-1, minExponent, a_lo));
+
     return [a_hi,a_lo];
   };  // split
 
   const two_product = (numFractionBits, minExponent, a, b) => {
+    const verboseLevel = 1;
+    if (verboseLevel >= 1) console.log("in two_product(numFractionBits="+numFractionBits+" minExponent="+minExponent+" a="+toDebugString(a)+" b="+toDebugString(b)+")");
     // From shewchuk's paper.
-    // TODO: can this be done using fma?  The paper assumed we don't have fma.
+    // (Note, can be done much more easily using fma; see two_product_using fma below)
     CHECK.NE(b, undefined);
     const x = times(numFractionBits, minExponent, a, b);
+    if (verboseLevel >= 1) console.log("  x = "+toDebugString(x));
     let a_hi, a_lo, b_hi, b_lo;
     [a_hi, a_lo] = split(numFractionBits, minExponent, a);
+    if (verboseLevel >= 1) console.log("  [a_hi, a_lo] = "+toDebugString([a_hi, a_lo]));
     [b_hi, b_lo] = split(numFractionBits, minExponent, b);
+    if (verboseLevel >= 1) console.log("  [b_hi, b_lo] = "+toDebugString([b_hi, b_lo]));
     const err1 = minus(numFractionBits, minExponent, x, times(numFractionBits, minExponent, a_hi, b_hi));
     const err2 = minus(numFractionBits, minExponent, err1, times(numFractionBits, minExponent, a_lo, b_hi));
     const err3 = minus(numFractionBits, minExponent, err2, times(numFractionBits, minExponent, a_hi, b_lo));
+    if (verboseLevel >= 1) console.log("  err1 = "+toDebugString(err1));
+    if (verboseLevel >= 1) console.log("  err2 = "+toDebugString(err2));
+    if (verboseLevel >= 1) console.log("  err3 = "+toDebugString(err3));
     const y = minus(numFractionBits, minExponent, times(numFractionBits, minExponent, a_lo, b_lo), err3);
-    return [x,y];
+    if (verboseLevel >= 1) console.log("  y = "+toDebugString(y));
+    const answer = [x,y];
+    if (verboseLevel >= 1) console.log("out two_product(numFractionBits="+numFractionBits+" minExponent="+minExponent+" a="+toDebugString(a)+" b="+toDebugString(b)+"), returning "+toDebugString(answer));
+    CHECK.EQ(answer, two_product_using_fma(numFractionBits, minExponent, a, b));  // TODO: enable this when bug fixed!
+    return answer;
   };  // two_product
   const two_product_using_fma = (numFractionBits, minExponent, a, b) => {
     // Ah, cool!  So the value of fma here is that it it saves all that work of two_product above.
@@ -793,7 +819,7 @@ registerSourceCodeLinesAndRequire([
   };  // two_product_using_fma
   const scale_expansion = (numFractionBits, minExponent, e, b) => {
     const verboseLevel = 0;
-    if (verboseLevel >= 1) console.log("in scale_expansion(numFractionBits="+numFractionBits+" minExponent="+minExponent+" e="+STRINGIFY(e)+" b="+toDebugString(b)+")");
+    if (verboseLevel >= 1) console.log("in scale_expansion(numFractionBits="+numFractionBits+" minExponent="+minExponent+" e="+toDebugString(e)+" b="+toDebugString(b)+")");
     for (let i = 0; i < e.length-1; ++i) CHECK.GE(Math.abs(e[i]), Math.abs(e[i+1]));  // nonincreasing magnitudes
     if (e.length == 0) return [];
     const answer = []
@@ -801,19 +827,21 @@ registerSourceCodeLinesAndRequire([
       let Q, h;
       [Q,h] = two_product(numFractionBits, minExponent, e[e.length-1], b);
       if (h != 0) answer.push(h);
-      if (verboseLevel >= 1) console.log("  initial Q,h = "+Q+","+h);
+      if (verboseLevel >= 1) console.log("  initial Q,h = "+toDebugString(Q)+","+toDebugString(h));
       for (let i = e.length-1-1; i >= 0; --i) {
+        if (verboseLevel >= 1) console.log("      top of loop");
         let T,t;
         [T,t] = two_product(numFractionBits, minExponent, e[i], b);
         [Q,h] = two_sum(numFractionBits, minExponent, Q,t);
         if (h != 0) answer.push(h);
         [Q,h] = fast_two_sum(numFractionBits, minExponent, T,Q);
         if (h != 0) answer.push(h);
+        if (verboseLevel >= 1) console.log("      bottom of loop");
       }
       if (Q != 0) answer.push(Q)
     }
     answer.reverse();
-    if (verboseLevel >= 1) console.log("out scale_expansion(numFractionBits="+numFractionBits+" minExponent="+minExponent+" e="+STRINGIFY(e)+" b="+STRINGIFY(b)+"), returning "+STRINGIFY(answer));
+    if (verboseLevel >= 1) console.log("out scale_expansion(numFractionBits="+numFractionBits+" minExponent="+minExponent+" e="+toDebugString(e)+" b="+toDebugString(b)+"), returning "+toDebugString(answer));
     return answer;
   };  // scale_expansion
   const approximate = (numFractionBits, minExponent, e) => {
@@ -953,67 +981,69 @@ registerSourceCodeLinesAndRequire([
     CHECK.EQ(exact0, exact5);
     CHECK.EQ(exact0, exact6);
     CHECK.EQ(exact0, exact7);
-    // That's still not conclusive, and in fact it may not be exactly representable at all.
-    // Okay, let's do it for real.
-    {
-      let numFractionBits = 3;  // TODO: see if I trust 2; there's currently a CHECK failure due to something in the paper, but I don't understand why
-      const minExponent = -100;
-      while (!is_representable(numFractionBits, minExponent, a)
-          || !is_representable(numFractionBits, minExponent, b)
-          || !is_representable(numFractionBits, minExponent, t)) {
-        // CBB: we assume it's due to numFractionBits, although it could be due to minExponent instead
-        numFractionBits++;
-      }
-      const bminusa = linear_expansion_sum(numFractionBits, minExponent, [b], [-a]);
-      const bminusa_times_t = scale_expansion(numFractionBits, minExponent, bminusa, t);
-      const answer_expansion = canonicalize_linear_expansion(numFractionBits, minExponent,
-                                                             linear_expansion_sum(numFractionBits, minExponent, [a], bminusa_times_t));
-      // Ok here's the part where we have to be careful.
-      // If we naively sum the parts of answer_expansion, in its precision, we may get the wrong answer,
-      // e.g. something just on the odd side of a tie, in the given precision, may get rounded to the tie, and then wrongly rounded to even.
-      // However, the point here is just to confirm something we think is exact (done in native precision, which is probably much more than nF)
-      // so we'll proceed anyway.
-      let answer = 0;
-      for (let i = answer_expansion.length-1; i >= 0; --i) {
-        answer += answer_expansion[i];
-      }
-      CHECK.EQ(answer, exact0);  // XXX PUT THE CANDLE BACK.  I think maybe this fails in case of underflow? or maybe not.
-      // http://localhost:8000/lerp.html?numFractionBits=4&minExponent=-10&a=-23/64&b=21/256
-      // http://localhost:8000/lerp.html?numFractionBits=4&minExponent=-15&a=-13/64&b=31/32
-      // http://localhost:8000/lerp.html?numFractionBits=4&minExponent=-15&a=3/8&b=31/32
-      // http://localhost:8000/lerp.html?numFractionBits=4&minExponent=-15&a=3/8&b=1
-
-      if (false) {
-        // Q: Does canonicalization always chooses the right answer for the first component anyway?
-        // A: Oh, it is *not* true.  Actually the logic for canonicalization does exactly the wrong thing!  That is, it chooses the right choice locally,
-        // which is the wrong choice globally due to two it thinking there are two tiebreaks when it isn't really a tie.
-        // The following tests that hypothesis; it fails.
-        PRINT(toDebugString(answer_expansion));
-        PRINT(toDebugString(round_to_nearest_representable(numFractionBits, minExponent, answer)));
-        CHECK.EQ(round_to_nearest_representable(numFractionBits, minExponent, answer), answer_expansion.length>0?answer_expansion[0]:0);
-      }
-    }
-
+    // Note: that's still not conclusive, and in fact it may not be exactly representable at all.
     return exact0;
-  };
+  };  // exact_lerp_cross_your_fingers
 
-  PRINT(scale_expansion(3, -7, [1/16], 1/64));  // XXX it's zero??  wtf?  OH that's because of minExponent, I bet
-  PRINT(exact_lerp_cross_your_fingers(0, 1/16, 1/64));
-  PRINT(exact_lerp_cross_your_fingers(0, 13/16, 1/64));
-  PRINT(exact_lerp_cross_your_fingers(0, 15/16, 1/64));
-  PRINT(exact_lerp_cross_your_fingers(0, 7/8, 1/128));
-  PRINT(exact_lerp_cross_your_fingers(0, 3/4, 1/256));
-  PRINT(exact_lerp_cross_your_fingers(1/8, 1, 1/128));
-  PRINT(exact_lerp_cross_your_fingers(15/64, 1, 1/512));
+  const sum = array => array.reduce((a,b)=>a+b, 0);
 
   const magic_correct_lerp = (numFractionBits, minExponent, a, b, t) => {
+    const verboseLevel = 1;
+    if (verboseLevel >= 1) console.log("    in magic_correct_lerp(numFractionBits="+STRINGIFY(numFractionBits)+"  minExponent="+STRINGIFY(minExponent)+" a="+toDebugString(a)+" b="+toDebugString(b)+" t="+toDebugString(t)+")");
     CHECK(is_representable(numFractionBits, minExponent, a));
     CHECK(is_representable(numFractionBits, minExponent, b));
     CHECK(is_representable(numFractionBits, minExponent, t));
-    const exact_I_hope = exact_lerp_cross_your_fingers(a, b, t);
-    const answer = round_to_nearest_representable(numFractionBits, minExponent, exact_I_hope);
+
+    const bminusa = linear_expansion_sum(numFractionBits, minExponent, [b], [-a]);
+    if (verboseLevel >= 1) console.log("      bminusa = "+toDebugString(bminusa));
+
+    // TODO: not right when a=0 b=27/32 t=19/32; it produces 1/2+17/1024=529/1024, should be 513/1024
+    const bminusa_times_t = scale_expansion(numFractionBits, minExponent, bminusa, t);
+
+    if (verboseLevel >= 1) console.log("      bminusa_times_t = "+toDebugString(bminusa_times_t));
+    const answer_expansion_not_canonical = linear_expansion_sum(numFractionBits, minExponent, [a], bminusa_times_t);
+    if (verboseLevel >= 1) console.log("      answer_expansion_not_canonical = "+toDebugString(answer_expansion_not_canonical));
+    if (verboseLevel >= 1) console.log("      sum(answer_expansion_not_canonical) = "+toDebugString(answer_expansion_not_canonical.reduce((a,b)=>a+b,0)));
+    const answer_expansion = canonicalize_linear_expansion(numFractionBits, minExponent, answer_expansion_not_canonical);
+    if (verboseLevel >= 1) console.log("      answer_expansion = "+toDebugString(answer_expansion));
+    if (verboseLevel >= 1) console.log("      sum(answer_expansion) = "+toDebugString(sum(answer_expansion)));
+    const answer = round_canonical_expansion_to_nearest(numFractionBits, minExponent, answer_expansion);
+    if (verboseLevel >= 1) console.log("    out magic_correct_lerp(numFractionBits="+STRINGIFY(numFractionBits)+"  minExponent="+STRINGIFY(minExponent)+" a="+toDebugString(a)+" b="+toDebugString(b)+" t="+toDebugString(t)+"), returning "+toDebugString(answer));
     return answer;
   };
+
+  if (true) {
+    console.log("=================");
+    PRINTDEBUG((27/32) * (19/32));
+
+    // This one is right.
+    PRINTDEBUG(two_product_using_fma(numFractionBits, minExponent, 19/32, 27/32));
+    PRINTDEBUG(two_product_using_fma(numFractionBits, minExponent, 27/32, 19/32));
+    // TODO: not right: products 1/2+17/1024=529/1024, should be 513/1024
+    PRINTDEBUG(two_product(numFractionBits, minExponent, 27/32, 19/32));
+    PRINTDEBUG(two_product(numFractionBits, minExponent, 19/32, 27/32));
+
+
+    PRINTDEBUG(exact_lerp_cross_your_fingers(0, 27/32, 19/32));
+    PRINTDEBUG(round_to_nearest_representable(numFractionBits, minExponent, (27/32) * (19/32)));
+    PRINTDEBUG(magic_correct_lerp(4, -20, 0, 27/32, 19/32));
+    PRINTDEBUG(scale_expansion(numFractionBits, minExponent, [27/32], 19/32));
+    PRINTDEBUG(sum(scale_expansion(numFractionBits, minExponent, [27/32], 19/32)));
+
+    console.log("=================");
+    return;
+    /*
+    http://localhost:8000/lerp.html?numFractionBits=4&minExponent=-20&a=0&b=27/32
+    =================
+    (27/32) * (19/32) = (0.5009765625=0.1000000001=513/1024)
+    exact_lerp_cross_your_fingers(0, 27/32, 19/32) = (0.5009765625=0.1000000001=513/1024)
+    round_to_nearest_representable(numFractionBits, minExponent, (27/32) * (19/32)) = (0.5=0.1=1/2)
+    magic_correct_lerp(4, -20, 0, 27/32, 19/32) = (0.53125=0.10001=17/32)
+    answer should be .5 ! why isn't it??
+    =================
+    */
+  }
+
   // End float utilities
   //======================================
 
