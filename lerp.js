@@ -97,13 +97,13 @@
     That algorithm is:
 
       function [p] = Dot2 (x, y, N)
-	[p, s] = TwoProduct (x(1), y(1));
-	for i = 2:N
-	  [h, r] = TwoProduct (x(i), y(i));
-	  [p, q] = TwoSum (p, h);
-	  s = fl(s + fl(q + r));
-	end
-	p = fl(p + s);
+        [p, s] = TwoProduct (x(1), y(1));
+        for i = 2:N
+          [h, r] = TwoProduct (x(i), y(i));
+          [p, q] = TwoSum (p, h);
+          s = fl(s + fl(q + r));
+        end
+        p = fl(p + s);
       end
 
     I.e. in python:
@@ -724,6 +724,7 @@ registerSourceCodeLinesAndRequire([
   };  // my_normalize_expansion
   PRINT(my_normalize_expansion(numFractionBits, minExponent, [1,1]));
 
+  // Deep equals for expansions.
   const expansions_are_same = (e, f) => {
     if (e.length != f.length) return false;
     for (let i = 0; i < e.length; ++i) if (e[i] != f[i]) return false;
@@ -766,14 +767,19 @@ registerSourceCodeLinesAndRequire([
   };  // canonicalize_linear_expansion
 
   const split = (numFractionBits, minExponent, a) => {
+    CHECK.NE(a, undefined);
     // From shewchuk's paper.  The short paper hardcodes the split point to be ceil(nF/2).
-    CHECK.GE(numFractionBits, 3);  // that's what the paper says, not sure why.  TODO: check whether it fails for 2 and/or 1
-    const splitPoint = Math.ceil(numFractionBits/2);  // the long paper actually allows any split point s such that p/2 <= s <= p-1.
+    //CHECK.GE(numFractionBits+1, 3);  // that's what the paper says, not sure why.  TODO: check whether it fails for smaller.  seems to work fine for nF=2 (which is paper's p=3, which agrees with paper... but also works fine with nF=1, i.e. paper's p=2).  doesn't work fine for nF=0,  need to find out why.
+
+    //const splitPoint = Math.ceil(numFractionBits/2);  // the long paper actually allows any split point s such that p/2 <= s <= p-1.
+    const splitPoint = Math.ceil((numFractionBits+1)/2);  // the long paper actually allows any split point s such that p/2 <= s <= p-1.
+
     const multiplier = 2**splitPoint + 1;
     const c = times(numFractionBits, minExponent, multiplier, a);
     const a_big = minus(numFractionBits, minExponent, c, a);
     const a_hi = minus(numFractionBits, minExponent, c, a_big);
     const a_lo = minus(numFractionBits, minExponent, a, a_hi);
+
     CHECK.EQ(a_hi+a_lo, a);
     CHECK.EQ(plus(numFractionBits, minExponent, a_hi, a_lo), a);
 
@@ -786,11 +792,12 @@ registerSourceCodeLinesAndRequire([
   };  // split
 
   const two_product = (numFractionBits, minExponent, a, b) => {
-    const verboseLevel = 1;
+    const verboseLevel = 2;
     if (verboseLevel >= 1) console.log("in two_product(numFractionBits="+numFractionBits+" minExponent="+minExponent+" a="+toDebugString(a)+" b="+toDebugString(b)+")");
-    // From shewchuk's paper.
-    // (Note, can be done much more easily using fma; see two_product_using fma below)
+    // From shewchuk's paper(s).
+    // (Note, can be done much more easily using fma; see two_product_using_fma below)
     CHECK.NE(b, undefined);
+    //CHECK.GE(numFractionBits+1, 4);  // that's what the paper says, not sure why.  in fact the long paper says >=6 !? but maybe that's for increased properties, that is, nonadjacentness.  TODO: check whether it fails for less.  ANSWER: nF=3 (i.e. paper's n=4) is fine as advertized.  nF=2 (paper's n=3) is fine too. nF=1 (paper's n=2) is fine too.  nF=0 (paper's p=1) is not fine, it fails at is_representable in split().  need to find out why.
     const x = times(numFractionBits, minExponent, a, b);
     if (verboseLevel >= 1) console.log("  x = "+toDebugString(x));
     let a_hi, a_lo, b_hi, b_lo;
@@ -801,14 +808,165 @@ registerSourceCodeLinesAndRequire([
     const err1 = minus(numFractionBits, minExponent, x, times(numFractionBits, minExponent, a_hi, b_hi));
     const err2 = minus(numFractionBits, minExponent, err1, times(numFractionBits, minExponent, a_lo, b_hi));
     const err3 = minus(numFractionBits, minExponent, err2, times(numFractionBits, minExponent, a_hi, b_lo));
+    if (verboseLevel >= 1) console.log("  a_hi*b_hi = "+toDebugString(times(numFractionBits, minExponent, a_hi, b_hi)));
     if (verboseLevel >= 1) console.log("  err1 = "+toDebugString(err1));
+    if (verboseLevel >= 1) console.log("  a_lo*b_hi = "+toDebugString(times(numFractionBits, minExponent, a_lo, b_hi)));
     if (verboseLevel >= 1) console.log("  err2 = "+toDebugString(err2));
+    if (verboseLevel >= 1) console.log("  a_hi*b_lo = "+toDebugString(times(numFractionBits, minExponent, a_hi, b_lo)));
     if (verboseLevel >= 1) console.log("  err3 = "+toDebugString(err3));
+    if (verboseLevel >= 1) console.log("  a_lo*b_lo = "+toDebugString(times(numFractionBits, minExponent, a_lo, b_lo)));
     const y = minus(numFractionBits, minExponent, times(numFractionBits, minExponent, a_lo, b_lo), err3);
     if (verboseLevel >= 1) console.log("  y = "+toDebugString(y));
     const answer = [x,y];
+
+    // Lets draw the whole picture, like on page 20 of https://people.eecs.berkeley.edu/~jrs/papers/robustr.pdf .
+    // Inputs are:
+    //   nF=5
+    //   a=59=111011
+    //   b=59=111011
+    // It should come out as:
+    //         a =                                1 1 1 0 1 1
+    //         b =                                1 1 1 0 1 1
+    //                                -----------------------
+    //         x =          a*b     = 1 1 0 1 1 0             * 2^6
+    //                   a_hi*b_hi  = 1 1 0 0 0 1             * 2^6
+    //                                -----------
+    //      err1 =    x-(a_hi*b_hi) =       1 0 1 0 0 0       * 2^3
+    //                   a_lo*b_hi  =         1 0 1 0 1 0     * 2^2
+    //                                      -------------
+    //      err2 = err1-(a_lo*b_hi) =         1 0 0 1 1 0     * 2^2
+    //                   a_hi*b_lo  =         1 0 1 0 1 0     * 2^2
+    //                                        -----------
+    //      err3 = err2-(a_hi*b_lo) =             - 1 0 0 0 0
+    //                   a_lo*b_lo  =                 1 0 0 1
+    //                                            -----------
+    //        -y = err3-(a_lo*b_lo) =             - 1 1 0 0 1
+    if (verboseLevel >= 1) {
+      const num_columns = (numFractionBits+1)*2+1;
+      const width = 2*num_columns-1;
+      if (verboseLevel >= 2) console.log("      num_columns = "+num_columns);
+
+      const s = Math.ceil((numFractionBits+1)/2);
+      const nFhi = (numFractionBits+1)-s-1;
+      const nFlo = s-1-1;
+      if (verboseLevel >= 2) console.log("      s="+s+" nFhi="+nFhi+" nFlo="+nFlo);
+
+      // Where do we put the binary point, in a and b and answer?
+      let aLogMultiplierToGetInt = a==0 ? 0 : numFractionBits-Math.floor(Math.log2(Math.abs(a)));
+      let bLogMultiplierToGetInt = b==0 ? 0 : numFractionBits-Math.floor(Math.log2(Math.abs(b)));
+      if (verboseLevel >= 2) console.log("      aLogMultiplierToGetInt = "+aLogMultiplierToGetInt);
+      if (verboseLevel >= 2) console.log("      bLogMultiplierToGetInt = "+bLogMultiplierToGetInt);
+      let abLogMultiplierToGetInt = aLogMultiplierToGetInt + bLogMultiplierToGetInt;
+      if (verboseLevel >= 2) console.log("      abLogMultiplierToGetInt = "+abLogMultiplierToGetInt);
+
+      if (aLogMultiplierToGetInt < 0 || bLogMultiplierToGetInt < 0) {
+        console.log("  (can't do the cool display of this yet)");
+      } else {
+        const ahibhi = times(numFractionBits, minExponent, a_hi, b_hi);
+        const alobhi = times(numFractionBits, minExponent, a_lo, b_hi);
+        const ahiblo = times(numFractionBits, minExponent, a_hi, b_lo);
+        const aloblo = times(numFractionBits, minExponent, a_lo, b_lo);
+        // XXX TODO: hey! why is this allowed without a "let" or "const"??
+        aString = toBinaryString(a*2**aLogMultiplierToGetInt).replace(/(.)/g, ' $1').trim();
+        bString = toBinaryString(b*2**bLogMultiplierToGetInt).replace(/(.)/g, ' $1').trim();
+
+        //CHECK.EQ((x*2**abLogMultiplierToGetInt) % 2**(numFractionBits+1), 0);
+        //CHECK.EQ((ahibhi*2**abLogMultiplierToGetInt) % 2**(numFractionBits+1), 0);
+
+        // TODO: blank out the right parts of these appropriately.
+        // TODO: put in a decimal point.
+        let abExactString = toBinaryString(a*b*2**abLogMultiplierToGetInt).split('').join(' ');
+        let xString = toBinaryString(x*2**abLogMultiplierToGetInt).split('').join(' ');
+        let ahiString = toBinaryString(a_hi*2**aLogMultiplierToGetInt).split('').join(' ');
+        let aloString = toBinaryString(a_lo*2**aLogMultiplierToGetInt).split('').join(' ');
+        let bhiString = toBinaryString(b_hi*2**bLogMultiplierToGetInt).split('').join(' ');
+        let bloString = toBinaryString(b_lo*2**bLogMultiplierToGetInt).split('').join(' ');
+        let ahibhiString = toBinaryString(ahibhi*2**abLogMultiplierToGetInt).split('').join(' ');
+        let alobhiString = toBinaryString(alobhi*2**abLogMultiplierToGetInt).split('').join(' ');
+        let ahibloString = toBinaryString(ahiblo*2**abLogMultiplierToGetInt).split('').join(' ');
+        let alobloString = toBinaryString(aloblo*2**abLogMultiplierToGetInt).split('').join(' ');
+        let err1String = toBinaryString(err1*2**abLogMultiplierToGetInt).split('').join(' ');
+        let err2String = toBinaryString(err2*2**abLogMultiplierToGetInt).split('').join(' ');
+        let err3String = toBinaryString(err3*2**abLogMultiplierToGetInt).split('').join(' ');
+        let minusyString = toBinaryString(-y*2**abLogMultiplierToGetInt).split('').join(' ');
+
+        const insertBinaryPoint = (s,logMultiplierToGetInt,numFractionBits,should_be_undefined) => {
+          CHECK.NE(numFractionBits, undefined);
+          CHECK.EQ(should_be_undefined, undefined);
+          CHECK.GE(logMultiplierToGetInt, 0);
+          if (s.endsWith('  0')) return s;  // CBB: not very principled, not sure it works in general
+
+          const answer = s.split('');
+          if (logMultiplierToGetInt != 0) {
+
+            // Major hackery: turn spaces into zeros, and move minus sign, as necessary, to prevent ".  -1010" and such.
+            const pos = s.length - 2*logMultiplierToGetInt;
+            CHECK.EQ(answer[pos], ' ');
+            answer[pos] = '.';
+            let isNegative = false;  // until proven otherwise
+            for (let i = pos+1; i < answer.length && (answer[i] == ' ' || answer[i] == '-'); i += 2) {
+              if (answer[i] == '-') {
+                isNegative = true;
+              }
+              answer[i] = '0';
+            }
+            if (isNegative) {
+              answer[pos-1] = '-';
+            }
+          }
+
+          // Now fudge some more... allow at most numFractionBits+1 bits starting with the first 1;
+          // turn all the rest (which must be '0's) into spaces.
+          const index_of_first_1 = answer.indexOf('1');
+          //PRINT(answer);
+          //PRINT(index_of_first_1);
+          if (index_of_first_1 != -1) {
+            for (let i = index_of_first_1; i < answer.length; i += 2) {
+              if ((i - index_of_first_1)/2 >= numFractionBits+1) {
+                CHECK.EQ(answer[i], '0');
+                answer[i] = ' ';
+              }
+            }
+          }
+
+          return answer.join('');
+        };  // insertBinaryPoint
+
+        console.log("      ==================================================");
+        console.log("      a_hi =                        "+insertBinaryPoint(ahiString.padStart(width), aLogMultiplierToGetInt, numFractionBits));
+        console.log("      a_lo =                        "+insertBinaryPoint(aloString.padStart(width), aLogMultiplierToGetInt, numFractionBits));
+        console.log("                                    "+''.padStart(Math.max(ahiString.length,aloString.length,aString.length), '-').padStart(width));
+        console.log("         a =                        "+insertBinaryPoint(aString.padStart(width), aLogMultiplierToGetInt, numFractionBits));
+        console.log("");
+        console.log("      b_hi =                        "+insertBinaryPoint(bhiString.padStart(width), bLogMultiplierToGetInt, numFractionBits));
+        console.log("      b_lo =                        "+insertBinaryPoint(bloString.padStart(width), bLogMultiplierToGetInt, numFractionBits));
+        console.log("                                    "+''.padStart(Math.max(ahiString.length,aloString.length,aString.length), '-').padStart(width));
+        console.log("         b =                        "+insertBinaryPoint(bString.padStart(width), bLogMultiplierToGetInt, numFractionBits));
+        console.log("");
+        console.log("                                    "+''.padStart(Math.max(aString.length,bString.length,xString.length), '-').padStart(width));
+        console.log("                        a*b       = "+insertBinaryPoint(abExactString.padStart(width), abLogMultiplierToGetInt, 1e10));
+        console.log("");
+        console.log("         x =            a(*)b     = "+insertBinaryPoint(xString.padStart(width), abLogMultiplierToGetInt, numFractionBits));
+        console.log("                     a_hi(*)b_hi  = "+insertBinaryPoint(ahibhiString.padStart(width), abLogMultiplierToGetInt, numFractionBits));
+        console.log("                                    "+''.padStart(Math.max(xString.length,ahibhiString.length,err1String.length), '-').padStart(width));
+        console.log("      err1 =    x(-)(a_hi(*)b_hi) = "+insertBinaryPoint(err1String.padStart(width), abLogMultiplierToGetInt, numFractionBits));
+        console.log("                     a_lo(*)b_hi  = "+insertBinaryPoint(alobhiString.padStart(width), abLogMultiplierToGetInt, numFractionBits));
+        console.log("                                    "+''.padStart(Math.max(err1String.length,alobhiString.length,err2String.length), '-').padStart(width));
+        console.log("      err2 = err1(-)(a_lo(*)b_hi) = "+insertBinaryPoint(err2String.padStart(width), abLogMultiplierToGetInt, numFractionBits));
+        console.log("                     a_hi(*)b_lo  = "+insertBinaryPoint(ahibloString.padStart(width), abLogMultiplierToGetInt, numFractionBits));
+        console.log("                                    "+''.padStart(Math.max(err2String.length,ahibloString.length,err3String.length), '-').padStart(width));
+        console.log("      err3 = err2(-)(a_hi(*)b_lo) = "+insertBinaryPoint(err3String.padStart(width), abLogMultiplierToGetInt, numFractionBits));
+        console.log("                     a_lo(*)b_lo  = "+insertBinaryPoint(alobloString.padStart(width), abLogMultiplierToGetInt, numFractionBits));
+        console.log("                                    "+''.padStart(Math.max(err3String.length,alobloString.length,minusyString.length),'-').padStart(width));
+        console.log("        -y = err3(-)(a_lo(*)b_lo) = "+insertBinaryPoint(minusyString.padStart(width), abLogMultiplierToGetInt, numFractionBits));
+        console.log("      ==================================================");
+      }
+    }
+
+
     if (verboseLevel >= 1) console.log("out two_product(numFractionBits="+numFractionBits+" minExponent="+minExponent+" a="+toDebugString(a)+" b="+toDebugString(b)+"), returning "+toDebugString(answer));
-    CHECK.EQ(answer, two_product_using_fma(numFractionBits, minExponent, a, b));  // TODO: enable this when bug fixed!
+    //CHECK(expansions_are_same(answer, two_product_using_fma(numFractionBits, minExponent, a, b)));  // TODO: enable this when bug fixed!
+    CHECK.EQ(''+answer, ''+two_product_using_fma(numFractionBits, minExponent, a, b));  // TODO: enable this when bug fixed!
     return answer;
   };  // two_product
   const two_product_using_fma = (numFractionBits, minExponent, a, b) => {
@@ -1013,22 +1171,187 @@ registerSourceCodeLinesAndRequire([
   };
 
   if (true) {
+    // Okay, we know two-product screws up with nF=4 a=19 b=27.
+    // But it's okay with the example from the paper: nF=5 a=b=59=111011  (I think that's right).
+    // But, it also calls that "6 bit arithmetic" which is weird.
+    // And, it says it's guaranteed to be right only when p>=6??  Argh, it's getting all muddy.
+    // Let's see if I can come up with examples of screwing up.
+
+    // 2: BAD
+    // 3: fine
+    // 4: BAD
+    // 5: fine
+    // 6: BAD
+    // 7: fine
+    // 8: BAD
+
+    const nFmin = 1;
+    const nFmax = 4;
+    for (let nF = nFmin; nF <= nFmax; ++nF) {
+      for (let b = 2**nF; b < 2**(nF+1); ++b)
+      //for (let b = 101; b < 2**(nF+1); ++b)
+      {
+        for (let absa = 2**nF; absa <= b; ++absa) {
+          for (let a = -absa; a <= absa; a += 2*absa) {
+
+            console.log("  nF="+nF+" a="+toDebugString(a)+" b="+toDebugString(b));
+
+            if (nF == 2 && (Math.abs(a) == 6) && b == 6) {
+              console.log("SKIPPING BECAUSE I KNOW IT'S BAD");
+              continue;
+            }
+
+            // What the hell?  These are the *only* examples that mess up for nF=4...
+            // And there are *not* examples that mess up for nF=5 nor nF=7!  Fooey!
+            if (nF == 4 && (Math.abs(a) == 19 || Math.abs(a)==20 || Math.abs(a)==21 || Math.abs(a)==27) && b == 27) {
+              console.log("SKIPPING BECAUSE I KNOW IT'S BAD");
+              continue;
+            }
+            if (nF == 4 && (Math.abs(a) == 19 || Math.abs(a)==20 || Math.abs(a)==21 || Math.abs(a)==27 || Math.abs(a)==28) && b == 28) {
+              console.log("SKIPPING BECAUSE I KNOW IT'S BAD");
+              continue;
+            }
+            if (nF == 4 && (Math.abs(a) == 19 || Math.abs(a)==20 || Math.abs(a)==21 || Math.abs(a)==27 || Math.abs(a)==28 || Math.abs(a)==29) && b == 29) {
+              console.log("SKIPPING BECAUSE I KNOW IT'S BAD");
+              continue;
+            }
+
+            // Some do screw up for nF=6 though... so this is some solid evidence.
+            // Oh argh, no it's not!  Because the paper uses nF=5 :-(
+            if (nF == 6 && (Math.abs(a) == 85 || Math.abs(a) == 86 || Math.abs(a)==87 || Math.abs(a)==88 || Math.abs(a)==89 || Math.abs(a)==90 || Math.abs(a)==91 || Math.abs(a)==101) && b == 101) {
+              console.log("SKIPPING BECAUSE I KNOW IT'S BAD");
+              continue;
+            }
+            if (nF == 6 && (a == 85 || a == 86 || a==87 || a==88 || a==89 || a==90 || a==91 || a==101 || a==102) && b == 102) {
+              console.log("SKIPPING BECAUSE I KNOW IT'S BAD");
+              continue;
+            }
+            if (nF == 6 && (a == 85 || a == 86 || a==87 || a==88 || a==89 || a==90 || a==91 || a==101 || a==102 || a==103) && b == 103) {
+              console.log("SKIPPING BECAUSE I KNOW IT'S BAD");
+              continue;
+            }
+            if (nF == 6 && (a == 85 || a == 86 || a==87 || a==88 || a==89 || a==90 || a==91 || a==101 || a==102 || a==103 || a==104) && b == 104) {
+              console.log("SKIPPING BECAUSE I KNOW IT'S BAD");
+              continue;
+            }
+            if (nF == 6 && (a == 85 || a == 86 || a==87 || a==88 || a==89 || a==90 || a==91 || a==101 || a==102 || a==103 || a==104 || a==105) && b == 105) {
+              console.log("SKIPPING BECAUSE I KNOW IT'S BAD");
+              continue;
+            }
+            if (nF == 6 && (a == 85 || a == 86 || a==87 || a==88 || a==89 || a==90 || a==91 || a==101 || a==102 || a==103 || a==104 || a==105 || a==106) && b == 106) {
+              console.log("SKIPPING BECAUSE I KNOW IT'S BAD");
+              continue;
+            }
+            if (nF == 6 && (a == 85 || a == 86 || a==87 || a==88 || a==89 || a==90 || a==91 || a==101 || a==102 || a==103 || a==104 || a==105 || a==106 || a==107) && b == 107) {
+              console.log("SKIPPING BECAUSE I KNOW IT'S BAD");
+              continue;
+            }
+            if (nF == 6 && (a == 69 || a==70 || a==71 || a==72 || a==73 || a==74 || a==75 || a==85 || a==86 || a==87 || a==88 || a==89 || a==90 || a==91 || a==101 || a==102 || a==103 || a==104 || a==105 || a==106 || a==107 || a==117) && b == 117) {
+              console.log("SKIPPING BECAUSE I KNOW IT'S BAD");
+              continue;
+            }
+
+            if (nF == 8 && (a==361) && b==361) {
+              console.log("SKIPPING BECAUSE I KNOW IT'S BAD");
+              continue;
+            }
+            if (nF == 8 && (a==361 || a==362) && b==362) {
+              console.log("SKIPPING BECAUSE I KNOW IT'S BAD");
+              continue;
+            }
+            if (nF == 8 && (a==361 || a==362 || a==363) && b==363) {
+              console.log("SKIPPING BECAUSE I KNOW IT'S BAD");
+              continue;
+            }
+            if (nF == 8 && (a==361 || a==362 || a==363 || a==364) && b==364) {
+              console.log("SKIPPING BECAUSE I KNOW IT'S BAD");
+              continue;
+            }
+            if (nF == 8 && (a==361 /*|| a==362 || a==363 || a==364*/) && b==365) {
+              console.log("SKIPPING BECAUSE I KNOW IT'S BAD");
+              continue;
+            }
+
+            PRINTDEBUG(two_product(nF, -100, a, b));
+          }
+        }
+      }
+    }
+  }
+
+  if (true) {
     console.log("=================");
     PRINTDEBUG((27/32) * (19/32));
 
-    // This one is right.
-    PRINTDEBUG(two_product_using_fma(numFractionBits, minExponent, 19/32, 27/32));
-    PRINTDEBUG(two_product_using_fma(numFractionBits, minExponent, 27/32, 19/32));
-    // TODO: not right: products 1/2+17/1024=529/1024, should be 513/1024
-    PRINTDEBUG(two_product(numFractionBits, minExponent, 27/32, 19/32));
-    PRINTDEBUG(two_product(numFractionBits, minExponent, 19/32, 27/32));
+    // Let's work through the example from the long paper, page 20:
+    // It says:
+    //    a = 111011
+    //    b = 111011
+    // But, wtf, those numbers aren't 6 bits, they are 5 bits??  I'm confused.
+    // Ok I think he's informally saying 6 when he means 5.
+    // So in this case nF=5, so s=3, so split into nF-3=2 and s-1=2, i.e. informally 3 and 3.
+    // So, a_hi=b_hi=111000, a_lo=b_lo=11.
+    PRINTDEBUG(two_product_using_fma(5, -100, parseBinaryFloat("111011"), parseBinaryFloat("111011")));
+    PRINTDEBUG(two_product(5, -100, parseBinaryFloat("111011"), parseBinaryFloat("111011")));
+
+    PRINTDEBUG(two_product_using_fma(5, -100, parseBinaryFloat("11101.1"), parseBinaryFloat("111011")));
+    PRINTDEBUG(two_product(5, -100, parseBinaryFloat("11101.1"), parseBinaryFloat("111011")));
+
+    PRINTDEBUG(two_product_using_fma(5, -100, parseBinaryFloat("1.11011"), parseBinaryFloat("111011")));
+    PRINTDEBUG(two_product(5, -100, parseBinaryFloat("1.11011"), parseBinaryFloat("111011")));
+    return;
+
+    PRINTDEBUG(two_product_using_fma(5, -100, parseBinaryFloat(".111011"), parseBinaryFloat("111011")));
+    PRINTDEBUG(two_product(5, -100, parseBinaryFloat(".111011"), parseBinaryFloat("111011")));
+
+    PRINTDEBUG(two_product_using_fma(5, -100, parseBinaryFloat(".0111011"), parseBinaryFloat("111011")));
+    PRINTDEBUG(two_product(5, -100, parseBinaryFloat(".0111011"), parseBinaryFloat("111011")));
+
+    PRINTDEBUG(two_product_using_fma(5, -100, parseBinaryFloat("0"), parseBinaryFloat("111011")));
+    PRINTDEBUG(two_product(5, -100, parseBinaryFloat("0"), parseBinaryFloat("111011")));
+
+    PRINTDEBUG(two_product_using_fma(5, -100, parseBinaryFloat("11"), parseBinaryFloat("111011")));
+    PRINTDEBUG(two_product(5, -100, parseBinaryFloat("11"), parseBinaryFloat("111011")));
+
+    PRINTDEBUG(two_product_using_fma(5, -100, parseBinaryFloat("11.1111"), parseBinaryFloat("111011")));
+    PRINTDEBUG(two_product(5, -100, parseBinaryFloat("11.1111"), parseBinaryFloat("111011")));
+
+    if (true) {
+      PRINTDEBUG(two_product_using_fma(6, -100, 104, 104));
+      PRINTDEBUG(two_product(6, -100, 104, 104));
+    }
+
+    if (true) {
+      // Trying to come up with a failure using numF=5 (like in the paper)?
+      // 41=101001 50=110010 41*50=2050=100000000010
+      PRINTDEBUG(two_product_using_fma(5, -100, 41, 50));
+      PRINTDEBUG(two_product(5, -100, 41, 50));
+    }
+
+    if (true) {
+      // This one is right.
+      PRINTDEBUG(two_product_using_fma(4, -100, 19, 27));
+      PRINTDEBUG(two_product_using_fma(4, -100, 27, 19));
+      // TODO: not right: products 1/2+17/1024=529/1024, should be 513/1024
+      PRINTDEBUG(two_product(4, -100, 27, 19));
+      PRINTDEBUG(two_product(4, -100, 19, 27));
+    }
+
+    if (true) {
+      // This one is right.
+      PRINTDEBUG(two_product_using_fma(4, -100, 19/32, 27/32));
+      PRINTDEBUG(two_product_using_fma(4, -100, 27/32, 19/32));
+      // TODO: not right: products 1/2+17/1024=529/1024, should be 513/1024
+      PRINTDEBUG(two_product(4, -100, 27/32, 19/32));
+      PRINTDEBUG(two_product(4, -100, 19/32, 27/32));
+    }
 
 
     PRINTDEBUG(exact_lerp_cross_your_fingers(0, 27/32, 19/32));
-    PRINTDEBUG(round_to_nearest_representable(numFractionBits, minExponent, (27/32) * (19/32)));
+    PRINTDEBUG(round_to_nearest_representable(numFractionBits, -100, (27/32) * (19/32)));
     PRINTDEBUG(magic_correct_lerp(4, -20, 0, 27/32, 19/32));
-    PRINTDEBUG(scale_expansion(numFractionBits, minExponent, [27/32], 19/32));
-    PRINTDEBUG(sum(scale_expansion(numFractionBits, minExponent, [27/32], 19/32)));
+    //PRINTDEBUG(scale_expansion(numFractionBits, -100, [27/32], 19/32));  // XXX not representable, get rid
+    //PRINTDEBUG(sum(scale_expansion(numFractionBits, -100, [27/32], 19/32)));  // XXX not representable, get rid
 
     console.log("=================");
     return;
