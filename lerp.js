@@ -430,6 +430,7 @@ registerSourceCodeLinesAndRequire([
   // Begin float utilities
   const get_rounding_quantum = (numFractionBits, minExponent, x) => {
     CHECK.NE(x, undefined);
+    CHECK.GE(numFractionBits, 0);
     const subnormalThreshold = 2**minExponent;
     if (Math.abs(x) < subnormalThreshold) {
       return subnormalThreshold / 2**numFractionBits;
@@ -440,11 +441,13 @@ registerSourceCodeLinesAndRequire([
   };
   const round_down_to_representable = (numFractionBits, minExponent, x) => {
     CHECK.NE(x, undefined);
+    CHECK.GE(numFractionBits, 0);
     const quantum = get_rounding_quantum(numFractionBits, minExponent, x);
     return Math.floor(x/quantum)*quantum;
   };
   const round_up_to_representable = (numFractionBits, minExponent, x) => {
     CHECK.NE(x, undefined);
+    CHECK.GE(numFractionBits, 0);
     const quantum = get_rounding_quantum(numFractionBits, minExponent, x);
     return Math.ceil(x/quantum)*quantum;
   };
@@ -453,6 +456,7 @@ registerSourceCodeLinesAndRequire([
     CHECK.NE(x, undefined);
     const verboseLevel = 0;
     if (verboseLevel >= 1) console.log("            in round_to_nearest_representable(numFractionBits="+STRINGIFY(numFractionBits)+", minExponent="+STRINGIFY(minExponent)+", x="+toDebugString(x)+")");
+    CHECK.GE(numFractionBits, 0);
     const quantum = get_rounding_quantum(numFractionBits, minExponent, x);
     if (verboseLevel >= 1) console.log("              quantum = "+toDebugString(quantum));
     const Lo = Math.floor(x/quantum);
@@ -482,6 +486,7 @@ registerSourceCodeLinesAndRequire([
 
   const round_to_nearest_representable = (numFractionBits, minExponent, x) => {
     CHECK.NE(x, undefined);
+    CHECK.GE(numFractionBits, 0);
     const answer = round_to_nearest_representable_without_checking_against_opposite(numFractionBits, minExponent, x);
     CHECK.EQ(round_to_nearest_representable_without_checking_against_opposite(numFractionBits, minExponent, -x), -answer);
     return answer;
@@ -489,10 +494,12 @@ registerSourceCodeLinesAndRequire([
 
   const is_representable = (numFractionBits, minExponent, x) => {
     CHECK.NE(x, undefined);
+    CHECK.GE(numFractionBits, 0);
     return round_down_to_representable(numFractionBits, minExponent, x) == x;
   };
   const pred_without_checking_against_succ = (numFractionBits, minExponent, x) => {
     CHECK.NE(x, undefined);
+    CHECK.GE(numFractionBits, 0);
     CHECK(is_representable(numFractionBits, minExponent, x));
     const quantum = get_rounding_quantum(numFractionBits, minExponent, x);
     // quantum is not exactly what we want.  but it's not more than a couple of orders of magnitude off.
@@ -518,18 +525,22 @@ registerSourceCodeLinesAndRequire([
   };
   const pred = (numFractionBits, minExponent, x) => {
     CHECK.NE(x, undefined);
+    CHECK.GE(numFractionBits, 0);
     const answer = pred_without_checking_against_succ(numFractionBits, minExponent, x);
     CHECK.EQ(succ_without_checking_against_pred(numFractionBits, minExponent, answer), x);
     return answer;
   };
   const succ = (numFractionBits, minExponent, x) => {
     CHECK.NE(x, undefined);
+    CHECK.GE(numFractionBits, 0);
     const answer = succ_without_checking_against_pred(numFractionBits, minExponent, x);
     CHECK.EQ(pred_without_checking_against_succ(numFractionBits, minExponent, answer), x);
     return answer;
   };
+  // a,b need not be representable
   const getFloatsInRange = (numFractionBits, minExponent, a, b) => {
     CHECK.NE(b, undefined);
+    CHECK.GE(numFractionBits, 0);
     let verboseLevel = 0;
     if (verboseLevel >= 1) console.log("        in getFloatsInRange(numFractionBits="+STRINGIFY(numFractionBits)+", minExponent="+STRINGIFY(minExponent)+", a="+toDebugString(a)+", b="+toDebugString(b)+")");
     const first = round_up_to_representable(numFractionBits, minExponent, a);
@@ -572,6 +583,8 @@ registerSourceCodeLinesAndRequire([
   // Stuff from https://people.eecs.berkeley.edu/~jrs/papers/robust-predicates.pdf
   const fast_two_sum = (numFractionBits, minExponent, a, b) => {
     CHECK.NE(b, undefined);
+    CHECK(is_representable(numFractionBits, minExponent, a));
+    CHECK(is_representable(numFractionBits, minExponent, b));
     // "fast" means we *know* |a|>=|b|, rather than sorting them.
     CHECK.GE(Math.abs(a), Math.abs(b));
     const x = plus(numFractionBits, minExponent, a, b);
@@ -580,6 +593,9 @@ registerSourceCodeLinesAndRequire([
     return [x,y];
   };
   const two_sum = (numFractionBits, minExponent, a, b) => {
+    CHECK.NE(b, undefined);
+    CHECK(is_representable(numFractionBits, minExponent, a));
+    CHECK(is_representable(numFractionBits, minExponent, b));
     if (Math.abs(a) >= Math.abs(b)) return fast_two_sum(numFractionBits, minExponent, a, b);
     else return fast_two_sum(numFractionBits, minExponent, b, a);
   };
@@ -587,6 +603,7 @@ registerSourceCodeLinesAndRequire([
     CHECK.NE(f, undefined);
     const verboseLevel = 0;
     if (verboseLevel >= 1) console.log("in linear_expansion_sum(numFractionBits="+numFractionBits+" minExponent="+minExponent+" e="+toDebugString(e)+" f="+toDebugString(f)+")");
+    CHECK.GE(numFractionBits, 0);
     const allow_zeros = false;  // should be false, but can set to true to get more insight into what's going on
     // largest to smallest (opposite from paper's convention).
     // We do *not* require nonoverlappingness, just so that we can use this function sumwhat illegally for simple sums of arbitrarily many things (although more than 2**(nF+2)+2 1's fails)
@@ -766,15 +783,28 @@ registerSourceCodeLinesAndRequire([
     return f;
   };  // canonicalize_linear_expansion
 
+  // TODO: wait a minute, what the heck are we supposed to do if we get subnormal??  I'm confused.
+  // Some things just aren't splittable, right??
   const split = (numFractionBits, minExponent, a) => {
     CHECK.NE(a, undefined);
-    // From shewchuk's paper.  The short paper hardcodes the split point to be ceil(nF/2).
-    //CHECK.GE(numFractionBits+1, 3);  // that's what the paper says, not sure why.  TODO: check whether it fails for smaller.  seems to work fine for nF=2 (which is paper's p=3, which agrees with paper... but also works fine with nF=1, i.e. paper's p=2).  doesn't work fine for nF=0,  need to find out why.
+    CHECK.GE(numFractionBits, 1);
 
-    //const splitPoint = Math.ceil(numFractionBits/2);  // the long paper actually allows any split point s such that p/2 <= s <= p-1.
-    const splitPoint = Math.ceil((numFractionBits+1)/2);  // the long paper actually allows any split point s such that p/2 <= s <= p-1.
+    // From shewchuk's paper.
+    // The short paper hardcodes the split point to be ceil(p/2); the long paper allows any split point s such that ceil[p/2] <= s <= p-1.
+    // Note that the paper's p is my nF+1.
+    // Note: both short and long papers paper require p>=3 (i.e. nF>=2), not sure why.  It seems to work with nF=1.
 
-    const multiplier = 2**splitPoint + 1;
+    //CHECK.GE(numFractionBits, 1);
+
+    const p = numFractionBits + 1;  // the paper's notion of "number of bits"
+    const s = Math.ceil(p/2)  // the paper's notion of split point
+    // the two sizes, in the paper's notation, are now p-s and s-1.
+    // So, in my notation, it's nF+1-s-1 = nF-s, and s-1-1 = s-2.
+    const nF_hi = numFractionBits-s;
+    //const nF_lo = s-2;
+    const nF_lo = s-1;  // XXX FUDGE - evidently I haven't quite got a handle on the logic
+
+    const multiplier = 2**s + 1;
     const c = times(numFractionBits, minExponent, multiplier, a);
     const a_big = minus(numFractionBits, minExponent, c, a);
     const a_hi = minus(numFractionBits, minExponent, c, a_big);
@@ -783,14 +813,27 @@ registerSourceCodeLinesAndRequire([
     CHECK.EQ(a_hi+a_lo, a);
     CHECK.EQ(plus(numFractionBits, minExponent, a_hi, a_lo), a);
 
-    // a_hi should have width (at most) nF-splitPoint
-    CHECK(is_representable(numFractionBits-splitPoint, minExponent, a_hi));
-    // a_lo should have width (at most) splitPoint-1
-    CHECK(is_representable(splitPoint-1, minExponent, a_lo));
+    PRINTDEBUG(a);
+    PRINT(s);
+    PRINT(nF_hi);
+    PRINT(nF_lo);
+    PRINTDEBUG(a_hi);
+    PRINTDEBUG(a_lo);
+    // a_hi should have width (at most) nF-s
+    CHECK(is_representable(nF_hi, minExponent, a_hi));
+    // a_lo should have width (at most) s-2
+    if (nF_lo >= 0) {
+      CHECK(is_representable(nF_lo, minExponent, a_lo));
+    } else {
+      CHECK.EQ(s-2, 0);
+      CHECK.EQ(a_hi, a);
+      CHECK.EQ(a_lo, 0);
+    }
 
     return [a_hi,a_lo];
   };  // split
 
+  // Unfortunately not really usable, since I don't know what split() should do when it encounters subnormals.
   const two_product = (numFractionBits, minExponent, a, b) => {
     const verboseLevel = 2;
     if (verboseLevel >= 1) console.log("in two_product(numFractionBits="+numFractionBits+" minExponent="+minExponent+" a="+toDebugString(a)+" b="+toDebugString(b)+")");
@@ -983,13 +1026,15 @@ registerSourceCodeLinesAndRequire([
     const answer = []
     {
       let Q, h;
-      [Q,h] = two_product(numFractionBits, minExponent, e[e.length-1], b);
+      //[Q,h] = two_product(numFractionBits, minExponent, e[e.length-1], b);  // couldn't get this to work :-(
+      [Q,h] = two_product_using_fma(numFractionBits, minExponent, e[e.length-1], b);
       if (h != 0) answer.push(h);
       if (verboseLevel >= 1) console.log("  initial Q,h = "+toDebugString(Q)+","+toDebugString(h));
       for (let i = e.length-1-1; i >= 0; --i) {
         if (verboseLevel >= 1) console.log("      top of loop");
         let T,t;
-        [T,t] = two_product(numFractionBits, minExponent, e[i], b);
+        //[T,t] = two_product(numFractionBits, minExponent, e[i], b);
+        [T,t] = two_product_using_fma(numFractionBits, minExponent, e[i], b);
         [Q,h] = two_sum(numFractionBits, minExponent, Q,t);
         if (h != 0) answer.push(h);
         [Q,h] = fast_two_sum(numFractionBits, minExponent, T,Q);
@@ -1146,7 +1191,7 @@ registerSourceCodeLinesAndRequire([
   const sum = array => array.reduce((a,b)=>a+b, 0);
 
   const magic_correct_lerp = (numFractionBits, minExponent, a, b, t) => {
-    const verboseLevel = 1;
+    const verboseLevel = 0;
     if (verboseLevel >= 1) console.log("    in magic_correct_lerp(numFractionBits="+STRINGIFY(numFractionBits)+"  minExponent="+STRINGIFY(minExponent)+" a="+toDebugString(a)+" b="+toDebugString(b)+" t="+toDebugString(t)+")");
     CHECK(is_representable(numFractionBits, minExponent, a));
     CHECK(is_representable(numFractionBits, minExponent, b));
@@ -1170,26 +1215,17 @@ registerSourceCodeLinesAndRequire([
     return answer;
   };
 
-  if (true) {
+  if (false) {
     // Okay, we know two-product screws up with nF=4 a=19 b=27.
     // But it's okay with the example from the paper: nF=5 a=b=59=111011  (I think that's right).
     // But, it also calls that "6 bit arithmetic" which is weird.
     // And, it says it's guaranteed to be right only when p>=6??  Argh, it's getting all muddy.
     // Let's see if I can come up with examples of screwing up.
 
-    // 2: BAD
-    // 3: fine
-    // 4: BAD
-    // 5: fine
-    // 6: BAD
-    // 7: fine
-    // 8: BAD
-
     const nFmin = 1;
-    const nFmax = 4;
+    const nFmax = 5;
     for (let nF = nFmin; nF <= nFmax; ++nF) {
       for (let b = 2**nF; b < 2**(nF+1); ++b)
-      //for (let b = 101; b < 2**(nF+1); ++b)
       {
         for (let absa = 2**nF; absa <= b; ++absa) {
           for (let a = -absa; a <= absa; a += 2*absa) {
@@ -1299,7 +1335,6 @@ registerSourceCodeLinesAndRequire([
 
     PRINTDEBUG(two_product_using_fma(5, -100, parseBinaryFloat("1.11011"), parseBinaryFloat("111011")));
     PRINTDEBUG(two_product(5, -100, parseBinaryFloat("1.11011"), parseBinaryFloat("111011")));
-    return;
 
     PRINTDEBUG(two_product_using_fma(5, -100, parseBinaryFloat(".111011"), parseBinaryFloat("111011")));
     PRINTDEBUG(two_product(5, -100, parseBinaryFloat(".111011"), parseBinaryFloat("111011")));
@@ -1354,7 +1389,6 @@ registerSourceCodeLinesAndRequire([
     //PRINTDEBUG(sum(scale_expansion(numFractionBits, -100, [27/32], 19/32)));  // XXX not representable, get rid
 
     console.log("=================");
-    return;
     /*
     http://localhost:8000/lerp.html?numFractionBits=4&minExponent=-20&a=0&b=27/32
     =================
@@ -1472,7 +1506,7 @@ registerSourceCodeLinesAndRequire([
     return dot_correct(numFractionBits, minExponent, xs, ys);
   };
 
-  if (true) {
+  if (false) {
     // DEBUGGING "smartest"... this really should not happen, it's supposed to be exact!
     // http://localhost:8000/lerp.html?numFractionBits=3&minExponent=-10&a=0&b=13/16  with any of the "smartest" algorithms checked, t=11/32, descending
     // Exact answer is 273/512
@@ -1485,7 +1519,7 @@ registerSourceCodeLinesAndRequire([
     const b = 0;
     const t = 11/32;
     //PRINT(DotCorrect([1,-t,t],[a,a,b]));  // not safe if numFractionBits is 2, so don't do it
-    PRINT(magic_correct_lerp(3, -10, a,b,t));
+    PRINT(magic_correct_lerp(3, -100, a,b,t));
     //return;
   }
 
