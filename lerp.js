@@ -17,6 +17,86 @@
 // TODO: show more interesting lines for the various algorithms
 
 /*
+  Possible stackexchange problem:
+    exact floating point sums, and correctly rounded approximations thereof
+
+    I would like to know a simple method for computing and representing the exact sum of an arbitrary number of IEEE-784 floating point values,
+    and also for correctly rounding it to the nearest representable number, using the round-ties-to-even rule.
+
+    I propose the following very simple method, based on IEEE-784 addition and subtraction
+    with rounding usint he round-ties-to-even rule:
+
+       Put the numbers to be summed in an array A
+       while there exist two adjacent numbers a,b in A such that a(+)b != a:
+         swap a and b if necessary so that abs(a)>=abs(b)
+         replace a,b with fast_two_sum(a,b)
+       remove any zeros from the end of A
+
+     where fast_two_sum is the following function,
+     attributed to Dekker in various papers such as Shewchuk's
+     short "Robust Adaptive Floating-Point Geometric Predicates"
+     and longer "Adaptive Precision Floating-Point Arithmetic and Fast Robust Geometric Predicates":
+
+         def fast_two_sum(a,b):
+           assert abs(a) >= abs(b)
+           hi = a(+)b
+           lo = b(-)(hi(-)a)
+           assert hi+lo = a+b
+           assert hi(+)lo == hi
+           return (hi,lo)
+
+
+    There is some freedom in the choice of what order to examine adjacent pairs a,b,
+    although this freedom doesn't affect the final answer.
+    Reasonable performance can be achieved by obvious heuristics such as pre-sorting from high to low,
+    and then sweeping back and forth across the array.
+    Better worst-case performance (O(n log n)) can be achieved with more care, but I won't go into that here (Priest's paper gives details).
+
+    At the end of the algorithm, the sum has been replaced by its "canonical non-overlapping sum representation".
+    That is, the exact sum of the final array is the same as the exact sum of the original numbers,
+    and the numbers in the final array are decreasing, and they are "non-overlapping" in their ranges of bit positions.
+    Furthermore, given all those constraints, abs(A[0]) is as large as possible,
+    and then abs(A[1]) is as large as possible given A[0], etc.
+    I.e. the bits are pushed towards the beginning of the array, as much as possible.
+
+    Now, how do we correctly round that final exact-sum array
+    to the nearest representable single number, with ties-to-even?
+
+    Well, the first number A[0] is *almost* the right answer.
+    In fact, it's always *exactly* the right answer, except in one annoying case, it seems.
+    That case is when all of the following are true:
+      - A[1] and A[2] exist and have the same sign, and
+      - A[0](+)A[1] got rounded to A[0] by virtue of being a tie that was rounded to even, and
+      - A[1](+)A[2] got rounded to A[1] by virtue of being a tie that was rounded to even.
+    In that case, A[0]+A[1]+A[2](+...) has a unique nearest representable number (i.e. it's not a tie),
+    and that number is *not* A[0]; it's A[0]'s successor (if A[1],A[2] > 0) or predecessor (if A[1],A[2] < 0).
+
+    So my question is: is there a simple way to calculate the nearest representable number to the final A[0]+A[1]+A[2]+...,
+    with ties correctly rounded to even?
+    The simplest way I can think of is to test for exactly the above special case.
+    That is: test whether A[1] and A[2] exist, and have the same sign, and are in exactly the right proportions with A[0]
+    such that the bad case happens.  That's not terribly complicated, but it's bit messier than I'd like.
+
+    So, is there a simpler more concise way?
+
+    Shewchuk's two papers deal with non-overlapping linear sums with more relaxed constraints,
+    such that A[0] is not necessarily a very good approximation.
+    For such representations, they suggest an APPROXIMATE procedure that simply sums the final numbers
+    from smallest to largest instead, observing that the result errs by less than one ulp.
+    While this is true, it still yields A[0] in the above example, which is not the correctly rounded answer.
+
+    Shewchuk's papers also refer to Priest's paper "Algorithms for Arbitrary Precision Floating Point Arithmetic".
+    I've looked at that, and it doesn't seem to address this exact issue, but refers to another paper
+    by Pichat: "Correction d'une somme en arithmetique a virgule flottante".  I'm not sure whether that paper
+    addresses the issue, since I have not translated it from French yet.
+    ------------------------------
+
+    TODO: read priest!  http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.55.3546&rep=rep1&type=pdf
+          it doesn't address this exact point, but refers to Prichat.
+          Argh, Prichat's paper is in french!
+
+*/
+/*
   Q: is epsilon 2^-52 or 2^-53?
   PA: https://en.wikipedia.org/wiki/Double-precision_floating-point_format
       says:
@@ -266,8 +346,6 @@
                 a - t*a + b
                 b - t*a + a
                 a + b - t*a
-
-
 
 
 */
@@ -1995,19 +2073,24 @@ registerSourceCodeLinesAndRequire([
   const setLerpMethodToTypeMeaningful = () => {
     Lerp = (a,b,t) => Plus(a, Times(Minus(b,a),t));
     populateTheSVG(svg, Lerp, a, b);
-    theTitle.innerHTML = "a + (b-a)*t";
+    theTitle.innerHTML = "a + t*(b-a)";
+  };
+  const setLerpMethodToTypeMeaningfulBackwards = () => {
+    Lerp = (a,b,t) => Minus(b, Times(Minus(1.,t),Minus(b,a)));
+    populateTheSVG(svg, Lerp, a, b);
+    theTitle.innerHTML = "b - (1-t)*(b-a)";
   };
   const setLerpMethodToBidirectional = () => {
     Lerp = (a,b,t) => t<.5 ? Plus(a, Times(Minus(b,a),t))
-                           : Minus(b, Times(Minus(b,a),Minus(1.,t)));
+                           : Minus(b, Times(Minus(1.,t),Minus(b,a)));
     populateTheSVG(svg, Lerp, a, b);
-    theTitle.innerHTML = "t<.5 ? a+(b-a)*t : b-(b-a)*(1-t)";
+    theTitle.innerHTML = "t<.5 ? a+(b-a)*t : b-(1-t)*(b-a)";
   };
   const setLerpMethodToBidirectionalAlt = () => {
     Lerp = (a,b,t) => t<=.5 ? Plus(a, Times(Minus(b,a),t))
-                            : Minus(b, Times(Minus(b,a),Minus(1.,t)));
+                            : Minus(b, Times(Minus(1.,t),Minus(b,a)));
     populateTheSVG(svg, Lerp, a, b);
-    theTitle.innerHTML = "t<=.5 ? a+(b-a)*t : b-(b-a)*(1-t)";
+    theTitle.innerHTML = "t<=.5 ? a+(b-a)*t : b-(1-t)*(b-a)";
   };
   const setLerpMethodToMaybe = () => {
     Lerp = (a,b,t) => {
@@ -2125,6 +2208,7 @@ registerSourceCodeLinesAndRequire([
   document.getElementById("lerpmethodMagic").onclick = () => setLerpMethodToMagic();
   document.getElementById("lerpmethodNaive").onclick = () => setLerpMethodToNaive();
   document.getElementById("lerpmethodTypeMeaningful").onclick = () => setLerpMethodToTypeMeaningful();
+  document.getElementById("lerpmethodTypeMeaningfulBackwards").onclick = () => setLerpMethodToTypeMeaningfulBackwards();
   document.getElementById("lerpmethodBidirectional").onclick = () => setLerpMethodToBidirectional();
   document.getElementById("lerpmethodBidirectionalAlt").onclick = () => setLerpMethodToBidirectionalAlt();
   document.getElementById("lerpmethodMaybe").onclick = () => setLerpMethodToMaybe();
