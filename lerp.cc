@@ -207,6 +207,8 @@ void describe_actual_counterexample()
 
 // Search for a counterexample to:  a<b,  a+1/2(b-a) <= b-1/2(b-a)
 // DID NOT FIND!  Confirms.
+// WAIT! actually *did* find.  Argh.  So, need to weaken it
+// to the method described in the math.stackexchange answer below.
 template<int FractionBits>
 void another_counterexample_search() {
   std::cout << "        in another_counterexample_search<FractionBits="<<FractionBits<<">" << std::endl;
@@ -310,6 +312,81 @@ void dot2x2_counterexample_search() {
 }  // third_counterexample_search
 
 
+// Conj:
+//    for all x, pred(1)*x = pred(x)
+//    for all y, succ(1)*x = succ(x)
+//    for all x,y, pred(x)*y = pred(x*y) = x*pred(y)
+//    for all x,y, succ(x)*y = succ(x*y) = x*succ(y)
+// WOOPS WRONG.  Especially for the succ part:
+//    1-- * 1+  == 1  (not 1- as predicted)
+// the pred part might be true, though.
+// 
+template<int FractionBits>
+void yet_another_counterexample_search() {
+  std::cout << "        in yet_another_counterexample_search<FractionBits="<<FractionBits<<">" << std::endl;
+  using Float = SimplerFloatTemplated<FractionBits, -10>;
+
+
+  if (true) {
+    Float one = Float(1);
+    Float half = Float(.5);
+    Float quarter = Float(.25);
+    Float eighth = Float(.125);
+    PRINT(one);
+    PRINT(half);
+    PRINT(quarter);
+    PRINT(eighth);
+    // comments are assuming fractionbits=3 minexponent=-2
+    PRINT(one.succ());  // 1.125
+    PRINT(one.pred());  // 0.9375
+    PRINT(one.pred()*half);  // 0.46875
+    PRINT(half.pred());  // 0.46875
+
+    PRINT(one.pred()*quarter);  // 0.25
+    PRINT(quarter.pred());  // 0.21875  = 7/32  huh, yeah, it's the exponent
+
+    PRINT(one.pred()*eighth);  // 0.125
+    PRINT(eighth.pred());  // 0.09375
+
+    PRINT(one.pred() * one.succ());
+    PRINT(one.pred().pred() * one.succ());
+    PRINT(one.pred().pred().pred() * one.succ());
+  }
+  if (true) {
+    std::cout << "          1d search" << std::endl;
+
+    Float min = Float(1./4);
+    Float max = Float(4.);
+    for (Float x = max; x >= min; x = x.pred())
+    //for (Float x = min; x <= max; x = x.succ())
+    {
+      std::cout << "              x = "<<EXACT(x) << std::endl;
+      CHECK_EQ(Float(1).pred()*x, x.pred());
+      //CHECK_EQ(Float(1).succ()*x, x.succ());
+    }
+  }
+
+  if (false) {
+    std::cout << "          2d search" << std::endl;
+    Float min = Float(1./4);
+    Float max = Float(4.);
+    for (Float b = max; b >= min; b = b.pred()) {
+      for (Float a = b; a >= min; a = a.pred()) {
+        if (a.pred()*b == (a*b).pred()) {
+          std::cout << "          a="<<EXACT(a.toDouble())<<" b="<<EXACT(b.toDouble());
+          std::cout << " good";
+          std::cout << std::endl;
+        } else {
+          std::cout << "          a="<<EXACT(a.toDouble())<<" b="<<EXACT(b.toDouble());
+          std::cout << " BAD!";
+          std::cout << std::endl;
+        }
+      }
+    }
+  }
+
+  std::cout << "        out yet_another_counterexample_search<FractionBits="<<FractionBits<<">" << std::endl;
+}
 
 
 int main(int, char**) {
@@ -319,7 +396,7 @@ int main(int, char**) {
   std::cout << "      "<<DEBUG(std::log2(std::numeric_limits<float>::epsilon())) << std::endl;
   std::cout << "      "<<DEBUG(std::log2(std::numeric_limits<double>::epsilon())) << std::endl;
 
-  if (true) {
+  if (false) {
     //dot2x2_counterexample_search<0>();
     //dot2x2_counterexample_search<1>();
     dot2x2_counterexample_search<2>();
@@ -330,7 +407,7 @@ int main(int, char**) {
     return 33;
   }
 
-  if (true) {
+  if (false) {
     counterexample_search<1>();
     counterexample_search<2>();
     counterexample_search<3>();
@@ -338,7 +415,7 @@ int main(int, char**) {
     counterexample_search<5>();
   }
 
-  if (true) {
+  if (false) {
     describe_actual_counterexample<float>();
     describe_actual_counterexample<double>();
     describe_actual_counterexample<long double>();
@@ -355,6 +432,10 @@ int main(int, char**) {
     another_counterexample_search<9>();
     another_counterexample_search<10>();
     another_counterexample_search<11>();
+  }
+
+  if (true) {
+    yet_another_counterexample_search<2>();
   }
 
   std::cout << std::setw(24) << std::hexfloat << 1./3. << std::endl;

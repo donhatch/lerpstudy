@@ -1,7 +1,18 @@
-// TODO: fail http://localhost:8000/lerp.html?numFractionBits=4&minExponent=-12&a=5/32&b=13/16
+// References:
+//  https://stackoverflow.com/questions/4353525/floating-point-linear-interpolation
+//  https://math.stackexchange.com/questions/907327/accurate-floating-point-linear-interpolation#answer-1798323
+//  https://math.stackexchange.com/questions/4184626/what-is-the-ulp-variance-of-the-common-implementation-of-lerp?noredirect=1&lq=1
+
+// TODO: lots of failures with "magically exact", wtf?  Especially when b is 1. 
+// e.g. this shows a circle near t=0:
+// http://localhost:8000/lerp.html?numFractionBits=4&minExponent=-12&a=5/32&b=1
+// and this, not so near 0, at t=27/512:
+// http://localhost:8000/lerp.html?numFractionBits=4&minExponent=-12&a=19/256&b=1
+// See the todos in that function.
 
 // TODO: "smartest" seems perfect, but only if minExponent is sufficiently low.  can we make it perfect even with not-so-low minE?
 // TODO: make the selection of lerp algorithm persist in url bar
+// TODO: the stuff in url bar should probably be '#' params rather than '?' params
 // TODO: oscillating between two methods mode?  could be helpful, although the most common thing we want, that is, comparison with magic exact, is accompliced via the ringed dots
 // TODO: make lerp-favicon.png a real picture of something
 // TODO: the usual event screwup, need to listen on window instead
@@ -14,6 +25,7 @@
 // TODO: show in fractional form
 // TODO: figure out if there's a better way!
 // TODO: show more interesting lines for the various algorithms
+// TODO: dragging a or b up or down slowly doesn't redraw until I've stopped moving; that's unfriendly
 
 /*
   Possible stackexchange problem:
@@ -1267,6 +1279,7 @@ registerSourceCodeLinesAndRequire([
 
   const sum = array => array.reduce((a,b)=>a+b, 0);
 
+  // TODO: this doesn't work-- I think my "linear expansion sum" thing has bugs.  maybe just kill it?  that would be a shame though.
   const magic_correct_lerp = (numFractionBits, minExponent, a, b, t) => {
     const verboseLevel = 0;
     if (verboseLevel >= 1) console.log("    in magic_correct_lerp(numFractionBits="+STRINGIFY(numFractionBits)+"  minExponent="+STRINGIFY(minExponent)+" a="+toDebugString(a)+" b="+toDebugString(b)+" t="+toDebugString(t)+")");
@@ -1278,6 +1291,7 @@ registerSourceCodeLinesAndRequire([
     if (verboseLevel >= 1) console.log("      bminusa = "+toDebugString(bminusa));
 
     // TODO: not right when a=0 b=27/32 t=19/32; it produces 1/2+17/1024=529/1024, should be 513/1024
+    // TODO: not right when a=19/256, b=1, t=27/512, it produces 1/8, should be 16127/131072
     const bminusa_times_t = scale_expansion(numFractionBits, minExponent, bminusa, t);
 
     if (verboseLevel >= 1) console.log("      bminusa_times_t = "+toDebugString(bminusa_times_t));
@@ -2046,6 +2060,11 @@ registerSourceCodeLinesAndRequire([
 
   const theTitle = document.getElementById("theTitle");
 
+  const setLerpMethodToExactCrossYourFingers = () => {
+    Lerp = (a,b,t) => round_to_nearest_representable(numFractionBits, minExponent, exact_lerp_cross_your_fingers(a, b, t));
+    populateTheSVG(svg, Lerp, a, b);
+    theTitle.innerHTML = "exact lerp (cross your fingers)";
+  };
   const setLerpMethodToMagic = () => {
     Lerp = (a,b,t) => magic_correct_lerp(numFractionBits, minExponent, a,b,t);
     populateTheSVG(svg, Lerp, a, b);
@@ -2198,12 +2217,13 @@ registerSourceCodeLinesAndRequire([
     theTitle.innerHTML = "[1,t,-t] &#8226; [a,b,a] smartest";
   };
 
-  document.getElementById("lerpmethodMagic").setAttribute("checked", "");
-  setLerpMethodToMagic();
+  document.getElementById("lerpmethodExactCrossYourFingers").setAttribute("checked", "");
+  setLerpMethodToExactCrossYourFingers();
 
 
   const lerpmethodChanged = (a) => {};
 
+  document.getElementById("lerpmethodExactCrossYourFingers").onclick = () => setLerpMethodToExactCrossYourFingers();
   document.getElementById("lerpmethodMagic").onclick = () => setLerpMethodToMagic();
   document.getElementById("lerpmethodNaive").onclick = () => setLerpMethodToNaive();
   document.getElementById("lerpmethodTypeMeaningful").onclick = () => setLerpMethodToTypeMeaningful();

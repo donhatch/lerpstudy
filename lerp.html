@@ -25,10 +25,11 @@
     </td>
     <td valign="top">
      <div style="border: 1px solid black;">
+
       <br>
       <label>
-       <input type="radio" class="lerpmethodRadioButton" id="lerpmethodMagic" name="lerpmethod" value="lerpmethodMagic">
-       magically exact
+       <input type="radio" class="lerpmethodRadioButton" id="lerpmethodExactCrossYourFingers" name="lerpmethod" value="lerpmethodExactCrossYourFingers">
+       exact
       </label>
       <br>
 
@@ -165,17 +166,35 @@
       <br>
 
       <br>
+      <label>
+       <input type="radio" class="lerpmethodRadioButton" id="lerpmethodMagic" name="lerpmethod" value="lerpmethodMagic">
+       magically exact (using exact sum expansions-- doesn't work yet apparently)
+      </label>
+      <br>
+
+
+      <br>
 
      </div>
 
      <div style="border: 1px solid black;">
-     Help:
-     <br>
-     '-' - decrease num fraction bits
-     <br>
-     '+'/'=' - increase num fraction bits
-     <br>
-     Up/Down arrow: move whichever of a or b is closest to mouse cursor
+     <pre>
+Help:
+  '-' - decrease num fraction bits
+  '+'/'=' - increase num fraction bits
+  Up/Down arrow: move whichever of a or b is closest to mouse cursor
+
+Red horizontal lines are a and b.
+Line surrounded by green dots is the exact lerp function.
+(Line surrounded by red dots is the same, but with a and b interchanged.)
+The green dots are the approximations to it using the chosen function.
+A green dot is circled if it's not the exactly correct answer rounded to nearest using the round-ties-to-even rule.
+Hovering over a dot shows, in fractions and binary:
+  - t
+  - [exact rounded down, exact, (halfway between exact rounded down and up), exact rounded up] in sorted order
+  - the computed lerp(a,b,t) and whether it's correct or wrong.
+A larger yellow dot means the point is both a green dot and a yellow dot.
+     <pre>
      </div>
 
     </td>
