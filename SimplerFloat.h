@@ -22,10 +22,10 @@ class SimplerFloatUtils {
     {
       const double subnormalThreshold = std::exp2(minExponent);
       if (std::abs(x) < subnormalThreshold) {
-        quantum = subnormalThreshold / ((int64_t)1<<numFractionBits);
+        quantum = subnormalThreshold / (double)((int64_t)1<<numFractionBits);
       } else {
         const double roundedDownToPowerOf2 = std::exp2(std::floor(std::log2(std::abs(x))));
-        quantum = roundedDownToPowerOf2 / ((int64_t)1<<numFractionBits);
+        quantum = roundedDownToPowerOf2 / (double)((int64_t)1<<numFractionBits);
       }
     }
     const double X = x/quantum;
@@ -86,10 +86,10 @@ class SimplerFloatUtils {
     {
       const double subnormalThreshold = std::exp2(minExponent);
       if (x <= subnormalThreshold) {
-        quantum = subnormalThreshold / ((int64_t)1<<numFractionBits);
+        quantum = subnormalThreshold / (double)((int64_t)1<<numFractionBits);
       } else {
         const double roundedUpToPowerOf2 = std::exp2(std::ceil(std::log2(x)));
-        quantum = (roundedUpToPowerOf2/2.) / ((int64_t)1<<numFractionBits);
+        quantum = (roundedUpToPowerOf2/2.) / (double)((int64_t)1<<numFractionBits);
       }
     }
 
@@ -112,10 +112,10 @@ class SimplerFloatUtils {
     {
       const double subnormalThreshold = std::exp2(minExponent);
       if (x < subnormalThreshold) {
-        quantum = subnormalThreshold / ((int64_t)1<<numFractionBits);
+        quantum = subnormalThreshold / (double)((int64_t)1<<numFractionBits);
       } else {
         const double roundedDownToPowerOf2 = std::exp2(std::floor(std::log2(x)));
-        quantum = roundedDownToPowerOf2 / ((int64_t)1<<numFractionBits);
+        quantum = roundedDownToPowerOf2 / (double)((int64_t)1<<numFractionBits);
       }
     }
 
@@ -292,7 +292,7 @@ static inline void simpler_float_unit_test(const int numFractionBits, const int 
     const Float min = -max;
     int nIntervals = (maxExponent - minExponent) * 2 + 2;
     Float x = min;
-    double largest_delta = (max.toDouble()-max.toDouble()/2.) / ((int64_t)1<<numFractionBits);
+    double largest_delta = (max.toDouble()-max.toDouble()/2.) / (double)((int64_t)1<<numFractionBits);
     double expected_delta = largest_delta;
     std::cout << "          "<<DEBUG(numFractionBits) << std::endl;
     std::cout << "          "<<DEBUG(normalThreshold) << std::endl;
@@ -328,7 +328,13 @@ class SimplerFloatTemplated : public SimplerFloat {
  public:
   // TODO: kill this, make caller say exactFromDouble? not sure
   SimplerFloatTemplated(double x) : super(super::exactFromDouble(NumFractionBits, MinExponent, x)) {}
+
   SimplerFloatTemplated(const SimplerFloatTemplated &that) : super(that) {}
+  SimplerFloatTemplated &operator=(const SimplerFloatTemplated &that) {
+    *(super*)this = (const super&)that;
+    return *this;
+  }
+
   static SimplerFloatTemplated nearestFromDouble(double x) {
     return super::nearestFromDouble(NumFractionBits, MinExponent, x);
   }
