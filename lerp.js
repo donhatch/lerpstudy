@@ -1,6 +1,5 @@
 // TODO: fail http://localhost:8000/lerp.html?numFractionBits=4&minExponent=-12&a=5/32&b=13/16
 
-// TODO: browser zoom isn't faithful?? what's going on?  When I zoom in a bit, it draws more lines!
 // TODO: "smartest" seems perfect, but only if minExponent is sufficiently low.  can we make it perfect even with not-so-low minE?
 // TODO: make the selection of lerp algorithm persist in url bar
 // TODO: oscillating between two methods mode?  could be helpful, although the most common thing we want, that is, comparison with magic exact, is accompliced via the ringed dots
@@ -2240,7 +2239,7 @@ registerSourceCodeLinesAndRequire([
 
   let draggingA = false;
   let draggingB = false;
-  const eventVerboseLevel = 0;
+  const eventVerboseLevel = 0;  // set to something else here to debug
   // https://www.mutuallyhuman.com/blog/keydown-is-the-only-keyboard-event-we-need/
 
   const bIsCloser = eventOffsetY => {
@@ -2251,47 +2250,49 @@ registerSourceCodeLinesAndRequire([
   window.addEventListener("keydown", (event) => {
     if (eventVerboseLevel >= 1) console.log("keydown");
     if (eventVerboseLevel >= 1) console.log("  event = ",event);
-    if (false) {
-    } else if (event.key === "=" || event.key === "+") {
-      numFractionBits += 1;
-      setURLParamModule.setURLAndParamsInURLBarWithVerboseLevel(xformUrlPart,
-          [['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(a)],['b',toFractionString(b)]],
-          /*whetherToEncodeValue=*/false,  // don't encode the '/' as  %2F
-          /*verboseLevel=*/0);
-      populateTheSVG(svg, Lerp, a, b);
-    } else if (event.key == "-") {
-      numFractionBits -= 1;
-      setURLParamModule.setURLAndParamsInURLBarWithVerboseLevel(xformUrlPart,
-          [['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(a)],['b',toFractionString(b)]],
-          /*whetherToEncodeValue=*/false,  // don't encode the '/' as  %2F
-          /*verboseLevel=*/0);
-      populateTheSVG(svg, Lerp, a, b);
-    } else if (event.key == "ArrowUp") {
-      event.preventDefault();  // prevent scrolling
-      if (bIsCloser(yOfPreviousMouseEvent)) {
-        b = Succ(b);
-      } else {
-        a = Succ(a);
+    if (!event.ctrlKey) {
+      if (false) {
+      } else if (event.key === "=" || event.key === "+") {
+        numFractionBits += 1;
+        setURLParamModule.setURLAndParamsInURLBarWithVerboseLevel(xformUrlPart,
+            [['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(a)],['b',toFractionString(b)]],
+            /*whetherToEncodeValue=*/false,  // don't encode the '/' as  %2F
+            /*verboseLevel=*/0);
+        populateTheSVG(svg, Lerp, a, b);
+      } else if (event.key == "-") {
+        numFractionBits -= 1;
+        setURLParamModule.setURLAndParamsInURLBarWithVerboseLevel(xformUrlPart,
+            [['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(a)],['b',toFractionString(b)]],
+            /*whetherToEncodeValue=*/false,  // don't encode the '/' as  %2F
+            /*verboseLevel=*/0);
+        populateTheSVG(svg, Lerp, a, b);
+      } else if (event.key == "ArrowUp") {
+        event.preventDefault();  // prevent scrolling
+        if (bIsCloser(yOfPreviousMouseEvent)) {
+          b = Succ(b);
+        } else {
+          a = Succ(a);
+        }
+        setURLParamModule.setURLAndParamsInURLBarWithVerboseLevel(xformUrlPart,
+            [['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(a)],['b',toFractionString(b)]],
+            /*whetherToEncodeValue=*/false,  // don't encode the '/' as  %2F
+            /*verboseLevel=*/0);
+        populateTheSVG(svg, Lerp, a, b);
+      } else if (event.key == "ArrowDown") {
+        event.preventDefault();  // prevent scrolling
+        if (bIsCloser(yOfPreviousMouseEvent)) {
+          b = Pred(b);
+        } else {
+          a = Pred(a);
+        }
+        setURLParamModule.setURLAndParamsInURLBarWithVerboseLevel(xformUrlPart,
+            [['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(a)],['b',toFractionString(b)]],
+            /*whetherToEncodeValue=*/false,  // don't encode the '/' as  %2F
+            /*verboseLevel=*/0);
+        populateTheSVG(svg, Lerp, a, b);
       }
-      setURLParamModule.setURLAndParamsInURLBarWithVerboseLevel(xformUrlPart,
-          [['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(a)],['b',toFractionString(b)]],
-          /*whetherToEncodeValue=*/false,  // don't encode the '/' as  %2F
-          /*verboseLevel=*/0);
-      populateTheSVG(svg, Lerp, a, b);
-    } else if (event.key == "ArrowDown") {
-      event.preventDefault();  // prevent scrolling
-      if (bIsCloser(yOfPreviousMouseEvent)) {
-        b = Pred(b);
-      } else {
-        a = Pred(a);
-      }
-      setURLParamModule.setURLAndParamsInURLBarWithVerboseLevel(xformUrlPart,
-          [['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(a)],['b',toFractionString(b)]],
-          /*whetherToEncodeValue=*/false,  // don't encode the '/' as  %2F
-          /*verboseLevel=*/0);
-      populateTheSVG(svg, Lerp, a, b);
-    }
-    // event.stopPropagation(); // TODO: do I want this?
+    }  // if !event.ctrlKey
+    // event.stopPropagation(); // TODO: do I want this?  I haven't yet learned what it means
   });
   svg.addEventListener("mousedown", (event) => {
     if (eventVerboseLevel >= 1) console.log("mousedown");
