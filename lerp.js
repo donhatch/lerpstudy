@@ -10,6 +10,9 @@
 //   a=9/32 b=7/8
 //   a=13/64 b=3/4
 //   a=5/64 b=3/4
+//   a=5/32 b=3/4
+//   a=1/16 b=3/4
+//   a=1/32 b=5/8
 
 // TODO: lots of failures with "magically exact", wtf?  Especially when b is 1. 
 // e.g. this shows a circle near t=0:
@@ -1748,7 +1751,6 @@ registerSourceCodeLinesAndRequire([
     svg.setAttribute("width", ""+width+"px");
     svg.setAttribute("height", ""+height+"px");
     svg.style.position = 'absolute';
-    svg.style.top = '30px';
     svg.style.left = '0px';
     //svg.style.pointerEvents = 'none';  // to make it "click-through-able", and so tooltips of underlying are functional
     svg.style.border = "5px solid black";
@@ -2071,12 +2073,12 @@ registerSourceCodeLinesAndRequire([
   const setLerpMethodToExactCrossYourFingers = () => {
     Lerp = (a,b,t) => round_to_nearest_representable(numFractionBits, minExponent, exact_lerp_cross_your_fingers(a, b, t));
     populateTheSVG(svg, Lerp, a, b);
-    theTitle.innerHTML = "exact lerp (cross your fingers)";
+    theTitle.innerHTML = "exact lerp";
   };
   const setLerpMethodToMagic = () => {
     Lerp = (a,b,t) => magic_correct_lerp(numFractionBits, minExponent, a,b,t);
     populateTheSVG(svg, Lerp, a, b);
-    theTitle.innerHTML = "magic actual lerp";
+    theTitle.innerHTML = "magic actual lerp (doesn't always work)";
   };
   const setLerpMethodToNaive = () => {
     //Lerp = (a,b,t) => Plus(Times(Minus(1.,t),a), Times(t,b));

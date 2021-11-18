@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
  <head>
+  <title>Lerp study</title>
 
   <link rel="icon" type="image/png" href="lerp-favicon.png" />
 
@@ -16,12 +17,17 @@
   <script src="lerp.js"></script>
  </head>
  <style>
-   .monospace {
+
+   /* monospace font, preserve spaces */
+   .mono {
      font-family: monospace;
+     white-space: pre;
    }
+
  </style>
  <body>
-  <pre><span id="theTitle"></span>   <span id="theTitlePart2"></span></pre>
+  <h2>Lerp study</h2>
+  lerp function: <span class="mono"><span id="theTitle"></span>   <span id="theTitlePart2"></span></span>
   <table style="border: 0px solid black;">
    <tr>
     <td rowspan="2" style="border: 0px solid black;">
@@ -42,56 +48,56 @@
       <br>
       <label>
         <input type="radio" class="lerpmethodRadioButton" id="lerpmethodNaive" name="lerpmethod" value="lerpmethodNaive">
-        <span class="monospace">(1-t)*a + t*b</span>
+        <span class="mono">(1-t)*a + t*b</span>
       </label>
       <br>
 
       <br>
       <label>
         <input type="radio" class="lerpmethodRadioButton" id="lerpmethodTypeMeaningful" name="lerpmethod" value="lerpmethodTypeMeaningful">
-        <span class="monospace">a + t*(b-a)</span>
+        <span class="mono">a + t*(b-a)</span>
       </label>
       <br>
 
       <br>
       <label>
        <input type="radio" class="lerpmethodRadioButton" id="lerpmethodTypeMeaningfulBackwards" name="lerpmethod" value="lerpmethodTypeMeaningfulBackwards">
-       <span class="monospace">b - (1-t)*(b-a)</span>
+       <span class="mono">b - (1-t)*(b-a)</span>
       </label>
       <br>
 
       <br>
       <label>
        <input type="radio" class="lerpmethodRadioButton" id="lerpmethodBidirectional" name="lerpmethod" value="lerpmethodBidirectional">
-       <span class="monospace">t &lt; 0.5 ? a + t*(b-a) : b - (1-t)*(b-a)</span>
+       <span class="mono">t &lt; 0.5 ? a + t*(b-a) : b - (1-t)*(b-a)</span>
       </label>
       <br>
 
       <br>
       <label>
        <input type="radio" class="lerpmethodRadioButton" id="lerpmethodBidirectionalAlt" name="lerpmethod" value="lerpmethodBidirectionalAlt">
-       <span class="monospace">t &lt;= 0.5 ? a + t*(b-a) : b - (1-t)*(b-a)</span>
+       <span class="mono">t &lt;= 0.5 ? a + t*(b-a) : b - (1-t)*(b-a)</span>
       </label>
       <br>
 
       <br>
       <label>
        <input type="radio" class="lerpmethodRadioButton" id="lerpmethodBidirectionalAlt3" name="lerpmethod" value="lerpmethodBidirectionalAlt3">
-       <span class="monospace">t &lt; 0.5 ? a + t*(b-a) : t &gt; 0.5 ? b - (1-t)*(b-a) : (a+b)/2</span>
+       <span class="mono">t &lt; 0.5 ? a + t*(b-a) : t &gt; 0.5 ? b - (1-t)*(b-a) : (a+b)/2</span>
       </label>
       <br>
 
       <br>
       <label>
        <input type="radio" class="lerpmethodRadioButton" id="lerpmethodMaybe" name="lerpmethod" value="lerpmethodMaybe">
-       <span class="monospace">answer0 = (1-t)*a + t*b; answer0 += ((1-t)*(a-answer0) + t*(b-answer0)</span>
+       <span class="mono">answer0 = (1-t)*a + t*b; answer0 += ((1-t)*(a-answer0) + t*(b-answer0)</span>
       </label>
       <br>
 
       <br>
       <label>
        <input type="radio" class="lerpmethodRadioButton" id="lerpmethodTBlast" name="lerpmethod" value="lerpmethodTBlast">
-       <span class="monospace">a - t*a + t*b</span>
+       <span class="mono">a - t*a + t*b</span>
       </label>
       <label>
        <input type="radio" class="lerpmethodRadioButton" id="lerpmethodTBlastAtTwicePrecision" name="lerpmethod" value="lerpmethodTBlastAtTwicePrecision">
@@ -102,7 +108,7 @@
       <br>
       <label>
        <input type="radio" class="lerpmethodRadioButton" id="lerpmethodAlast" name="lerpmethod" value="lerpmethodAlast">
-       <span class="monospace">t*b - t*a + a</span>
+       <span class="mono">t*b - t*a + a</span>
       </label>
       <label>
        <input type="radio" class="lerpmethodRadioButton" id="lerpmethodAlastAtTwicePrecision" name="lerpmethod" value="lerpmethodAlastAtTwicePrecision">
@@ -113,7 +119,7 @@
       <br>
       <label>
        <input type="radio" class="lerpmethodRadioButton" id="lerpmethodTAlast" name="lerpmethod" value="lerpmethodTAlast">
-       <span class="monospace">a + t*b - t*a</span>
+       <span class="mono">a + t*b - t*a</span>
       </label>
       <label>
        <input type="radio" class="lerpmethodRadioButton" id="lerpmethodTAlastAtTwicePrecision" name="lerpmethod" value="lerpmethodTAlastAtTwicePrecision">
@@ -124,7 +130,7 @@
       <br>
       <label>
        <input type="radio" class="lerpmethodRadioButton" id="lerpmethodTBlastUsingDot" name="lerpmethod" value="lerpmethodTBlastUsingDot">
-       <span class="monospace">[1,-t,t] &#8226; [a,a,b]</span> using Kahan-ish summation
+       <span class="mono">[1,-t,t] &#8226; [a,a,b]</span> using Kahan-ish summation
       </label>
       <label>
        <input type="radio" class="lerpmethodRadioButton" id="lerpmethodTBlastUsingDotTweaked" name="lerpmethod" value="lerpmethodTBlastUsingDotTweaked">
@@ -143,7 +149,7 @@
       <br>
       <label>
        <input type="radio" class="lerpmethodRadioButton" id="lerpmethodAlastUsingDot" name="lerpmethod" value="lerpmethodAlastUsingDot">
-       <span class="monospace">[t,-t,1] &#8226; [b,a,a]</span> using Kahan-ish summation
+       <span class="mono">[t,-t,1] &#8226; [b,a,a]</span> using Kahan-ish summation
       </label>
       <label>
        <input type="radio" class="lerpmethodRadioButton" id="lerpmethodAlastUsingDotTweaked" name="lerpmethod" value="lerpmethodAlastUsingDotTweaked">
@@ -162,7 +168,7 @@
       <br>
       <label>
        <input type="radio" class="lerpmethodRadioButton" id="lerpmethodTAlastUsingDot" name="lerpmethod" value="lerpmethodTAlastUsingDot">
-       <span class="monospace">[1,t,-t] &#8226; [a,b,a]</span> using Kahan-ish summation
+       <span class="mono">[1,t,-t] &#8226; [a,b,a]</span> using Kahan-ish summation
       </label>
       <label>
        <input type="radio" class="lerpmethodRadioButton" id="lerpmethodTAlastUsingDotTweaked" name="lerpmethod" value="lerpmethodTAlastUsingDotTweaked">
@@ -206,10 +212,7 @@ Hovering over a dot shows, in fractions and binary:
   - t
   - [exact rounded down, exact, (halfway between exact rounded down and up), exact rounded up] in sorted order
   - the computed lerp(a,b,t) and whether it's correct or wrong.
-A larger yellow dot means the point is both a green dot and a yellow dot.
-     <pre>
-     </div>
-
+A larger yellow dot means the point is both a green dot and a yellow dot.<pre></div>  <!-- end the elements on same line to avoid spurious vertical space -->
     </td>
    </tr>
   </table>
