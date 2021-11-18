@@ -70,6 +70,13 @@
 
       <br>
       <label>
+       <input type="radio" class="lerpmethodRadioButton" id="lerpmethodBidirectionalAlt3" name="lerpmethod" value="lerpmethodBidirectionalAlt3">
+       t &lt; 0.5 ? a + t*(b-a) : t &gt; 0.5 ? b - (1-t)*(b-a) : (a+b)/2
+      </label>
+      <br>
+
+      <br>
+      <label>
        <input type="radio" class="lerpmethodRadioButton" id="lerpmethodMaybe" name="lerpmethod" value="lerpmethodMaybe">
        answer0 = (1-t)*a + t*b; answer0 += ((1-t)*(a-answer0) + t*(b-answer0)
       </label>
@@ -188,7 +195,7 @@ Red horizontal lines are a and b.
 Line surrounded by green dots is the exact lerp function.
 (Line surrounded by red dots is the same, but with a and b interchanged.)
 The green dots are the approximations to it using the chosen function.
-A green dot is circled if it's not the exactly correct answer rounded to nearest using the round-ties-to-even rule.
+A green dot is circled if it's not the exactly correct answer rounded to nearest representable using the round-ties-to-even rule.
 Hovering over a dot shows, in fractions and binary:
   - t
   - [exact rounded down, exact, (halfway between exact rounded down and up), exact rounded up] in sorted order

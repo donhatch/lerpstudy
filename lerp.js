@@ -2110,6 +2110,13 @@ registerSourceCodeLinesAndRequire([
     populateTheSVG(svg, Lerp, a, b);
     theTitle.innerHTML = "t<=.5 ? a+(b-a)*t : b-(1-t)*(b-a)";
   };
+  const setLerpMethodToBidirectionalAlt3 = () => {
+    Lerp = (a,b,t) => t<.5 ? Plus(a, Times(Minus(b,a),t)) :
+                      t>.5 ? Minus(b, Times(Minus(1.,t),Minus(b,a)))
+                           : Times(Plus(a,b),0.5);
+    populateTheSVG(svg, Lerp, a, b);
+    theTitle.innerHTML = "t<.5 ? a+(b-a)*t : t>.5 ? b-(1-t)*(b-a) : (a+b)/2";
+  };
   const setLerpMethodToMaybe = () => {
     Lerp = (a,b,t) => {
       const answer0 = Plus(Times(Minus(1.,t),a), Times(t,b));
@@ -2230,6 +2237,7 @@ registerSourceCodeLinesAndRequire([
   document.getElementById("lerpmethodTypeMeaningfulBackwards").onclick = () => setLerpMethodToTypeMeaningfulBackwards();
   document.getElementById("lerpmethodBidirectional").onclick = () => setLerpMethodToBidirectional();
   document.getElementById("lerpmethodBidirectionalAlt").onclick = () => setLerpMethodToBidirectionalAlt();
+  document.getElementById("lerpmethodBidirectionalAlt3").onclick = () => setLerpMethodToBidirectionalAlt3();
   document.getElementById("lerpmethodMaybe").onclick = () => setLerpMethodToMaybe();
   document.getElementById("lerpmethodTBlast").onclick = () => setLerpMethodToTBlast();
   document.getElementById("lerpmethodTBlastAtTwicePrecision").onclick = () => setLerpMethodToTBlastAtTwicePrecision();
