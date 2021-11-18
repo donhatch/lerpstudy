@@ -15,10 +15,12 @@
 //   a=1/32 b=5/8
 
 // TODO: lots of failures with "magically exact", wtf?  Especially when b is 1. 
-// e.g. this shows a circle near t=0:
+// e.g. this shows a circle near t=0  (at t=14/4096):
 // http://localhost:8000/lerp.html?numFractionBits=4&minExponent=-12&a=5/32&b=1
 // and this, not so near 0, at t=27/512:
 // http://localhost:8000/lerp.html?numFractionBits=4&minExponent=-12&a=19/256&b=1
+// and this, near zero, at t=1/1024
+// http://localhost:8000/lerp.html?numFractionBits=2&minExponent=-12&a=7/512&b=1
 // See the todos in that function.
 
 // TODO: "smartest" seems perfect, but only if minExponent is sufficiently low.  can we make it perfect even with not-so-low minE?
@@ -37,6 +39,7 @@
 // TODO: figure out if there's a better way!
 // TODO: show more interesting lines for the various algorithms
 // TODO: dragging a or b up or down slowly doesn't redraw until I've stopped moving; that's unfriendly
+// TODO: highlight non-monotonicity!
 
 /*
   Possible stackexchange problem:
@@ -1876,9 +1879,10 @@ registerSourceCodeLinesAndRequire([
 
 
     // Funny relevant diagonal, under the real diagonal.
-    // This is starting at a,0,
+    // This is starting at 0,a
     // and going up at slope round(b-a).
-    // That is, from a,0 to a+round(b-a).
+    // That is, from 0,a to 1,a+round(b-a).
+    // And then another one, of the same slope, from 0,0 to 1,round(b-a).
     {
       const B = a + Round(b-a);
       const o0x = relerp(0., ix0,ix1,ox0,ox1);
@@ -2138,6 +2142,16 @@ registerSourceCodeLinesAndRequire([
     populateTheSVG(svg, Lerp, a, b);
     theTitle.innerHTML = "answer0 = (1-t)*a + t*b; answer0 += ((1-t)*(a-answer0) + t*(b-answer0)";
   };
+  const setLerpMethodToMaybe2 = () => {
+    Lerp = (a,b,t) => {
+      const answer0 = Plus(a, Times(Minus(b,a),t));
+      const answer1 = Minus(b, Times(Minus(1.,t),Minus(b,a)));
+      const answer = Plus(Times(Minus(1.,t),answer0), Times(t,answer1));
+      return answer;
+    };
+    populateTheSVG(svg, Lerp, a, b);
+    theTitle.innerHTML = "answer0 = a+t(b-a); answer1 = b-(1-t)(b-a); answer = (1-t)*answer0 + t*answer1";
+  };
 
   const setLerpMethodToTBlast = () => {
     Lerp = (a,b,t) => Plus(Minus(a, Times(t,a)), Times(t,b));
@@ -2249,6 +2263,7 @@ registerSourceCodeLinesAndRequire([
   document.getElementById("lerpmethodBidirectionalAlt").onclick = () => setLerpMethodToBidirectionalAlt();
   document.getElementById("lerpmethodBidirectionalAlt3").onclick = () => setLerpMethodToBidirectionalAlt3();
   document.getElementById("lerpmethodMaybe").onclick = () => setLerpMethodToMaybe();
+  document.getElementById("lerpmethodMaybe2").onclick = () => setLerpMethodToMaybe2();
   document.getElementById("lerpmethodTBlast").onclick = () => setLerpMethodToTBlast();
   document.getElementById("lerpmethodTBlastAtTwicePrecision").onclick = () => setLerpMethodToTBlastAtTwicePrecision();
   document.getElementById("lerpmethodAlast").onclick = () => setLerpMethodToAlast();
@@ -2280,9 +2295,15 @@ registerSourceCodeLinesAndRequire([
   const eventVerboseLevel = 0;  // set to something else here to debug
   // https://www.mutuallyhuman.com/blog/keydown-is-the-only-keyboard-event-we-need/
 
+  // whether b is closer than the midpoing between a and b
   const bIsCloser = eventOffsetY => {
     const iy = relerp(eventOffsetY, oy0,oy1, iy0,iy1);
-    return Math.abs(iy-b) < Math.abs(iy-a);
+    return Math.abs(iy-b) < Math.abs(iy-(a+b/2.));
+  };
+  // whether a is closer than the midpoing between a and b
+  const aIsCloser = eventOffsetY => {
+    const iy = relerp(eventOffsetY, oy0,oy1, iy0,iy1);
+    return Math.abs(iy-a) < Math.abs(iy-(a+b/2.));
   };
 
   window.addEventListener("keydown", (event) => {
@@ -2290,26 +2311,31 @@ registerSourceCodeLinesAndRequire([
     if (eventVerboseLevel >= 1) console.log("  event = ",event);
     if (!event.ctrlKey) {
       if (false) {
-      } else if (event.key === "=" || event.key === "+") {
+      } else if (event.key === '=' || event.key === '+') {
         numFractionBits += 1;
         setURLParamModule.setURLAndParamsInURLBarWithVerboseLevel(xformUrlPart,
             [['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(a)],['b',toFractionString(b)]],
             /*whetherToEncodeValue=*/false,  // don't encode the '/' as  %2F
             /*verboseLevel=*/0);
         populateTheSVG(svg, Lerp, a, b);
-      } else if (event.key == "-") {
-        numFractionBits -= 1;
-        setURLParamModule.setURLAndParamsInURLBarWithVerboseLevel(xformUrlPart,
-            [['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(a)],['b',toFractionString(b)]],
-            /*whetherToEncodeValue=*/false,  // don't encode the '/' as  %2F
-            /*verboseLevel=*/0);
-        populateTheSVG(svg, Lerp, a, b);
+      } else if (event.key == '-') {
+        if (numFractionBits > 0) {
+          numFractionBits -= 1;
+          setURLParamModule.setURLAndParamsInURLBarWithVerboseLevel(xformUrlPart,
+              [['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(a)],['b',toFractionString(b)]],
+              /*whetherToEncodeValue=*/false,  // don't encode the '/' as  %2F
+              /*verboseLevel=*/0);
+          populateTheSVG(svg, Lerp, a, b);
+        }
       } else if (event.key == "ArrowUp") {
         event.preventDefault();  // prevent scrolling
         if (bIsCloser(yOfPreviousMouseEvent)) {
           b = Succ(b);
+        } else if (aIsCloser(yOfPreviousMouseEvent)) {
+          a = Succ(a);
         } else {
           a = Succ(a);
+          b = Succ(b);
         }
         setURLParamModule.setURLAndParamsInURLBarWithVerboseLevel(xformUrlPart,
             [['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(a)],['b',toFractionString(b)]],
@@ -2320,8 +2346,11 @@ registerSourceCodeLinesAndRequire([
         event.preventDefault();  // prevent scrolling
         if (bIsCloser(yOfPreviousMouseEvent)) {
           b = Pred(b);
+        } else if (aIsCloser(yOfPreviousMouseEvent)) {
+          a = Pred(a);
         } else {
           a = Pred(a);
+          b = Pred(b);
         }
         setURLParamModule.setURLAndParamsInURLBarWithVerboseLevel(xformUrlPart,
             [['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(a)],['b',toFractionString(b)]],
