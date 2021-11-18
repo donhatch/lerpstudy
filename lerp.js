@@ -2190,62 +2190,62 @@ registerSourceCodeLinesAndRequire([
   const setLerpMethodToTBlastUsingDot = () => {
     Lerp = (a,b,t) => DotKahanish([1,-t,t], [a,a,b], false);
     populateTheSVG(svg, Lerp, a, b);
-    theTitle.innerHTML = "[1,-t,t] &#8226; [a,a,b] Kahan";
+    theTitle.innerHTML = "[1,-t,t] <big>&#8226;</big> [a,a,b] Kahan";
   };
   const setLerpMethodToAlastUsingDot = () => {
     Lerp = (a,b,t) => DotKahanish([t,-t,1], [b,a,a], false);
     populateTheSVG(svg, Lerp, a, b);
-    theTitle.innerHTML = "[t,-t,1] &#8226; [b,a,a] Kahan";
+    theTitle.innerHTML = "[t,-t,1] <big>&#8226;</big> [b,a,a] Kahan";
   };
   const setLerpMethodToTAlastUsingDot = () => {
     Lerp = (a,b,t) => DotKahanish([1,t,-t], [a,b,a], false);
     populateTheSVG(svg, Lerp, a, b);
-    theTitle.innerHTML = "[1,t,-t] &#8226; [a,b,a] Kahan";
+    theTitle.innerHTML = "[1,t,-t] <big>&#8226;</big> [a,b,a] Kahan";
   };
   const setLerpMethodToTBlastUsingDotTweaked = () => {
     Lerp = (a,b,t) => DotKahanish([1,-t,t], [a,a,b], true);
     populateTheSVG(svg, Lerp, a, b);
-    theTitle.innerHTML = "[1,-t,t] &#8226; [a,a,b] Kahan tweaked";
+    theTitle.innerHTML = "[1,-t,t] <big>&#8226;</big> [a,a,b] Kahan tweaked";
   };
   const setLerpMethodToAlastUsingDotTweaked = () => {
     Lerp = (a,b,t) => DotKahanish([t,-t,1], [b,a,a], true);
     populateTheSVG(svg, Lerp, a, b);
-    theTitle.innerHTML = "[t,-t,1] &#8226; [b,a,a] Kahan tweaked";
+    theTitle.innerHTML = "[t,-t,1] <big>&#8226;</big> [b,a,a] Kahan tweaked";
   };
   const setLerpMethodToTAlastUsingDotTweaked = () => {
     Lerp = (a,b,t) => DotKahanish([1,t,-t], [a,b,a], true);
     populateTheSVG(svg, Lerp, a, b);
-    theTitle.innerHTML = "[1,t,-t] &#8226; [a,b,a] Kahan tweaked";
+    theTitle.innerHTML = "[1,t,-t] <big>&#8226;</big> [a,b,a] Kahan tweaked";
   };
   const setLerpMethodToTBlastUsingDotSmarter = () => {
     Lerp = (a,b,t) => DotButImSkeptical([1,-t,t], [a,a,b], true);
     populateTheSVG(svg, Lerp, a, b);
-    theTitle.innerHTML = "[1,-t,t] &#8226; [a,a,b] smarter";
+    theTitle.innerHTML = "[1,-t,t] <big>&#8226;</big> [a,a,b] smarter";
   };
   const setLerpMethodToAlastUsingDotSmarter = () => {
     Lerp = (a,b,t) => DotButImSkeptical([t,-t,1], [b,a,a], true);
     populateTheSVG(svg, Lerp, a, b);
-    theTitle.innerHTML = "[t,-t,1] &#8226; [b,a,a] smarter";
+    theTitle.innerHTML = "[t,-t,1] <big>&#8226;</big> [b,a,a] smarter";
   };
   const setLerpMethodToTAlastUsingDotSmarter = () => {
     Lerp = (a,b,t) => DotButImSkeptical([1,t,-t], [a,b,a], true);
     populateTheSVG(svg, Lerp, a, b);
-    theTitle.innerHTML = "[1,t,-t] &#8226; [a,b,a] smarter";
+    theTitle.innerHTML = "[1,t,-t] <big>&#8226;</big> [a,b,a] smarter";
   };
   const setLerpMethodToTBlastUsingDotSmartest = () => {
     Lerp = (a,b,t) => DotCorrect([1,-t,t], [a,a,b], true);
     populateTheSVG(svg, Lerp, a, b);
-    theTitle.innerHTML = "[1,-t,t] &#8226; [a,a,b] smartest";
+    theTitle.innerHTML = "[1,-t,t] <big>&#8226;</big> [a,a,b] smartest";
   };
   const setLerpMethodToAlastUsingDotSmartest = () => {
     Lerp = (a,b,t) => DotCorrect([t,-t,1], [b,a,a], true);
     populateTheSVG(svg, Lerp, a, b);
-    theTitle.innerHTML = "[t,-t,1] &#8226; [b,a,a] smartest";
+    theTitle.innerHTML = "[t,-t,1] <big>&#8226;</big> [b,a,a] smartest";
   };
   const setLerpMethodToTAlastUsingDotSmartest = () => {
     Lerp = (a,b,t) => DotCorrect([1,t,-t], [a,b,a], true);
     populateTheSVG(svg, Lerp, a, b);
-    theTitle.innerHTML = "[1,t,-t] &#8226; [a,b,a] smartest";
+    theTitle.innerHTML = "[1,t,-t] <big>&#8226;</big> [a,b,a] smartest";
   };
 
   document.getElementById("lerpmethodExactCrossYourFingers").setAttribute("checked", "");
