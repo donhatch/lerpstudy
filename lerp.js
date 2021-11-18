@@ -3,6 +3,14 @@
 //  https://math.stackexchange.com/questions/907327/accurate-floating-point-linear-interpolation#answer-1798323
 //  https://math.stackexchange.com/questions/4184626/what-is-the-ulp-variance-of-the-common-implementation-of-lerp?noredirect=1&lq=1
 
+// Note counterexamples to conjecture that a+(b-a)/2 <= (a+b)/2 <= b-(b-a)/2:
+//   a=9/64 b=13/16
+//   a=7/32 b=15/16
+//   a=5/64 b=7/8
+//   a=9/32 b=7/8
+//   a=13/64 b=3/4
+//   a=5/64 b=3/4
+
 // TODO: lots of failures with "magically exact", wtf?  Especially when b is 1. 
 // e.g. this shows a circle near t=0:
 // http://localhost:8000/lerp.html?numFractionBits=4&minExponent=-12&a=5/32&b=1
