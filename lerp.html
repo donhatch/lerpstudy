@@ -42,6 +42,7 @@
  </style>
  <body>
   <h2>Lerp study</h2>
+  <hr>
   <table>
    <tr>
     <td>
@@ -57,18 +58,23 @@
      </table>
     <td>
   </table>
+
   <table style="border: 0px solid black;">
    <tr>
-    <td rowspan="2" style="border: 0px solid black;">
+
+    <td rowspan="2" style="border: 0px solid black; vertical-align: top;">
+
      <div id="theSVGholder" style="width:512px; height:1024px;">  <!-- XXX need to control this from inside -->
       <svg id="theSVG"></svg>
      </div>
+
     </td>
+
     <td>
-     <span class="mono"> </span>  <!-- space for the "a" and "b" -->
+     <span class="mono"> </span>  <!-- space for the "a" and "b" to right of picture -->
     </td>
     <td valign="top">
-     <div style="border: 1px solid black;">
+     <div style="border: 1px solid black; margin:1px;">
 
       <br>
       <label>
@@ -235,20 +241,21 @@
 
      </div>
 
-     <div style="border: 1px solid black;">
+     <div style="border: 1px solid black; margin:1px;">
 Keyboard shortcuts:
-<ul><li>'-' - decrease num fraction bits
-<li>'+'/'=' - increase num fraction bits
-<li>Up/Down arrow: move whichever of a or b is closest to mouse cursor (both if mouse near halfway)
+<ul><li><span class="mono">'-'</span> - decrease precision (num fraction bits, IEE754 floating point)
+<li><span class="mono">'+'</span>/<span class="mono">'='</span> - increase precision
+<li>Up/Down arrow: move whichever of <span class="mono">a</span> or <span class="mono">b</span> is closest to mouse cursor (both if mouse near halfway)
 </ul>
 <hr>
 
 Things to know:
-<ul><li>t varies from 0 at the left to 1 at the right.
-<li>Red horizontal lines are a and b.
+<ul><li>grid lines are at representable floating point numbers at the current precision (slightly darker for "even", slightly lighter for "odd")
+<li>t varies from 0 at the left to 1 at the right.
+<li>Red horizontal lines are <span class="mono">a</span> and <span class="mono">b</span>.
 <li>Line surrounded by green dots is the exact lerp function: <span class="monowrap">lerp(a, b, t)</span>.
 <br>
-(Line surrounded by red dots is the same, but with a and b interchanged: <span class="monowrap">lerp(b, a, t)</span>.)
+(Line surrounded by red dots is the same, but with <span class="mono">a</span> and <span class="mono">b</span> interchanged: <span class="monowrap">lerp(b, a, t)</span>.)
 <li>The green dots are the approximations to it using the chosen expression, computed using the current precision.
 <li>A green dot is circled if it's not the exactly correct answer rounded to nearest representable using the round-ties-to-even rule.
 <li>Hovering over a dot shows the derivation of the verdict: in fractions and binary:
@@ -268,10 +275,9 @@ because they appear as subexpressions (sort of) in several of the lerp expressio
 
   <!-- https://stackoverflow.com/questions/10643426/how-to-add-a-tooltip-to-an-svg-graphic#answer-50543963 -->
   <div id="tooltip" display="none" style="position:absolute; display:none; background-color:white; border: 1px solid black;"></div>
-  <div id="b" style="position:absolute; left:526px; top:118px;">b</div>
-  <div id="a" style="position:absolute; left:526px; top:608px;">a</div>
+  <div id="b" style="position:absolute; left:526px; top:118px;"><span class="mono">b</span></div>
+  <div id="a" style="position:absolute; left:526px; top:608px;"><span class="mono">a</span></div>
 
-   <br>
    <hr>
    Related links:
    <ul>
