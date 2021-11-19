@@ -128,7 +128,7 @@
       <br>
       <label>
        <input type="radio" class="lerpmethodRadioButton" id="lerpmethodMaybe" name="lerpmethod" value="lerpmethodMaybe">
-       <span class="mono">answer0 = (1-t)*a + t*b; answer0 += ((1-t)*(a-answer0) + t*(b-answer0)</span>
+       <span class="mono">answer0 = (1-t)*a + t*b; answer = answer0 + ((1-t)*(a-answer0) + t*(b-answer0)</span>
       </label>
       <br>
 
@@ -136,6 +136,20 @@
       <label>
        <input type="radio" class="lerpmethodRadioButton" id="lerpmethodMaybe2" name="lerpmethod" value="lerpmethodMaybe2">
        <span class="mono">answer0 = a+t(b-a); answer1 = b-(1-t)(b-a); answer = (1-t)*answer0 + t*answer1</span>
+      </label>
+      <br>
+
+      <br>
+      <label>
+       <input type="radio" class="lerpmethodRadioButton" id="lerpmethodMaybe3" name="lerpmethod" value="lerpmethodMaybe3">
+       <span class="mono">answer0 = (1-t)*a+t*b; answer = answer0 - ((answer0-a)/t+a-b)*t</span>
+      </label>
+      <br>
+
+      <br>
+      <label>
+       <input type="radio" class="lerpmethodRadioButton" id="lerpmethodMaybe4" name="lerpmethod" value="lerpmethodMaybe4">
+       <span class="mono">answer0 = (1-t)*a+t*b; answer = answer0 - ((answer0-b)/(1-t)+b-a)*(1-t)</span>
       </label>
       <br>
 
@@ -252,10 +266,10 @@ Keyboard shortcuts:
 Things to know:
 <ul><li>grid lines are at representable floating point numbers at the current precision (slightly darker for "even", slightly lighter for "odd")
 <li>t varies from 0 at the left to 1 at the right.
-<li>Red horizontal lines are <span class="mono">a</span> and <span class="mono">b</span>.
-<li>Line surrounded by green dots is the exact lerp function: <span class="monowrap">lerp(a, b, t)</span>.
+<li>The red horizontal lines are <span class="mono">a</span> and <span class="mono">b</span>.
+<li>The line surrounded by green dots is the exact lerp function: <span class="monowrap">lerp(a, b, t)</span>.
 <br>
-(Line surrounded by red dots is the same, but with <span class="mono">a</span> and <span class="mono">b</span> interchanged: <span class="monowrap">lerp(b, a, t)</span>.)
+(The line surrounded by red dots is the same, but with <span class="mono">a</span> and <span class="mono">b</span> interchanged: <span class="monowrap">lerp(b, a, t)</span>.)
 <li>The green dots are the approximations to it using the chosen expression, computed using the current precision.
 <li>A green dot is circled if it's not the exactly correct answer rounded to nearest representable using the round-ties-to-even rule.
 <li>Hovering over a dot shows the derivation of the verdict: in fractions and binary:

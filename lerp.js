@@ -1520,6 +1520,7 @@ registerSourceCodeLinesAndRequire([
   const Succ = x => succ(numFractionBits, minExponent, x);
   const Plus = (a,b) => plus(numFractionBits, minExponent, a, b);
   const Times = (a,b) => times(numFractionBits, minExponent, a, b);
+  const DividedBy = (a,b) => dividedby(numFractionBits, minExponent, a, b);
   const Minus = (a,b) => minus(numFractionBits, minExponent, a, b);
   const Fma = (a,b,c) => fma(numFractionBits, minExponent, a, b, c);
   const TwoSum = (a,b) => {
@@ -2171,6 +2172,36 @@ registerSourceCodeLinesAndRequire([
     populateTheSVG(svg, Lerp, a, b);
     theTitle.innerHTML = "answer0 = a+t(b-a); answer1 = b-(1-t)(b-a); answer = (1-t)*answer0 + t*answer1";
   };
+  const setLerpMethodToMaybe3 = () => {
+    Lerp = (a,b,t) => {
+      const answer0 = Plus(Times(Minus(1.,t),a), Times(t,b));
+      const answer = t == 0 ? answer0
+                            : Minus(answer0,
+                                    Times(Minus(Plus(DividedBy(Minus(answer0,a),
+                                                               t),
+                                                     a),
+                                                b),
+                                          t));
+      return answer;
+    };
+    populateTheSVG(svg, Lerp, a, b);
+    theTitle.innerHTML = "answer0 = (1-t)*a+t*b; answer = answer0 - ((answer0-a)/t+a-b)*t";
+  };
+  const setLerpMethodToMaybe4 = () => {
+    Lerp = (a,b,t) => {
+      const answer0 = Plus(Times(Minus(1.,t),a), Times(t,b));
+      const answer = (1.-t)==0 ? answer0
+                               : Minus(answer0,
+                                       Times(Minus(Plus(DividedBy(Minus(answer0,b),
+                                                                  Minus(1.,t)),
+                                                        b),
+                                                   a),
+                                             Minus(1.,t)));
+      return answer;
+    };
+    populateTheSVG(svg, Lerp, a, b);
+    theTitle.innerHTML = "answer0 = (1-t)*a+t*b; answer = answer0 - ((answer0-b)/(1-t)+b-a)*(1-t)";
+  };
 
   const setLerpMethodToTBlast = () => {
     Lerp = (a,b,t) => Plus(Minus(a, Times(t,a)), Times(t,b));
@@ -2283,6 +2314,8 @@ registerSourceCodeLinesAndRequire([
   window.lerpmethodBidirectionalAlt3.onclick = () => setLerpMethodToBidirectionalAlt3();
   window.lerpmethodMaybe.onclick = () => setLerpMethodToMaybe();
   window.lerpmethodMaybe2.onclick = () => setLerpMethodToMaybe2();
+  window.lerpmethodMaybe3.onclick = () => setLerpMethodToMaybe3();
+  window.lerpmethodMaybe4.onclick = () => setLerpMethodToMaybe4();
   window.lerpmethodTBlast.onclick = () => setLerpMethodToTBlast();
   window.lerpmethodTBlastAtTwicePrecision.onclick = () => setLerpMethodToTBlastAtTwicePrecision();
   window.lerpmethodAlast.onclick = () => setLerpMethodToAlast();
