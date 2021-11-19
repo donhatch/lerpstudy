@@ -1726,14 +1726,14 @@ registerSourceCodeLinesAndRequire([
 
   // https://stackoverflow.com/questions/10643426/how-to-add-a-tooltip-to-an-svg-graphic#answer-50543963
   const showTooltip = (evt,text) => {
-    let tooltip = document.getElementById("tooltip");
+    let tooltip = window.tooltip;
     tooltip.innerHTML = text;
     tooltip.style.display = "block";
     tooltip.style.left = evt.pageX + 10 + 'px';
     tooltip.style.top = evt.pageY + 10 + 'px';
   };
   const hideTooltip = () => {
-    const tooltip = document.getElementById("tooltip");
+    const tooltip = window.tooltip;
     tooltip.style.display = "none";
   };
 
@@ -1744,8 +1744,8 @@ registerSourceCodeLinesAndRequire([
     const a = round_to_nearest_representable(numFractionBits, minExponent, aIntent);
     const b = round_to_nearest_representable(numFractionBits, minExponent, bIntent);
 
-    const theTitlePart2 = document.getElementById("theTitlePart2");
-    const theTitlePart3 = document.getElementById("theTitlePart3");
+    const theTitlePart2 = window.theTitlePart2;
+    const theTitlePart3 = window.theTitlePart3;
     //theTitlePart2.innerHTML = "  a="+a+" b="+b;
     //theTitlePart2.innerHTML = "  a="+a+"="+toFractionString(a)+"  b="+b+"="+toFractionString(b);
 
@@ -2074,9 +2074,9 @@ registerSourceCodeLinesAndRequire([
     return svg;
   };  // populateTheSVG
 
-  const svg = document.getElementById("theSVG");
+  const svg = window.theSVG;
 
-  const theTitle = document.getElementById("theTitle");
+  const theTitle = window.theTitle;
 
   const setLerpMethodToExactCrossYourFingers = () => {
     Lerp = (a,b,t) => round_to_nearest_representable(numFractionBits, minExponent, exact_lerp_cross_your_fingers(a, b, t));
@@ -2252,40 +2252,40 @@ registerSourceCodeLinesAndRequire([
     theTitle.innerHTML = "[1,t,-t] <big>&#8226;</big> [a,b,a] smartest";
   };
 
-  document.getElementById("lerpmethodExactCrossYourFingers").setAttribute("checked", "");
+  window.lerpmethodExactCrossYourFingers.setAttribute("checked", "");
   setLerpMethodToExactCrossYourFingers();
 
 
   const lerpmethodChanged = (a) => {};
 
-  document.getElementById("lerpmethodExactCrossYourFingers").onclick = () => setLerpMethodToExactCrossYourFingers();
-  document.getElementById("lerpmethodMagic").onclick = () => setLerpMethodToMagic();
-  document.getElementById("lerpmethodNaive").onclick = () => setLerpMethodToNaive();
-  document.getElementById("lerpmethodTypeMeaningful").onclick = () => setLerpMethodToTypeMeaningful();
-  document.getElementById("lerpmethodTypeMeaningfulBackwards").onclick = () => setLerpMethodToTypeMeaningfulBackwards();
-  document.getElementById("lerpmethodBidirectional").onclick = () => setLerpMethodToBidirectional();
-  document.getElementById("lerpmethodBidirectionalAlt").onclick = () => setLerpMethodToBidirectionalAlt();
-  document.getElementById("lerpmethodBidirectionalAlt3").onclick = () => setLerpMethodToBidirectionalAlt3();
-  document.getElementById("lerpmethodMaybe").onclick = () => setLerpMethodToMaybe();
-  document.getElementById("lerpmethodMaybe2").onclick = () => setLerpMethodToMaybe2();
-  document.getElementById("lerpmethodTBlast").onclick = () => setLerpMethodToTBlast();
-  document.getElementById("lerpmethodTBlastAtTwicePrecision").onclick = () => setLerpMethodToTBlastAtTwicePrecision();
-  document.getElementById("lerpmethodAlast").onclick = () => setLerpMethodToAlast();
-  document.getElementById("lerpmethodAlastAtTwicePrecision").onclick = () => setLerpMethodToAlastAtTwicePrecision();
-  document.getElementById("lerpmethodTAlast").onclick = () => setLerpMethodToTAlast();
-  document.getElementById("lerpmethodTAlastAtTwicePrecision").onclick = () => setLerpMethodToTAlastAtTwicePrecision();
-  document.getElementById("lerpmethodTBlastUsingDot").onclick = () => setLerpMethodToTBlastUsingDot();
-  document.getElementById("lerpmethodAlastUsingDot").onclick = () => setLerpMethodToAlastUsingDot();
-  document.getElementById("lerpmethodTAlastUsingDot").onclick = () => setLerpMethodToTAlastUsingDot();
-  document.getElementById("lerpmethodTBlastUsingDotTweaked").onclick = () => setLerpMethodToTBlastUsingDotTweaked();
-  document.getElementById("lerpmethodAlastUsingDotTweaked").onclick = () => setLerpMethodToAlastUsingDotTweaked();
-  document.getElementById("lerpmethodTAlastUsingDotTweaked").onclick = () => setLerpMethodToTAlastUsingDotTweaked();
-  document.getElementById("lerpmethodTBlastUsingDotSmarter").onclick = () => setLerpMethodToTBlastUsingDotSmarter();
-  document.getElementById("lerpmethodAlastUsingDotSmarter").onclick = () => setLerpMethodToAlastUsingDotSmarter();
-  document.getElementById("lerpmethodTAlastUsingDotSmarter").onclick = () => setLerpMethodToTAlastUsingDotSmarter();
-  document.getElementById("lerpmethodTBlastUsingDotSmartest").onclick = () => setLerpMethodToTBlastUsingDotSmartest();
-  document.getElementById("lerpmethodAlastUsingDotSmartest").onclick = () => setLerpMethodToAlastUsingDotSmartest();
-  document.getElementById("lerpmethodTAlastUsingDotSmartest").onclick = () => setLerpMethodToTAlastUsingDotSmartest();
+  window.lerpmethodExactCrossYourFingers.onclick = () => setLerpMethodToExactCrossYourFingers();
+  window.lerpmethodMagic.onclick = () => setLerpMethodToMagic();
+  window.lerpmethodNaive.onclick = () => setLerpMethodToNaive();
+  window.lerpmethodTypeMeaningful.onclick = () => setLerpMethodToTypeMeaningful();
+  window.lerpmethodTypeMeaningfulBackwards.onclick = () => setLerpMethodToTypeMeaningfulBackwards();
+  window.lerpmethodBidirectional.onclick = () => setLerpMethodToBidirectional();
+  window.lerpmethodBidirectionalAlt.onclick = () => setLerpMethodToBidirectionalAlt();
+  window.lerpmethodBidirectionalAlt3.onclick = () => setLerpMethodToBidirectionalAlt3();
+  window.lerpmethodMaybe.onclick = () => setLerpMethodToMaybe();
+  window.lerpmethodMaybe2.onclick = () => setLerpMethodToMaybe2();
+  window.lerpmethodTBlast.onclick = () => setLerpMethodToTBlast();
+  window.lerpmethodTBlastAtTwicePrecision.onclick = () => setLerpMethodToTBlastAtTwicePrecision();
+  window.lerpmethodAlast.onclick = () => setLerpMethodToAlast();
+  window.lerpmethodAlastAtTwicePrecision.onclick = () => setLerpMethodToAlastAtTwicePrecision();
+  window.lerpmethodTAlast.onclick = () => setLerpMethodToTAlast();
+  window.lerpmethodTAlastAtTwicePrecision.onclick = () => setLerpMethodToTAlastAtTwicePrecision();
+  window.lerpmethodTBlastUsingDot.onclick = () => setLerpMethodToTBlastUsingDot();
+  window.lerpmethodAlastUsingDot.onclick = () => setLerpMethodToAlastUsingDot();
+  window.lerpmethodTAlastUsingDot.onclick = () => setLerpMethodToTAlastUsingDot();
+  window.lerpmethodTBlastUsingDotTweaked.onclick = () => setLerpMethodToTBlastUsingDotTweaked();
+  window.lerpmethodAlastUsingDotTweaked.onclick = () => setLerpMethodToAlastUsingDotTweaked();
+  window.lerpmethodTAlastUsingDotTweaked.onclick = () => setLerpMethodToTAlastUsingDotTweaked();
+  window.lerpmethodTBlastUsingDotSmarter.onclick = () => setLerpMethodToTBlastUsingDotSmarter();
+  window.lerpmethodAlastUsingDotSmarter.onclick = () => setLerpMethodToAlastUsingDotSmarter();
+  window.lerpmethodTAlastUsingDotSmarter.onclick = () => setLerpMethodToTAlastUsingDotSmarter();
+  window.lerpmethodTBlastUsingDotSmartest.onclick = () => setLerpMethodToTBlastUsingDotSmartest();
+  window.lerpmethodAlastUsingDotSmartest.onclick = () => setLerpMethodToAlastUsingDotSmartest();
+  window.lerpmethodTAlastUsingDotSmartest.onclick = () => setLerpMethodToTAlastUsingDotSmartest();
 
   let xOfMouseDown = undefined;
   let yOfMouseDown = undefined;
