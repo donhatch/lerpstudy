@@ -35,3 +35,20 @@ FloatTest: FloatTest.cc Float.h macros.h Makefile
 
 SimplerFloatTest: SimplerFloatTest.cc SimplerFloat.h macros.h Makefile
 	clang++ $(CXXFLAGS) SimplerFloatTest.cc -o SimplerFloatTest
+
+send_lerpstudy_to_donhatchsw:
+	/bin/rm -rf /tmp/lerpstudy_scratch
+	mkdir -p /tmp/lerpstudy_scratch/lerpstudy
+	cp lerp.html /tmp/lerpstudy_scratch/lerpstudy/index.html
+	cp lerp.js /tmp/lerpstudy_scratch/lerpstudy
+	cp require.js /tmp/lerpstudy_scratch/lerpstudy
+	cp registerSourceCodeLinesAndRequire.js /tmp/lerpstudy_scratch/lerpstudy
+	cp getURLParameter.js /tmp/lerpstudy_scratch/lerpstudy
+	cp setURLParam.js /tmp/lerpstudy_scratch/lerpstudy
+	cp PRINT.js /tmp/lerpstudy_scratch/lerpstudy
+	cp CHECK.js /tmp/lerpstudy_scratch/lerpstudy
+	cp STRINGIFY.js /tmp/lerpstudy_scratch/lerpstudy
+	cp sourceCodeLines.js /tmp/lerpstudy_scratch/lerpstudy
+	cp text.js /tmp/lerpstudy_scratch/lerpstudy
+	cp getStackTrace.js /tmp/lerpstudy_scratch/lerpstudy
+	scp -r /tmp/lerpstudy_scratch/lerpstudy donhatch@donhatchsw.com:public_html/.

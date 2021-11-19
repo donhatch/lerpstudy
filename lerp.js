@@ -2298,12 +2298,12 @@ registerSourceCodeLinesAndRequire([
   // whether b is closer than the midpoing between a and b
   const bIsCloser = eventOffsetY => {
     const iy = relerp(eventOffsetY, oy0,oy1, iy0,iy1);
-    return Math.abs(iy-b) < Math.abs(iy-(a+b/2.));
+    return Math.abs(iy-b) < Math.abs(iy-(a+b)/2.);
   };
   // whether a is closer than the midpoing between a and b
   const aIsCloser = eventOffsetY => {
     const iy = relerp(eventOffsetY, oy0,oy1, iy0,iy1);
-    return Math.abs(iy-a) < Math.abs(iy-(a+b/2.));
+    return Math.abs(iy-a) < Math.abs(iy-(a+b)/2.);
   };
 
   window.addEventListener("keydown", (event) => {
