@@ -1733,8 +1733,7 @@ registerSourceCodeLinesAndRequire([
     tooltip.style.top = evt.pageY + 10 + 'px';
   };
   const hideTooltip = () => {
-    const tooltip = window.tooltip;
-    tooltip.style.display = "none";
+    window.tooltip.style.display = "none";
   };
 
   const populateTheSVG = (svg, Lerp, aIntent, bIntent) => {
@@ -1744,14 +1743,21 @@ registerSourceCodeLinesAndRequire([
     const a = round_to_nearest_representable(numFractionBits, minExponent, aIntent);
     const b = round_to_nearest_representable(numFractionBits, minExponent, bIntent);
 
-    const theTitlePart2 = window.theTitlePart2;
-    const theTitlePart3 = window.theTitlePart3;
-    //theTitlePart2.innerHTML = "  a="+a+" b="+b;
-    //theTitlePart2.innerHTML = "  a="+a+"="+toFractionString(a)+"  b="+b+"="+toFractionString(b);
+    window.theTitlePart2.innerHTML = "  b="+toFractionString(b)+"<small><small> ="+toBinaryString(b)+"="+b+"</small></small>";
+    window.theTitlePart3.innerHTML = "  a="+toFractionString(a)+"<small><small> ="+toBinaryString(a)+"="+a+"</small></small>"
 
-    //theTitlePart2.innerHTML = "  a="+toFractionString(a)+"<small><small> ="+toBinaryString(a)+"="+a+"</small></small>  b="+toFractionString(b)+"<small><small> ="+toBinaryString(b)+"="+b+"</small></small>";
-    theTitlePart2.innerHTML = "  b="+toFractionString(b)+"<small><small> ="+toBinaryString(b)+"="+b+"</small></small>";
-    theTitlePart3.innerHTML = "  a="+toFractionString(a)+"<small><small> ="+toBinaryString(a)+"="+a+"</small></small>"
+    const svgBorderWidthPixels = 5;
+
+    {
+      const rect = theSVG.getBoundingClientRect();
+      //console.log("rect = ",rect);
+      // Note that b is shifted a little up
+      // and a is shifted a little down, so that
+      // when they coincide they will not be drawn in exactly
+      // the same place.
+      window.b.style.top = (relerp(b,-1,1,oy0,oy1)+rect.top+svgBorderWidthPixels-10-4)+"px";
+      window.a.style.top = (relerp(a,-1,1,oy0,oy1)+rect.top+svgBorderWidthPixels-10+4)+"px";
+    }
 
     const svgns = "http://www.w3.org/2000/svg";
 
@@ -1760,7 +1766,7 @@ registerSourceCodeLinesAndRequire([
     svg.style.position = 'absolute';
     svg.style.left = '0px';
     //svg.style.pointerEvents = 'none';  // to make it "click-through-able", and so tooltips of underlying are functional
-    svg.style.border = "5px solid black";
+    svg.style.border = svgBorderWidthPixels+"px solid black";
     svg.innerHTML = '';  // clear old contents if any
     svg.innerHTML = (
         '<defs>'
