@@ -1752,6 +1752,8 @@ registerSourceCodeLinesAndRequire([
       // Clunky way of getting where svg is
       // with respect to parent (body) which is also the parent
       // of the 'a' and 'b' labels.
+      // (I actually thought theSVG.offsetTop should be the way to do it,
+      // but that doesn't exist for svg elements)
       const bodyrect = document.body.getBoundingClientRect();
       const svgrect = theSVG.getBoundingClientRect();
       //console.log("bodyrect = ",bodyrect);
