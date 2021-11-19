@@ -257,14 +257,14 @@
 
      <div style="border: 1px solid black; margin:1px;">
 Keyboard shortcuts:
-<ul><li><span class="mono">'-'</span> - decrease precision (num fraction bits, IEE754 floating point)
+<ul><li><span class="mono">'-'</span> - decrease precision (number of fraction bits, IEE754 floating point)
 <li><span class="mono">'+'</span>/<span class="mono">'='</span> - increase precision
 <li>Up/Down arrow: move whichever of <span class="mono">a</span> or <span class="mono">b</span> is closest to mouse cursor (both if mouse near halfway)
 </ul>
 <hr>
 
 Things to know:
-<ul><li>grid lines are at representable floating point numbers at the current precision (slightly darker for "even", slightly lighter for "odd")
+<ul><li>grid lines are the representable floating point numbers at the current precision (slightly darker for "even", slightly lighter for "odd")
 <li>t varies from 0 at the left to 1 at the right.
 <li>The red horizontal lines are <span class="mono">a</span> and <span class="mono">b</span>.
 <li>The line surrounded by green dots is the exact lerp function: <span class="monowrap">lerp(a, b, t)</span>.

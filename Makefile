@@ -51,4 +51,4 @@ send_lerpstudy_to_donhatchsw:
 	cp sourceCodeLines.js /tmp/lerpstudy_scratch/lerpstudy
 	cp text.js /tmp/lerpstudy_scratch/lerpstudy
 	cp getStackTrace.js /tmp/lerpstudy_scratch/lerpstudy
-	scp -r /tmp/lerpstudy_scratch/lerpstudy donhatch@donhatchsw.com:public_html/.
+	rsync -vv -r /tmp/lerpstudy_scratch/lerpstudy donhatch@donhatchsw.com:public_html/.
