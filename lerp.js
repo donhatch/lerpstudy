@@ -1745,9 +1745,13 @@ registerSourceCodeLinesAndRequire([
     const b = round_to_nearest_representable(numFractionBits, minExponent, bIntent);
 
     const theTitlePart2 = document.getElementById("theTitlePart2");
+    const theTitlePart3 = document.getElementById("theTitlePart3");
     //theTitlePart2.innerHTML = "  a="+a+" b="+b;
     //theTitlePart2.innerHTML = "  a="+a+"="+toFractionString(a)+"  b="+b+"="+toFractionString(b);
-    theTitlePart2.innerHTML = "  a="+toFractionString(a)+"<small><small> ="+toBinaryString(a)+"="+a+"</small></small>  b="+toFractionString(b)+"<small><small> ="+toBinaryString(b)+"="+b+"</small></small>";
+
+    //theTitlePart2.innerHTML = "  a="+toFractionString(a)+"<small><small> ="+toBinaryString(a)+"="+a+"</small></small>  b="+toFractionString(b)+"<small><small> ="+toBinaryString(b)+"="+b+"</small></small>";
+    theTitlePart2.innerHTML = "  b="+toFractionString(b)+"<small><small> ="+toBinaryString(b)+"="+b+"</small></small>";
+    theTitlePart3.innerHTML = "  a="+toFractionString(a)+"<small><small> ="+toBinaryString(a)+"="+a+"</small></small>"
 
     const svgns = "http://www.w3.org/2000/svg";
 
@@ -2333,6 +2337,8 @@ registerSourceCodeLinesAndRequire([
           b = Succ(b);
         } else if (aIsCloser(yOfPreviousMouseEvent)) {
           a = Succ(a);
+        } else if (a == b) {
+          b = Succ(b);
         } else {
           a = Succ(a);
           b = Succ(b);
@@ -2347,6 +2353,8 @@ registerSourceCodeLinesAndRequire([
         if (bIsCloser(yOfPreviousMouseEvent)) {
           b = Pred(b);
         } else if (aIsCloser(yOfPreviousMouseEvent)) {
+          a = Pred(a);
+        } else if (a == b) {
           a = Pred(a);
         } else {
           a = Pred(a);
@@ -2373,7 +2381,13 @@ registerSourceCodeLinesAndRequire([
     const aDist = Math.abs(iy - a);
     const bDist = Math.abs(iy - b);
     const midDist = Math.abs(iy - (a+b)/2.);
-    if (midDist < aDist && midDist < bDist) {
+    if (a == b) {
+      if (iy <= a) {
+        draggingA = true;
+      } else {
+        draggingB = true;
+      }
+    } else if (midDist < aDist && midDist < bDist) {
       draggingA = true;
       draggingB = true;
     } else if (aDist <= bDist) {
