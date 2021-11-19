@@ -1749,14 +1749,21 @@ registerSourceCodeLinesAndRequire([
     const svgBorderWidthPixels = 5;
 
     {
-      const rect = theSVG.getBoundingClientRect();
-      //console.log("rect = ",rect);
+      // Clunky way of getting where svg is
+      // with respect to parent (body) which is also the parent
+      // of the 'a' and 'b' labels.
+      const bodyrect = document.body.getBoundingClientRect();
+      const svgrect = theSVG.getBoundingClientRect();
+      //console.log("bodyrect = ",bodyrect);
+      //console.log("svgrect = ",svgrect);
+      const position_in_parent = svgrect.top - bodyrect.top;
+      //console.log("position_in_parent = ",position_in_parent);
       // Note that b is shifted a little up
       // and a is shifted a little down, so that
       // when they coincide they will not be drawn in exactly
       // the same place.
-      window.b.style.top = (relerp(b,-1,1,oy0,oy1)+rect.top+svgBorderWidthPixels-10-4)+"px";
-      window.a.style.top = (relerp(a,-1,1,oy0,oy1)+rect.top+svgBorderWidthPixels-10+4)+"px";
+      window.b.style.top = (relerp(b,-1,1,oy0,oy1)+position_in_parent+svgBorderWidthPixels+10-4)+"px";
+      window.a.style.top = (relerp(a,-1,1,oy0,oy1)+position_in_parent+svgBorderWidthPixels+10+4)+"px";
     }
 
     const svgns = "http://www.w3.org/2000/svg";
