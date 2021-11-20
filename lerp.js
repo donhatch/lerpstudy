@@ -670,6 +670,9 @@ registerSourceCodeLinesAndRequire([
     CHECK(is_representable(numFractionBits, minExponent, b));
     return round_to_nearest_representable(numFractionBits, minExponent, a*b);
   };
+  // TODO: prevent double rounding, using paper
+  // "When double rounding is odd":
+  // https://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.75.5554&rep=rep1&type=pdf
   const dividedby = (numFractionBits, minExponent, a, b) => {
     CHECK(is_representable(numFractionBits, minExponent, a));
     CHECK(is_representable(numFractionBits, minExponent, b));
