@@ -2328,6 +2328,12 @@ registerSourceCodeLinesAndRequire([
     populateTheSVG(svg, Lerp, a, b);
     theTitle.innerHTML = "[1,t,-t] <big>&#8226;</big> [a,b,a] smartest";
   };
+  const setLerpMethodToCustom = (expression_string) => {
+    const tree = Parse(expression_string);
+    Lerp = ParseTreeToLerpFunction(tree);
+    populateTheSVG(svg, Lerp, a, b);
+    theTitle.text = "custom lerp";
+  };
 
   window.lerpmethodExactCrossYourFingers.setAttribute("checked", "");
   setLerpMethodToExactCrossYourFingers();
@@ -2388,21 +2394,54 @@ registerSourceCodeLinesAndRequire([
   const PrintParseTree = (tree, indentString, recursionLevel) => {
     CHECK(Number.isInteger(recursionLevel));
     if (typeof tree === 'string') {
-        console.log(indentString+"    ".repeat(recursionLevel)+STRINGIFY(tree));
+      console.log(indentString+"    ".repeat(recursionLevel)+STRINGIFY(tree));
     } else if (Array.isArray(tree)) {
-        CHECK.EQ(tree.length, 3);
-        const [opname, implementation, operands] = tree;
-        console.log(indentString+"    ".repeat(recursionLevel)+"["+STRINGIFY(opname)+", "+STRINGIFY(implementation)+", [");
-        for (const operand of operands) {
-          PrintParseTree(operand, indentString, recursionLevel+1);
-        }
-        console.log(indentString+"    ".repeat(recursionLevel)+"]]");
+      CHECK.EQ(tree.length, 3);
+      const [opname, implementation, operands] = tree;
+      console.log(indentString+"    ".repeat(recursionLevel)+"["+STRINGIFY(opname)+", "+STRINGIFY(implementation)+", [");
+      for (const operand of operands) {
+        PrintParseTree(operand, indentString, recursionLevel+1);
+      }
+      console.log(indentString+"    ".repeat(recursionLevel)+"]]");
     } else {
       throw new Error("PrintParseTree called on non-string non-list "+STRINGIFY(tree));
     }
   };  // PrintParseTree
-  const ParseTreeToLerpFunction = () => {
+
+  // Given a parse tree, return a function of three variables a,b,t.
+  // It's allowed to rely on the current values of numFractionBits and minExponent
+  // (just like Plus, etc. do).
+  // At the top level, this will return a lerp function
+  // (i.e. a function that returns a number);
+  // but subexpression functions may return bools.
+  const ParseTreeToLerpFunction = (tree) => {
+    if (typeof tree === 'string') {
+      if (tree === "a") return (a,b,t) => a;
+      if (tree === "b") return (a,b,t) => b;
+      if (tree === "t") return (a,b,t) => t;
+      if (tree === "true") return (a,b,t) => true;
+      if (tree === "false") return (a,b,t) => false;
+
+      const number = Number(tree);
+      CHECK(!Number.isNaN(number));
+      const rounded_number = round_to_nearest_representable(numFractionBits, minExponent, number);
+      return (a,b,t) => rounded_number;
+
+    } else if (Array.isArray(tree)) {
+      CHECK.EQ(tree.length, 3);
+      const [opname, implementation, operands] = tree;
+      CHECK.EQ(operands.length, 2);
+      const LHS_function = ParseTreeToLerpFunction(operands[0]);
+      const RHS_function = ParseTreeToLerpFunction(operands[1]);
+      // CBB: possible optimization: detect when LHS and/or RHS is a leaf, and inline its value
+      return (a,b,t) => {
+        return implementation(LHS_function(a,b,t), RHS_function(a,b,t));
+      };
+    } else {
+      throw new Error("ParseTreeToLerpFunction called on non-string non-list "+STRINGIFY(tree));
+    }
   };  // ParseTreeToLerpFunction
+
   const parse = (expression, op_table) => {
     const verboseLevel = 1;
     console.log("    in parse(expression="+JSON.stringify(expression)+")");
@@ -2562,13 +2601,13 @@ registerSourceCodeLinesAndRequire([
     {name:"-", precedence:5, implementation:(x,y)=>Minus(x,y)},
 
     // NOTE: "<=" must come before "<" so it will be preferred
-    {name:"<=", precedence:4, implementation:(x,y)=>LE(x,y)},
-    {name:"<", precedence:4, implementation:(x,y)=>LT(x,y)},
+    {name:"<=", precedence:4, implementation:(x,y)=>x<=y},
+    {name:"<", precedence:4, implementation:(x,y)=>x<y},
     // NOTE: ">=" must come before ">" so it will be preferred
-    {name:">=", precedence:4, implementation:(x,y)=>GE(x,y)},
-    {name:">", precedence:4, implementation:(x,y)=>GE(x,y)},
-    {name:"==", precedence:4, implementation:(x,y)=>EQ(x,y)},
-    {name:"!=", precedence:4, implementation:(x,y)=>NE(x,y)},
+    {name:">=", precedence:4, implementation:(x,y)=>x>=y},
+    {name:">", precedence:4, implementation:(x,y)=>x>y},
+    {name:"==", precedence:4, implementation:(x,y)=>x==y},
+    {name:"!=", precedence:4, implementation:(x,y)=>x!=y},
 
     {name:":", precedence:3, implementation:(y,z)=>[y,z]},
     {name:"?", precedence:2, implementation:(x,[y,z])=>x?y:z},
@@ -2577,9 +2616,21 @@ registerSourceCodeLinesAndRequire([
 
     {name:";", precedence:0, implementation:(x,y)=>(a,b)},
   ];  // op_table
+  const Parse = expression => {
+    return parse(expression, op_table);
+  };  // Parse
+
   const is_valid_expression = expression => {
     try {
-      return parse(expression, op_table) !== null;
+      const tree = parse(expression, op_table);
+      console.log("  is_valid_expression: tree = "+JSON.stringify(tree));
+      if (tree !== null) {
+        PrintParseTree(tree, /*indentString=*/"      ", /*recursionLevel=*/0);
+        const lerp_function = ParseTreeToLerpFunction(tree);
+        console.log("  lerp_function = "+STRINGIFY(lerp_function));
+        console.log("  TESTING: lerp_function(1, 2, 0.5) = ",STRINGIFY(lerp_function(1, 2, 0.5)));
+      }
+      return tree !== null;
     } catch (error) {
       console.log("is_valid_expression returning false because: ",error);
       return false;
@@ -2601,9 +2652,15 @@ registerSourceCodeLinesAndRequire([
       x_button.onclick = () => new_tr.remove();
 
       const radiobutton_td = new_tr.insertCell(1);
-      radiobutton_td.innerHTML = '<input type="radio" name="lerpmethod"><input type="text" size="50" value="(2*t-1)*(2*t-1)*0.25"></input>'
+      radiobutton_td.innerHTML = '<input type="radio" name="lerpmethod"><input type="text" size="50" value="(2*t-1)*(2*t-1)"></input>'
+      const radiobutton = radiobutton_td.children[0];
+      console.log("  radiobutton = ",radiobutton);
       const textinput = radiobutton_td.children[1];
       console.log("  textinput = ",textinput);
+
+      radiobutton.onclick = () => {
+        setLerpMethodToCustom(textinput.old_value);
+      };
 
       textinput.old_value = textinput.value;  // keep value around so it can be restored
 
@@ -2638,6 +2695,9 @@ registerSourceCodeLinesAndRequire([
         if (is_valid_expression(new_value)) {
           textinput.old_value = new_value;
           textinput.style.backgroundColor = 'white';
+          if (radiobutton.checked) {
+            setLerpMethodToCustom(textinput.old_value);
+          }
         }
         console.log("    out textinput.onchange");
       };
@@ -2658,7 +2718,7 @@ registerSourceCodeLinesAndRequire([
 
   let draggingA = false;
   let draggingB = false;
-  const eventVerboseLevel = 0;  // set to something else here to debug
+  const eventVerboseLevel = 0;  // set to something greater than 0 here to debug
   // https://www.mutuallyhuman.com/blog/keydown-is-the-only-keyboard-event-we-need/
 
   // whether b is closer than the midpoint between a and b
@@ -2672,7 +2732,8 @@ registerSourceCodeLinesAndRequire([
     return Math.abs(iy-a) < Math.abs(iy-(a+b)/2.);
   };
 
-  window.addEventListener("keydown", (event) => {
+  svg.addEventListener("focus", ()=>{});  // magically makes the keydown listener work!
+  svg.addEventListener("keydown", (event) => {
     if (eventVerboseLevel >= 1) console.log("keydown");
     if (eventVerboseLevel >= 1) console.log("  event = ",event);
     if (!event.ctrlKey) {
