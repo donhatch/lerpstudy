@@ -1540,6 +1540,7 @@ registerSourceCodeLinesAndRequire([
   //======================================
 
   const relerp = (x, x0,x1, y0,y1) => {
+    // we use this for graphical stuff where precision doesn't matter too much.
     const answer = (x-x0)/(x1-x0)*(y1-y0)+y0;
     return answer;
   }
@@ -2365,6 +2366,207 @@ registerSourceCodeLinesAndRequire([
   window.lerpmethodAlastUsingDotSmartest.onclick = () => setLerpMethodToAlastUsingDotSmartest();
   window.lerpmethodTAlastUsingDotSmartest.onclick = () => setLerpMethodToTAlastUsingDotSmartest();
 
+  // What do we return?
+  // - an AST?
+  // - an AST with functions attached to nodes?
+  // - a function?
+  // for now, we'll return an AST with functions attached to the nodes.
+  const combine = (opname, implementation, operands) => {
+    return [opname, implementation, operands];
+  };
+
+  const suffix_starts_with = (s, i0, prefix_of_suffix) => {
+    CHECK.EQ(typeof s, 'string');
+    CHECK.EQ(typeof prefix_of_suffix, 'string');
+    const n = prefix_of_suffix.length;
+    if (s.length - i0 < n) return false;
+    for (let i = 0; i < n; ++i) {
+      if (s[i0+i] !== prefix_of_suffix[i]) return false;
+    }
+    return true;
+  };  // suffix_starts_with
+  const PrintParseTree = (tree, indentString, recursionLevel) => {
+    CHECK(Number.isInteger(recursionLevel));
+    if (typeof tree === 'string') {
+        console.log(indentString+"    ".repeat(recursionLevel)+STRINGIFY(tree));
+    } else if (Array.isArray(tree)) {
+        CHECK.EQ(tree.length, 3);
+        const [opname, implementation, operands] = tree;
+        console.log(indentString+"    ".repeat(recursionLevel)+"["+STRINGIFY(opname)+", "+STRINGIFY(implementation)+", [");
+        for (const operand of operands) {
+          PrintParseTree(operand, indentString, recursionLevel+1);
+        }
+        console.log(indentString+"    ".repeat(recursionLevel)+"]]");
+    } else {
+      throw new Error("PrintParseTree called on non-string non-list "+STRINGIFY(tree));
+    }
+  };  // PrintParseTree
+  const parse = (expression, op_table) => {
+    console.log("    in parse(expression="+JSON.stringify(expression)+")");
+    // Current position within expression string.
+    // All the helper functions in here have the side effect of moving pos.
+    let pos = 0;
+    const discardSpaces = () => {
+      while (pos < expression.length && expression[pos].trim() === "") {
+        pos++;
+      }
+    };
+    const parseLiteral = (literal) => {
+      console.log("                in parseLiteral(literal="+STRINGIFY(literal)+" pos="+pos+")");
+      if (suffix_starts_with(expression, pos, literal)) {
+        pos += literal.length;
+        console.log("                out parseLiteral(literal="+STRINGIFY(literal)+" pos="+pos+"), returning literal "+STRINGIFY(literal));
+        return literal;
+      } else {
+        console.log("                out parseLiteral(literal="+STRINGIFY(literal)+" pos="+pos+"), returning null");
+        return null;
+      }
+    };
+    const isDigit = c => /^\d$/.test(c);
+    const parseNumber = () => {
+      // Match the following on input:
+      // /^-?[0-9]*\.[0-9]*$/  but must contain at least one digit
+      // I.e. -? followed by exactly one of these:
+      //   \.[0-9]+
+      //   [0-9]+
+      //   [0-9]+\.
+      //   [0-9]+\.[0-9]+
+      // i.e.
+      //   /^-?((\.[0-9]+)|[0-9]+(\.[0-9]*)?)$/
+      // But we don't use a regex, because expression has unbounded length
+      // and we don't want an O(n^2) algorithm.
+      let succeeded = false;
+      let pos1 = pos;
+      if (pos1 < expression.length && expression[pos1] === '-') {
+        pos1++;
+      }
+      if (pos1 < expression.length && expression[pos1] === '.') {
+        pos1++;
+        while (pos1 < expression.length && isDigit(expression[pos1])) {
+          succeeded = true;
+          pos1++;
+        }
+      } else if (pos1 < expression.length && isDigit(expression[pos1])) {
+        succeeded = true;
+        pos1++;
+        while (pos1 < expression.length && isDigit(expression[pos1])) {
+          pos1++;
+        }
+        if (pos1 < expression.length && expression[pos1] === '.') {
+          pos1++;
+          while (pos1 < expression.length && isDigit(expression[pos1])) {
+            pos1++;
+          }
+        }
+      }
+      if (succeeded) {
+        const answer = expression.slice(pos, pos1);
+        pos = pos1;
+        return answer;
+      } else {
+        return null;
+      }
+    };  // parseNumber
+    const parseFactor = () => {
+      console.log("            in parseFactor(pos="+pos+")");
+
+      for (const literal of ["a", "b", "t"]) {
+        if (parseLiteral(literal) !== null) {
+          return literal;
+        }
+      }
+      const number = parseNumber();
+      if (number !== null) {
+        return number;
+      }
+
+      if (parseLiteral("(") !== null) {
+        const i0 = pos - 1;
+        const answer = parseSubexpression(/*lowest_precedence_allowed=*/0);
+        if (parseLiteral(")") === null) {
+          throw new Error("unmatched '(' at position "+i0+")");
+        }
+        return answer;
+      }
+      console.log("            out parseFactor(pos="+pos+"), returning null at bottom");
+      return null;
+    };
+    const parseSubexpression = (lowest_precedence_allowed) => {
+      console.log("        in parseSubexpression(expression="+JSON.stringify(expression)+", pos="+pos+")");
+      console.log("          calling initial parseFactor");
+      discardSpaces();  // XXX where should this go?  inside parseFactor? inside parseLiteral?
+      let answer = parseFactor();
+      console.log("          returned from initial parseFactor: "+STRINGIFY(answer));
+      if (answer !== null) {
+        // All binary operators happen to be left-to-right associative,
+        // so use a while loop, recursing on precedence+1.
+        // (If we had a right-to-left associative binary operator,
+        // we'd just recurse once using the same precedence).
+        // TODO: actually, think about whether this works for ?:
+        while (true) {
+          discardSpaces();  // XXX where should this go?  inside parseFactor? inside parseLiteral?
+          let entry = null;
+          for (const entry_maybe of op_table) {
+            if (entry_maybe.precedence < lowest_precedence_allowed) continue;
+            if (parseLiteral(entry_maybe.name) !== null) {
+              entry = entry_maybe;
+            }
+          }
+          if (entry === null) break;  // didn't find an op
+          const RHS = parseSubexpression(entry.precedence+1, lowest_precedence_allowed);
+          answer = combine(entry.name, entry.implementation, [answer, RHS]);
+          STRINGIFY.test();
+        }
+      }
+      console.log("          answer = "+STRINGIFY(answer));
+      PrintParseTree(answer, /*indentString=*/"              ", /*recursionLevel=*/0);
+      console.log("        out parseSubexpression(expression="+JSON.stringify(expression)+", pos="+pos+")");
+      return answer;
+    };  // parseSubexpression
+    const answer = parseSubexpression(/*lowest_precedence_allowed=*/0);
+    if (answer === null) {
+      throw new Error("syntax error at position "+pos+" (parseSubexpresion failed)");
+    }
+    discardSpaces();
+    if (pos !== expression.length) {
+      throw new Error("syntax error at position "+pos+" (extra chars at end of string: "+STRINGIFY(expression.slice(pos))+")");
+    }
+    console.log("      answer = "+STRINGIFY(answer));
+    console.log("    out parse(expression="+JSON.stringify(expression)+")");
+    return answer;
+  };  // parse
+  const op_table = [
+    {name:"*", precedence:6, implementation:(x,y)=>Times(x,y)},
+    {name:"/", precedence:6, implementation:(x,y)=>DividedBy(x,y)},
+
+    {name:"+", precedence:5, implementation:(x,y)=>Plus(x,y)},
+    {name:"-", precedence:5, implementation:(x,y)=>Minus(x,y)},
+
+    // NOTE: "<=" must come before "<" so it will be preferred
+    {name:"<=", precedence:4, implementation:(x,y)=>LE(x,y)},
+    {name:"<", precedence:4, implementation:(x,y)=>LT(x,y)},
+    // NOTE: ">=" must come before ">" so it will be preferred
+    {name:">=", precedence:4, implementation:(x,y)=>GE(x,y)},
+    {name:">", precedence:4, implementation:(x,y)=>GE(x,y)},
+    {name:"==", precedence:4, implementation:(x,y)=>EQ(x,y)},
+    {name:"!=", precedence:4, implementation:(x,y)=>NE(x,y)},
+
+    {name:":", precedence:3, implementation:(y,z)=>[y,z]},
+    {name:"?", precedence:2, implementation:(x,[y,z])=>x?y:z},
+
+    {name:",", precedence:1, implementation:(x,y)=>(a,b)},
+
+    {name:";", precedence:0, implementation:(x,y)=>(a,b)},
+  ];  // op_table
+  const is_valid_expression = expression => {
+    try {
+      return parse(expression, op_table) !== null;
+    } catch (error) {
+      console.error(error);
+      return false;
+    }
+  };  // is_valid_expression
+
   if (enable_custom) {
     window.add_custom_expression.onclick = () => {
       console.log("in window.add_custom_expression.onclick");
@@ -2380,8 +2582,47 @@ registerSourceCodeLinesAndRequire([
       x_button.onclick = () => new_tr.remove();
 
       const radiobutton_td = new_tr.insertCell(1);
-      radiobutton_td.innerHTML = '<input type="radio" name="lerpmethod"><input size="50" value="(2*t-1)*(2*t-1)*0.25"></input>'
-      const textinput = 
+      radiobutton_td.innerHTML = '<input type="radio" name="lerpmethod"><input type="text" size="50" value="(2*t-1)*(2*t-1)*0.25"></input>'
+      const textinput = radiobutton_td.children[1];
+      console.log("  textinput = ",textinput);
+
+      textinput.old_value = textinput.value;  // keep value around so it can be restored
+
+      textinput.onkeydown = event => {
+        console.log("    in textinput.onkeydown");
+        console.log("      event = ",event);
+        if (event.key === 'Escape') {
+          textinput.value = textinput.old_value;
+          textinput.style.backgroundColor = 'white';
+        }
+        console.log("    out textinput.onkeydown");
+      };
+      textinput.oninput = event => {
+        console.log("    in textinput.oninput");
+        console.log("      event = ",event);
+        const new_value = textinput.value;
+        if (new_value === textinput.old_value) {
+          textinput.style.backgroundColor = 'white';
+        } else if (is_valid_expression(new_value)) {
+          textinput.style.backgroundColor = '#ccffcc';  // light green
+        } else {
+          textinput.style.backgroundColor = '#ffcccc';  // pink
+        }
+        console.log("      new_value = "+STRINGIFY(new_value));
+        console.log("    out textinput.oninput");
+      };
+      textinput.onchange = event => {
+        console.log("    in textinput.onchange");
+        console.log("      event = ",event);
+        const new_value = textinput.value;
+        console.log("      new_value = "+STRINGIFY(new_value));
+        if (is_valid_expression(new_value)) {
+          textinput.old_value = new_value;
+          textinput.style.backgroundColor = 'white';
+        }
+        console.log("    out textinput.onchange");
+      };
+
 
       console.log("out window.add_custom_expression.onclick");
     };
