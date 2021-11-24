@@ -2402,6 +2402,7 @@ registerSourceCodeLinesAndRequire([
     }
   };  // PrintParseTree
   const parse = (expression, op_table) => {
+    const verboseLevel = 1;
     console.log("    in parse(expression="+JSON.stringify(expression)+")");
     // Current position within expression string.
     // All the helper functions in here have the side effect of moving pos.
@@ -2412,13 +2413,10 @@ registerSourceCodeLinesAndRequire([
       }
     };
     const parseLiteral = (literal) => {
-      console.log("                in parseLiteral(literal="+STRINGIFY(literal)+" pos="+pos+")");
       if (suffix_starts_with(expression, pos, literal)) {
         pos += literal.length;
-        console.log("                out parseLiteral(literal="+STRINGIFY(literal)+" pos="+pos+"), returning literal "+STRINGIFY(literal));
         return literal;
       } else {
-        console.log("                out parseLiteral(literal="+STRINGIFY(literal)+" pos="+pos+"), returning null");
         return null;
       }
     };
@@ -2468,15 +2466,18 @@ registerSourceCodeLinesAndRequire([
       }
     };  // parseNumber
     const parseFactor = () => {
-      console.log("            in parseFactor(pos="+pos+")");
+      const verboseLevel = 0;
+      if (verboseLevel >= 1) console.log("            in parseFactor(pos="+pos+")");
 
       for (const literal of ["a", "b", "t"]) {
         if (parseLiteral(literal) !== null) {
+          if (verboseLevel >= 1) console.log("            out parseFactor(pos="+pos+"), returning literal "+STRINGIFY(literal));
           return literal;
         }
       }
       const number = parseNumber();
       if (number !== null) {
+        if (verboseLevel >= 1) console.log("            out parseFactor(pos="+pos+"), returning number "+STRINGIFY(number));
         return number;
       }
 
@@ -2488,15 +2489,16 @@ registerSourceCodeLinesAndRequire([
         }
         return answer;
       }
-      console.log("            out parseFactor(pos="+pos+"), returning null at bottom");
+      if (verboseLevel >= 1) console.log("            out parseFactor(pos="+pos+"), returning null at bottom");
       return null;
     };
     const parseSubexpression = (lowest_precedence_allowed) => {
-      console.log("        in parseSubexpression(expression="+JSON.stringify(expression)+", pos="+pos+")");
-      console.log("          calling initial parseFactor");
+      const verboseLevel = 0;
+      if (verboseLevel >= 1) console.log("        in parseSubexpression(expression="+JSON.stringify(expression)+", pos="+pos+")");
+      if (verboseLevel >= 1) console.log("          calling initial parseFactor");
       discardSpaces();  // XXX where should this go?  inside parseFactor? inside parseLiteral?
       let answer = parseFactor();
-      console.log("          returned from initial parseFactor: "+STRINGIFY(answer));
+      if (verboseLevel >= 1) console.log("          returned from initial parseFactor: "+STRINGIFY(answer));
       if (answer !== null) {
         // All binary operators happen to be left-to-right associative,
         // so use a while loop, recursing on precedence+1.
@@ -2515,12 +2517,11 @@ registerSourceCodeLinesAndRequire([
           if (entry === null) break;  // didn't find an op
           const RHS = parseSubexpression(entry.precedence+1, lowest_precedence_allowed);
           answer = combine(entry.name, entry.implementation, [answer, RHS]);
-          STRINGIFY.test();
         }
       }
-      console.log("          answer = "+STRINGIFY(answer));
-      PrintParseTree(answer, /*indentString=*/"              ", /*recursionLevel=*/0);
-      console.log("        out parseSubexpression(expression="+JSON.stringify(expression)+", pos="+pos+")");
+      if (verboseLevel >= 1) console.log("          answer = "+STRINGIFY(answer));
+      if (verboseLevel >= 1) PrintParseTree(answer, /*indentString=*/"              ", /*recursionLevel=*/0);
+      if (verboseLevel >= 1) console.log("        out parseSubexpression(expression="+JSON.stringify(expression)+", pos="+pos+")");
       return answer;
     };  // parseSubexpression
     const answer = parseSubexpression(/*lowest_precedence_allowed=*/0);
@@ -2531,8 +2532,9 @@ registerSourceCodeLinesAndRequire([
     if (pos !== expression.length) {
       throw new Error("syntax error at position "+pos+" (extra chars at end of string: "+STRINGIFY(expression.slice(pos))+")");
     }
-    console.log("      answer = "+STRINGIFY(answer));
-    console.log("    out parse(expression="+JSON.stringify(expression)+")");
+    if (verboseLevel >= 1) console.log("      answer = "+STRINGIFY(answer));
+    if (verboseLevel >= 1) PrintParseTree(answer, /*indentString=*/"          ", /*recursionLevel=*/0);
+    if (verboseLevel >= 1) console.log("    out parse(expression="+JSON.stringify(expression)+")");
     return answer;
   };  // parse
   const op_table = [
