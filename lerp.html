@@ -81,7 +81,7 @@
         <td>
         <td>
          <label>
-          <input type="radio" class="lerpmethodRadioButton" id="lerpmethodExactCrossYourFingers" name="lerpmethod" value="lerpmethodExactCrossYourFingers">
+          <input type="radio" id="lerpmethodExactCrossYourFingers" name="lerpmethod">
           exact (rounded to nearest representable with ties rounded to even)
          </label>
 
@@ -89,7 +89,7 @@
         <td>
         <td>
          <label>
-           <input type="radio" class="lerpmethodRadioButton" id="lerpmethodNaive" name="lerpmethod" value="lerpmethodNaive">
+           <input type="radio" id="lerpmethodNaive" name="lerpmethod">
            <span class="mono">(1-t)*a + t*b</span>
          </label>
 
@@ -97,7 +97,7 @@
         <td>
         <td>
          <label>
-           <input type="radio" class="lerpmethodRadioButton" id="lerpmethodTypeMeaningful" name="lerpmethod" value="lerpmethodTypeMeaningful">
+           <input type="radio" id="lerpmethodTypeMeaningful" name="lerpmethod">
            <span class="mono">a + t*(b-a)</span>
          </label>
 
@@ -105,7 +105,7 @@
         <td>
         <td>
          <label>
-          <input type="radio" class="lerpmethodRadioButton" id="lerpmethodTypeMeaningfulBackwards" name="lerpmethod" value="lerpmethodTypeMeaningfulBackwards">
+          <input type="radio" id="lerpmethodTypeMeaningfulBackwards" name="lerpmethod">
           <span class="mono">b - (1-t)*(b-a)</span>
          </label>
 
@@ -113,7 +113,7 @@
         <td>
         <td>
          <label>
-          <input type="radio" class="lerpmethodRadioButton" id="lerpmethodBidirectional" name="lerpmethod" value="lerpmethodBidirectional">
+          <input type="radio" id="lerpmethodBidirectional" name="lerpmethod">
           <span class="mono">t &lt; 0.5 ? a + t*(b-a) : b - (1-t)*(b-a)</span>
          </label>
 
@@ -121,7 +121,7 @@
         <td>
         <td>
          <label>
-          <input type="radio" class="lerpmethodRadioButton" id="lerpmethodBidirectionalAlt" name="lerpmethod" value="lerpmethodBidirectionalAlt">
+          <input type="radio" id="lerpmethodBidirectionalAlt" name="lerpmethod">
           <span class="mono">t &lt;= 0.5 ? a + t*(b-a) : b - (1-t)*(b-a)</span>
          </label>
 
@@ -129,7 +129,7 @@
         <td>
         <td>
          <label>
-          <input type="radio" class="lerpmethodRadioButton" id="lerpmethodBidirectionalAlt3" name="lerpmethod" value="lerpmethodBidirectionalAlt3">
+          <input type="radio" id="lerpmethodBidirectionalAlt3" name="lerpmethod">
           <span class="mono">t &lt; 0.5 ? a + t*(b-a) : t &gt; 0.5 ? b - (1-t)*(b-a) : (a+b)*0.5</span>
          </label>
 
@@ -137,7 +137,7 @@
         <td>
         <td>
          <label>
-          <input type="radio" class="lerpmethodRadioButton" id="lerpmethodMaybe" name="lerpmethod" value="lerpmethodMaybe">
+          <input type="radio" id="lerpmethodMaybe" name="lerpmethod">
           <span class="mono">answer0 = (1-t)*a + t*b; answer = answer0 + ((1-t)*(a-answer0) + t*(b-answer0)</span>
          </label>
 
@@ -145,7 +145,7 @@
         <td>
         <td>
          <label>
-          <input type="radio" class="lerpmethodRadioButton" id="lerpmethodMaybe2" name="lerpmethod" value="lerpmethodMaybe2">
+          <input type="radio" id="lerpmethodMaybe2" name="lerpmethod">
           <span class="mono">answer0 = a+t(b-a); answer1 = b-(1-t)(b-a); answer = (1-t)*answer0 + t*answer1</span>
          </label>
 
@@ -153,7 +153,7 @@
         <td>
         <td>
          <label>
-          <input type="radio" class="lerpmethodRadioButton" id="lerpmethodMaybe3" name="lerpmethod" value="lerpmethodMaybe3">
+          <input type="radio" id="lerpmethodMaybe3" name="lerpmethod">
           <span class="mono">answer0 = (1-t)*a+t*b; answer = answer0 - ((answer0-a)/t+a-b)*t</span>
          </label>
 
@@ -161,7 +161,7 @@
         <td>
         <td>
          <label>
-          <input type="radio" class="lerpmethodRadioButton" id="lerpmethodMaybe4" name="lerpmethod" value="lerpmethodMaybe4">
+          <input type="radio" id="lerpmethodMaybe4" name="lerpmethod">
           <span class="mono">answer0 = (1-t)*a+t*b; answer = answer0 - ((answer0-b)/(1-t)+b-a)*(1-t)</span>
          </label>
 
@@ -169,11 +169,11 @@
         <td>
         <td>
          <label>
-          <input type="radio" class="lerpmethodRadioButton" id="lerpmethodTBlast" name="lerpmethod" value="lerpmethodTBlast">
+          <input type="radio" id="lerpmethodTBlast" name="lerpmethod">
           <span class="mono">a - t*a + t*b</span>
          </label>
          <label>
-          <input type="radio" class="lerpmethodRadioButton" id="lerpmethodTBlastAtTwicePrecision" name="lerpmethod" value="lerpmethodTBlastAtTwicePrecision">
+          <input type="radio" id="lerpmethodTBlastAtTwicePrecision" name="lerpmethod">
           at twice precision
          </label>
 
@@ -181,11 +181,11 @@
         <td>
         <td>
          <label>
-          <input type="radio" class="lerpmethodRadioButton" id="lerpmethodAlast" name="lerpmethod" value="lerpmethodAlast">
+          <input type="radio" id="lerpmethodAlast" name="lerpmethod">
           <span class="mono">t*b - t*a + a</span>
          </label>
          <label>
-          <input type="radio" class="lerpmethodRadioButton" id="lerpmethodAlastAtTwicePrecision" name="lerpmethod" value="lerpmethodAlastAtTwicePrecision">
+          <input type="radio" id="lerpmethodAlastAtTwicePrecision" name="lerpmethod">
           at twice precision
          </label>
 
@@ -193,11 +193,11 @@
         <td>
         <td>
          <label>
-          <input type="radio" class="lerpmethodRadioButton" id="lerpmethodTAlast" name="lerpmethod" value="lerpmethodTAlast">
+          <input type="radio" id="lerpmethodTAlast" name="lerpmethod">
           <span class="mono">a + t*b - t*a</span>
          </label>
          <label>
-          <input type="radio" class="lerpmethodRadioButton" id="lerpmethodTAlastAtTwicePrecision" name="lerpmethod" value="lerpmethodTAlastAtTwicePrecision">
+          <input type="radio" id="lerpmethodTAlastAtTwicePrecision" name="lerpmethod">
           at twice precision
          </label>
 
@@ -205,19 +205,19 @@
         <td>
         <td>
          <label>
-          <input type="radio" class="lerpmethodRadioButton" id="lerpmethodTBlastUsingDot" name="lerpmethod" value="lerpmethodTBlastUsingDot">
+          <input type="radio" id="lerpmethodTBlastUsingDot" name="lerpmethod">
           <span class="mono">[1,-t,t] <big>&#8226;</big> [a,a,b]</span> using Kahan-ish summation
          </label>
          <label>
-          <input type="radio" class="lerpmethodRadioButton" id="lerpmethodTBlastUsingDotTweaked" name="lerpmethod" value="lerpmethodTBlastUsingDotTweaked">
+          <input type="radio" id="lerpmethodTBlastUsingDotTweaked" name="lerpmethod">
           tweaked
          </label>
          <label>
-          <input type="radio" class="lerpmethodRadioButton" id="lerpmethodTBlastUsingDotSmarter" name="lerpmethod" value="lerpmethodTBlastUsingDotSmarter">
+          <input type="radio" id="lerpmethodTBlastUsingDotSmarter" name="lerpmethod">
           smarter
          </label>
          <label>
-          <input type="radio" class="lerpmethodRadioButton" id="lerpmethodTBlastUsingDotSmartest" name="lerpmethod" value="lerpmethodTBlastUsingDotSmartest">
+          <input type="radio" id="lerpmethodTBlastUsingDotSmartest" name="lerpmethod">
           smartest
          </label>
 
@@ -225,19 +225,19 @@
         <td>
         <td>
          <label>
-          <input type="radio" class="lerpmethodRadioButton" id="lerpmethodAlastUsingDot" name="lerpmethod" value="lerpmethodAlastUsingDot">
+          <input type="radio" id="lerpmethodAlastUsingDot" name="lerpmethod">
           <span class="mono">[t,-t,1] <big>&#8226;</big> [b,a,a]</span> using Kahan-ish summation
          </label>
          <label>
-          <input type="radio" class="lerpmethodRadioButton" id="lerpmethodAlastUsingDotTweaked" name="lerpmethod" value="lerpmethodAlastUsingDotTweaked">
+          <input type="radio" id="lerpmethodAlastUsingDotTweaked" name="lerpmethod">
           tweaked
          </label>
          <label>
-          <input type="radio" class="lerpmethodRadioButton" id="lerpmethodAlastUsingDotSmarter" name="lerpmethod" value="lerpmethodAlastUsingDotSmarter">
+          <input type="radio" id="lerpmethodAlastUsingDotSmarter" name="lerpmethod">
           smarter
          </label>
          <label>
-          <input type="radio" class="lerpmethodRadioButton" id="lerpmethodAlastUsingDotSmartest" name="lerpmethod" value="lerpmethodAlastUsingDotSmartest">
+          <input type="radio" id="lerpmethodAlastUsingDotSmartest" name="lerpmethod">
           smartest
          </label>
 
@@ -245,19 +245,19 @@
         <td>
         <td>
          <label>
-          <input type="radio" class="lerpmethodRadioButton" id="lerpmethodTAlastUsingDot" name="lerpmethod" value="lerpmethodTAlastUsingDot">
+          <input type="radio" id="lerpmethodTAlastUsingDot" name="lerpmethod">
           <span class="mono">[1,t,-t] <big>&#8226;</big> [a,b,a]</span> using Kahan-ish summation
          </label>
          <label>
-          <input type="radio" class="lerpmethodRadioButton" id="lerpmethodTAlastUsingDotTweaked" name="lerpmethod" value="lerpmethodTAlastUsingDotTweaked">
+          <input type="radio" id="lerpmethodTAlastUsingDotTweaked" name="lerpmethod">
           tweaked
          </label>
          <label>
-          <input type="radio" class="lerpmethodRadioButton" id="lerpmethodTAlastUsingDotSmarter" name="lerpmethod" value="lerpmethodTAlastUsingDotSmarter">
+          <input type="radio" id="lerpmethodTAlastUsingDotSmarter" name="lerpmethod">
           smarter
          </label>
          <label>
-          <input type="radio" class="lerpmethodRadioButton" id="lerpmethodTAlastUsingDotSmartest" name="lerpmethod" value="lerpmethodTAlastUsingDotSmartest">
+          <input type="radio" id="lerpmethodTAlastUsingDotSmartest" name="lerpmethod">
           smartest&nbsp;
          </label>
 
@@ -265,7 +265,7 @@
         <td>
         <td>
          <label>
-          <input type="radio" class="lerpmethodRadioButton" id="lerpmethodMagic" name="lerpmethod" value="lerpmethodMagic">
+          <input type="radio" id="lerpmethodMagic" name="lerpmethod">
           magically exact (using exact sum expansions-- doesn't work yet apparently)
          </label>
 

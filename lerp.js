@@ -2369,8 +2369,6 @@ registerSourceCodeLinesAndRequire([
     window.add_custom_expression.onclick = () => {
       console.log("in window.add_custom_expression.onclick");
 
-      // TODO: is the value= even used?  If not, get rid
-
       // Create a new tr element above the current tr element.
 
       const current_table = window.add_custom_expression.closest("table");
@@ -2382,7 +2380,7 @@ registerSourceCodeLinesAndRequire([
       x_button.onclick = () => new_tr.remove();
 
       const radiobutton_td = new_tr.insertCell(1);
-      radiobutton_td.innerHTML = '<input type="radio" class="lerpmethodRadioButton" name="lerpmethod"><input size="50" value="(2*t-1)*(2*t-1)*0.25"></input>'
+      radiobutton_td.innerHTML = '<input type="radio" name="lerpmethod"><input size="50" value="(2*t-1)*(2*t-1)*0.25"></input>'
       const textinput = 
 
       console.log("out window.add_custom_expression.onclick");
