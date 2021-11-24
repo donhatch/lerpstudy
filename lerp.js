@@ -1,3 +1,14 @@
+// TODO: the tooltip stays up when it's up when I leave the svg
+// TODO: custom lerp functions: unary minus
+// TODO: custom lerp functions: "at twice precision"
+// TODO: custom lerp functions: persist in address bar
+// TODO: custom lerp functions: behave well on:
+//       "0<0"  (should reject because return type is bool)
+//       "0:0"  (should reject because syntactically wrong)
+//       "0?0"  (should reject more gracefully; currently says "TypeError: number 0 is not iterable")
+// TODO: now that I want to copy-paste a lot, I don't think I want radio buttons to be checked when I click on them
+// TODO: custom lerp functions: allow variables
+
 // References:
 //  https://stackoverflow.com/questions/4353525/floating-point-linear-interpolation
 //  https://math.stackexchange.com/questions/907327/accurate-floating-point-linear-interpolation#answer-1798323
@@ -32,7 +43,7 @@
 
 // TODO: "smartest" seems perfect, but only if minExponent is sufficiently low.  can we make it perfect even with not-so-low minE?
 // TODO: make the selection of lerp algorithm persist in url bar
-// TODO: the stuff in url bar should probably be '#' params rather than '?' params
+// TODO: the stuff in url bar should probably be hash '#' params rather than '?' params
 // TODO: oscillating between two methods mode?  could be helpful, although the most common thing we want, that is, comparison with magic exact, is accompliced via the ringed dots
 // TODO: make lerp-favicon.png a real picture of something
 // TODO: the usual event screwup, need to listen on window instead
@@ -2332,7 +2343,7 @@ registerSourceCodeLinesAndRequire([
     const tree = Parse(expression_string);
     Lerp = ParseTreeToLerpFunction(tree);
     populateTheSVG(svg, Lerp, a, b);
-    theTitle.text = "custom lerp";
+    theTitle.innerHTML = "custom lerp";
   };
 
   window.lerpmethodExactCrossYourFingers.setAttribute("checked", "");
@@ -2424,19 +2435,30 @@ registerSourceCodeLinesAndRequire([
 
       const number = Number(tree);
       CHECK(!Number.isNaN(number));
-      const rounded_number = round_to_nearest_representable(numFractionBits, minExponent, number);
+      const rounded_number = Round(number);
       return (a,b,t) => rounded_number;
 
     } else if (Array.isArray(tree)) {
       CHECK.EQ(tree.length, 3);
       const [opname, implementation, operands] = tree;
-      CHECK.EQ(operands.length, 2);
-      const LHS_function = ParseTreeToLerpFunction(operands[0]);
-      const RHS_function = ParseTreeToLerpFunction(operands[1]);
-      // CBB: possible optimization: detect when LHS and/or RHS is a leaf, and inline its value
-      return (a,b,t) => {
-        return implementation(LHS_function(a,b,t), RHS_function(a,b,t));
-      };
+      if (opname === "?") {
+        CHECK.EQ(operands.length, 3);
+        const LHS_function = ParseTreeToLerpFunction(operands[0]);
+        const MHS_function = ParseTreeToLerpFunction(operands[1]);
+        const RHS_function = ParseTreeToLerpFunction(operands[2]);
+        return (a,b,t) => {
+          return LHS_function(a,b,t) ? MHS_function(a,b,t)
+                                     : RHS_function(a,b,t);
+        };
+      } else {
+        CHECK.EQ(operands.length, 2);
+        const LHS_function = ParseTreeToLerpFunction(operands[0]);
+        const RHS_function = ParseTreeToLerpFunction(operands[1]);
+        // CBB: possible optimization: detect when LHS and/or RHS is a leaf, and inline its value
+        return (a,b,t) => {
+          return implementation(LHS_function(a,b,t), RHS_function(a,b,t));
+        };
+      }
     } else {
       throw new Error("ParseTreeToLerpFunction called on non-string non-list "+STRINGIFY(tree));
     }
@@ -2518,7 +2540,7 @@ registerSourceCodeLinesAndRequire([
       const verboseLevel = 0;
       if (verboseLevel >= 1) console.log("            in parseFactor(pos="+pos+")");
 
-      for (const literal of ["a", "b", "t", "true", "false"]) {
+      for (const literal of ["true", "false", "a", "b", "t"]) {  // "true" must come before "t" !
         if (parseLiteral(literal) !== null) {
           if (verboseLevel >= 1) console.log("            out parseFactor(pos="+pos+"), returning literal "+STRINGIFY(literal));
           return literal;
@@ -2545,7 +2567,7 @@ registerSourceCodeLinesAndRequire([
       const verboseLevel = 0;
       if (verboseLevel >= 1) console.log("        in parseSubexpression(expression="+JSON.stringify(expression)+", pos="+pos+")");
       if (verboseLevel >= 1) console.log("          calling initial parseFactor");
-      discardSpaces();  // XXX where should this go?  inside parseFactor? inside parseLiteral?
+      discardSpaces();  // TODO: where should this go?  inside parseFactor? inside parseLiteral?
       let answer = parseFactor();
       if (verboseLevel >= 1) console.log("          returned from initial parseFactor: "+STRINGIFY(answer));
       if (verboseLevel >= 1) console.log("          pos = "+pos);
@@ -2554,9 +2576,10 @@ registerSourceCodeLinesAndRequire([
         // so use a while loop, recursing on precedence+1.
         // (If we had a right-to-left associative binary operator,
         // we'd just recurse once using the same precedence).
-        // TODO: actually, think about whether this works for ?:
+        // (And, actually, '?' *is* right-to-left associative,
+        // so we make a special case for it below.)
         while (true) {
-          discardSpaces();  // XXX where should this go?  inside parseFactor? inside parseLiteral?
+          discardSpaces();  // TODO: where should this go?  inside parseFactor? inside parseLiteral?
           let entry = null;
           for (const entry_maybe of op_table) {
             if (entry_maybe.precedence < lowest_precedence_allowed) continue;
@@ -2568,11 +2591,33 @@ registerSourceCodeLinesAndRequire([
           if (entry === null) break;  // didn't find an op
           if (verboseLevel >= 1) console.log("          found op "+STRINGIFY(entry.name));
           if (verboseLevel >= 1) console.log("          pos = "+pos);
-          const RHS = parseSubexpression(entry.precedence+1, lowest_precedence_allowed);
-          if (RHS === null) {
-            throw new Error("premature end of string at position "+pos+" after operator "+STRINGIFY(entry.name));
+
+          if (entry.name === "?") {
+            const i0 = pos-1;
+            // entry.precedence rather than entry.precedence+1,
+            // i.e. allow "?" in the MHS, i.e. right-to-left-associative,
+            // so "true?true?a:b:t" will be accepted
+            // and correctly interpreted as "true?(true?a:b):c"
+            const MHS = parseSubexpression(entry.precedence);
+            discardSpaces();
+            if (parseLiteral(":") === null) {
+              throw new Error("unmatched '?' at position "+i0);
+            }
+            // entry.precedence rather than entry.precedence+1,
+            // i.e. allow "?" in the RHS, i.e. right-to-left-associative,
+            // so "true?a:true?b:t" will be correctly interpreted as
+            // "true?a:(true?b:t)" rather than "(true?a:true)?b:t"
+            const RHS = parseSubexpression(entry.precedence);
+            answer = combine(entry.name, entry.implementation, [answer, MHS, RHS]);
+          } else {
+            const is_right_to_left_associative = false;  // nothing other than ?: is right-to-left associative, currently
+            const RHS = parseSubexpression(is_right_to_left_associative ? entry.precedence
+                                                                        : entry.precedence+1);
+            if (RHS === null) {
+              throw new Error("premature end of string at position "+pos+" after operator "+STRINGIFY(entry.name));
+            }
+            answer = combine(entry.name, entry.implementation, [answer, RHS]);
           }
-          answer = combine(entry.name, entry.implementation, [answer, RHS]);
         }
       }
       if (verboseLevel >= 1) console.log("          answer = "+STRINGIFY(answer));
@@ -2594,23 +2639,22 @@ registerSourceCodeLinesAndRequire([
     return answer;
   };  // parse
   const op_table = [
-    {name:"*", precedence:6, implementation:(x,y)=>Times(x,y)},
-    {name:"/", precedence:6, implementation:(x,y)=>DividedBy(x,y)},
+    {name:"*", precedence:5, implementation:(x,y)=>Times(x,y)},
+    {name:"/", precedence:5, implementation:(x,y)=>DividedBy(x,y)},
 
-    {name:"+", precedence:5, implementation:(x,y)=>Plus(x,y)},
-    {name:"-", precedence:5, implementation:(x,y)=>Minus(x,y)},
+    {name:"+", precedence:4, implementation:(x,y)=>Plus(x,y)},
+    {name:"-", precedence:4, implementation:(x,y)=>Minus(x,y)},
 
     // NOTE: "<=" must come before "<" so it will be preferred
-    {name:"<=", precedence:4, implementation:(x,y)=>x<=y},
-    {name:"<", precedence:4, implementation:(x,y)=>x<y},
+    {name:"<=", precedence:3, implementation:(x,y)=>x<=y},
+    {name:"<", precedence:3, implementation:(x,y)=>x<y},
     // NOTE: ">=" must come before ">" so it will be preferred
-    {name:">=", precedence:4, implementation:(x,y)=>x>=y},
-    {name:">", precedence:4, implementation:(x,y)=>x>y},
-    {name:"==", precedence:4, implementation:(x,y)=>x==y},
-    {name:"!=", precedence:4, implementation:(x,y)=>x!=y},
+    {name:">=", precedence:3, implementation:(x,y)=>x>=y},
+    {name:">", precedence:3, implementation:(x,y)=>x>y},
+    {name:"==", precedence:3, implementation:(x,y)=>x==y},
+    {name:"!=", precedence:3, implementation:(x,y)=>x!=y},
 
-    {name:":", precedence:3, implementation:(y,z)=>[y,z]},
-    {name:"?", precedence:2, implementation:(x,[y,z])=>x?y:z},
+    {name:"?", precedence:2, implementation:null},  // special case in code
 
     {name:",", precedence:1, implementation:(x,y)=>(a,b)},
 
@@ -2645,6 +2689,8 @@ registerSourceCodeLinesAndRequire([
 
       const current_table = window.add_custom_expression.closest("table");
       const new_tr = current_table.insertRow(current_table.rows.length-1);
+      new_tr.style.whiteSpace = "nowrap";
+
       const x_td = new_tr.insertCell(0);
       console.log("  x_td = ",x_td);
       x_td.innerHTML = '<button type="button" style="padding:1px;">&#x2716;</button> <!-- heavy multiplication x -->';
@@ -2652,7 +2698,7 @@ registerSourceCodeLinesAndRequire([
       x_button.onclick = () => new_tr.remove();
 
       const radiobutton_td = new_tr.insertCell(1);
-      radiobutton_td.innerHTML = '<input type="radio" name="lerpmethod"><input type="text" size="50" value="(2*t-1)*(2*t-1)"></input>'
+      radiobutton_td.innerHTML = '<input type="radio" name="lerpmethod"><input type="text" size="75" value="a + t*(b-a)"></input>'
       const radiobutton = radiobutton_td.children[0];
       console.log("  radiobutton = ",radiobutton);
       const textinput = radiobutton_td.children[1];
