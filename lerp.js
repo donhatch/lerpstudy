@@ -2,10 +2,6 @@
 // TODO: custom lerp functions: unary minus
 // TODO: custom lerp functions: "at twice precision"
 // TODO: custom lerp functions: persist in address bar
-// TODO: custom lerp functions: behave well on:
-//       "0<0"  (should reject because return type is bool)
-//       "0:0"  (should reject because syntactically wrong)
-//       "0?0"  (should reject more gracefully; currently says "TypeError: number 0 is not iterable")
 // TODO: now that I want to copy-paste a lot, I don't think I want radio buttons to be checked when I click on them
 // TODO: custom lerp functions: allow variables
 
@@ -2343,7 +2339,7 @@ registerSourceCodeLinesAndRequire([
     const tree = Parse(expression_string);
     Lerp = ParseTreeToLerpFunction(tree);
     populateTheSVG(svg, Lerp, a, b);
-    theTitle.innerHTML = "custom lerp";
+    theTitle.innerHTML = "custom lerp expression";
   };
 
   window.lerpmethodExactCrossYourFingers.setAttribute("checked", "");
@@ -2672,7 +2668,12 @@ registerSourceCodeLinesAndRequire([
         PrintParseTree(tree, /*indentString=*/"      ", /*recursionLevel=*/0);
         const lerp_function = ParseTreeToLerpFunction(tree);
         console.log("  lerp_function = "+STRINGIFY(lerp_function));
-        console.log("  TESTING: lerp_function(1, 2, 0.5) = ",STRINGIFY(lerp_function(1, 2, 0.5)));
+        const test_answer = lerp_function(.25, .75, 0.5);
+        console.log("  TESTING: lerp_function(1, 2, 0.5) = ",STRINGIFY(test_answer));
+        if (typeof test_answer !== 'number') {
+          console.log("is_valid_expression returning false because lerp_function(1, 2, 0.5) returned "+STRINGIFY(test_answer)+" which is of type "+STRINGIFY(typeof test_answer)+", not 'number'");
+          return false;
+        }
       }
       return tree !== null;
     } catch (error) {
