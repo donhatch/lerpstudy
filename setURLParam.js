@@ -62,7 +62,8 @@ define([
     return answer;
   };  // formatURL
 
-  // return a new urlAndParamsAndHashString
+  // return a new urlAndParamsAndHashString.
+  // value can be null, in which case it means clear it.
   var setURLParam = function(urlAndParamsAndHashString, name, value, whetherToEncodeValue) {
     // CBB: whetherToEncodeValue is a hack added at the last minute, because I want things like scale=2/32^-2/10" to remain unmolested.  Probably not safe in general.
     var verboseLevel = 0;  // increase to debug

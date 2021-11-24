@@ -421,6 +421,8 @@ registerSourceCodeLinesAndRequire([
   let aString = getURLParameterModule.getURLParameterOr("a", "11/256");
   let bString = getURLParameterModule.getURLParameterOr("b", "1");
 
+  const enable_custom_string = getURLParameterModule.getURLParameterOr("enable_custom", null);
+
   const parseBinaryFloat = s => {
     CHECK.NE(s, undefined);
     let sign = 1;
@@ -529,6 +531,16 @@ registerSourceCodeLinesAndRequire([
       return parseFloat(parts[0]) / parseFloat(parts[1]);
     }
   };
+  const parseBoolean = s => {
+    CHECK.NE(s, undefined);
+    if (s === "true") {
+      return true;
+    } else if (s === "false") {
+      return false;
+    } else {
+      throw new Error("bad boolean value "+JSON.stringify(s));
+    }
+  };
 
   let a = parseFractionString(aString);
   let b = parseFractionString(bString);
@@ -536,11 +548,11 @@ registerSourceCodeLinesAndRequire([
   //a = round_to_nearest_representable(a);
   //b = round_to_nearest_representable(b);
 
-
+  const enable_custom = enable_custom_string===null ? false : parseBoolean(enable_custom_string);
 
   const xformUrlPart = urlPart=>urlPart;
   setURLParamModule.setURLAndParamsInURLBar(xformUrlPart,
-                                            [['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(a)],['b',toFractionString(b)]],
+                                            [['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(a)],['b',toFractionString(b)],['enable_custom', enable_custom_string!==null?''+enable_custom:null]],
                                             /*whetherToEncodeValue=*/false);  // don't encode the '/' as  %2F
 
 
@@ -2353,6 +2365,32 @@ registerSourceCodeLinesAndRequire([
   window.lerpmethodAlastUsingDotSmartest.onclick = () => setLerpMethodToAlastUsingDotSmartest();
   window.lerpmethodTAlastUsingDotSmartest.onclick = () => setLerpMethodToTAlastUsingDotSmartest();
 
+  if (enable_custom) {
+    window.add_custom_expression.onclick = () => {
+      console.log("in window.add_custom_expression.onclick");
+
+      // TODO: is the value= even used?  If not, get rid
+
+      // Create a new tr element above the current tr element.
+
+      const current_table = window.add_custom_expression.closest("table");
+      const new_tr = current_table.insertRow(current_table.rows.length-1);
+      const x_td = new_tr.insertCell(0);
+      console.log("  x_td = ",x_td);
+      x_td.innerHTML = '<button type="button" style="padding:1px;">&#x2716;</button> <!-- heavy multiplication x -->';
+      const x_button = x_td.children[0];
+      x_button.onclick = () => new_tr.remove();
+
+      const radiobutton_td = new_tr.insertCell(1);
+      radiobutton_td.innerHTML = '<input type="radio" class="lerpmethodRadioButton" name="lerpmethod"><input size="50" value="(2*t-1)*(2*t-1)*0.25"></input>'
+      const textinput = 
+
+      console.log("out window.add_custom_expression.onclick");
+    };
+  } else {
+    window.add_custom_expression.remove();
+  }
+
   let xOfMouseDown = undefined;
   let yOfMouseDown = undefined;
   let aOfMouseDown = undefined;
@@ -2384,7 +2422,7 @@ registerSourceCodeLinesAndRequire([
       } else if (event.key === '=' || event.key === '+') {
         numFractionBits += 1;
         setURLParamModule.setURLAndParamsInURLBarWithVerboseLevel(xformUrlPart,
-            [['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(a)],['b',toFractionString(b)]],
+            [['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(a)],['b',toFractionString(b)],['enable_custom', enable_custom_string!==null?''+enable_custom:null]],
             /*whetherToEncodeValue=*/false,  // don't encode the '/' as  %2F
             /*verboseLevel=*/0);
         populateTheSVG(svg, Lerp, a, b);
@@ -2392,7 +2430,7 @@ registerSourceCodeLinesAndRequire([
         if (numFractionBits > 0) {
           numFractionBits -= 1;
           setURLParamModule.setURLAndParamsInURLBarWithVerboseLevel(xformUrlPart,
-              [['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(a)],['b',toFractionString(b)]],
+              [['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(a)],['b',toFractionString(b)],['enable_custom', enable_custom_string!==null?''+enable_custom:null]],
               /*whetherToEncodeValue=*/false,  // don't encode the '/' as  %2F
               /*verboseLevel=*/0);
           populateTheSVG(svg, Lerp, a, b);
@@ -2410,7 +2448,7 @@ registerSourceCodeLinesAndRequire([
           b = Succ(b);
         }
         setURLParamModule.setURLAndParamsInURLBarWithVerboseLevel(xformUrlPart,
-            [['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(a)],['b',toFractionString(b)]],
+            [['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(a)],['b',toFractionString(b)],['enable_custom', enable_custom_string!==null?''+enable_custom:null]],
             /*whetherToEncodeValue=*/false,  // don't encode the '/' as  %2F
             /*verboseLevel=*/0);
         populateTheSVG(svg, Lerp, a, b);
@@ -2427,7 +2465,7 @@ registerSourceCodeLinesAndRequire([
           b = Pred(b);
         }
         setURLParamModule.setURLAndParamsInURLBarWithVerboseLevel(xformUrlPart,
-            [['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(a)],['b',toFractionString(b)]],
+            [['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(a)],['b',toFractionString(b)],['enable_custom', enable_custom_string!==null?''+enable_custom:null]],
             /*whetherToEncodeValue=*/false,  // don't encode the '/' as  %2F
             /*verboseLevel=*/0);
         populateTheSVG(svg, Lerp, a, b);
@@ -2508,7 +2546,7 @@ registerSourceCodeLinesAndRequire([
       if (aSnappedNew != aSnappedOld || bSnappedNew != bSnappedOld) {
         // Note that, while mouse is down, a and b in general aren't representable floats, so we round them when setting the URL param here
         setURLParamModule.setURLAndParamsInURLBarWithVerboseLevel(xformUrlPart,
-            [['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(aSnappedNew)],['b',toFractionString(bSnappedNew)]],
+            [['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(aSnappedNew)],['b',toFractionString(bSnappedNew)],['enable_custom', enable_custom_string!==null?''+enable_custom:null]],
             /*whetherToEncodeValue=*/false,  // don't encode the '/' as  %2F
             /*verboseLevel=*/0);
       }
