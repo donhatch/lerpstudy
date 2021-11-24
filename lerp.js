@@ -3,6 +3,7 @@
 // TODO: custom lerp functions: "at twice precision"
 // TODO: custom lerp functions: persist in address bar
 // TODO: now that I want to copy-paste a lot, I don't think I want radio buttons to be checked when I click on them
+//       (or do I?  it's only a problem if user double-clicks. hmm. https://stackoverflow.com/questions/5497073/how-to-differentiate-single-click-event-and-double-click-event )
 // TODO: custom lerp functions: allow variables
 
 // References:
@@ -2648,9 +2649,9 @@ registerSourceCodeLinesAndRequire([
 
     {name:"?", precedence:2, implementation:null},  // special case in code
 
-    {name:",", precedence:1, implementation:(x,y)=>(a,b)},
+    {name:",", precedence:1, implementation:(x,y)=>(x,y)},
 
-    {name:";", precedence:0, implementation:(x,y)=>(a,b)},
+    {name:";", precedence:0, implementation:(x,y)=>(x,y)},
   ];  // op_table
   const Parse = expression => {
     return parse(expression, op_table);
@@ -2694,7 +2695,7 @@ registerSourceCodeLinesAndRequire([
     x_button.onclick = () => new_tr.remove();
 
     const radiobutton_td = new_tr.insertCell(1);
-    radiobutton_td.innerHTML = '<input type="radio" name="lerpmethod"><input type="text" size="75" value="a + t*(b-a)"></input>'
+    radiobutton_td.innerHTML = '<input type="radio" name="lerpmethod"><input type="text" style="font-family:monospace;" size="75" value="t < 0.5 ? a + t*(b-a) : t > 0.5 ? b - (1-t)*(b-a) : (a+b)*0.5"></input>'
     const radiobutton = radiobutton_td.children[0];
     console.log("  radiobutton = ",radiobutton);
     const textinput = radiobutton_td.children[1];
@@ -2743,7 +2744,6 @@ registerSourceCodeLinesAndRequire([
       }
       console.log("    out textinput.onchange");
     };
-
 
     console.log("out window.add_custom_expression.onclick");
   };
