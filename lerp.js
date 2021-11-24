@@ -14,6 +14,13 @@
 //   a=1/16 b=3/4
 //   a=1/32 b=5/8
 
+// TODO: js console error "Unchecked runtime.lastError: Could not establish connection. Receiving end does not exist." when reloading after 3m or so
+//   - possibly relevant:
+//       https://stackoverflow.com/questions/54181734/chrome-extension-message-passing-unchecked-runtime-lasterror-could-not-establi/54686484#answer-54686484
+//   - I think it's the "Google Docs Offline" extension.
+//     ARGH, no, it happened even with that turned off :-(
+//     WTF?
+
 // TODO: lots of failures with "magically exact", wtf?  Especially when b is 1. 
 // e.g. this shows a circle near t=0  (at t=14/4096):
 // http://localhost:8000/lerp.html?numFractionBits=4&minExponent=-12&a=5/32&b=1
@@ -39,7 +46,15 @@
 // TODO: figure out if there's a better way!
 // TODO: show more interesting lines for the various algorithms
 // TODO: dragging a or b up or down slowly doesn't redraw until I've stopped moving; that's unfriendly
-// TODO: highlight non-monotonicity!
+// TODO: highlight non-monotonicity! (how?)
+// TODO: custom expressions?  would be cool, need to be able to parse
+//             ()
+//             + -
+//             *   (maybe not division? not sure)
+//             ?:
+//             < <= > >=
+//             variables? hmm
+
 
 /*
   Possible stackexchange problem:
