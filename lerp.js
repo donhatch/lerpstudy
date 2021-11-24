@@ -428,8 +428,6 @@ registerSourceCodeLinesAndRequire([
   let aString = getURLParameterModule.getURLParameterOr("a", "11/256");
   let bString = getURLParameterModule.getURLParameterOr("b", "1");
 
-  const enable_custom_string = getURLParameterModule.getURLParameterOr("enable_custom", null);
-
   const parseBinaryFloat = s => {
     CHECK.NE(s, undefined);
     let sign = 1;
@@ -555,11 +553,9 @@ registerSourceCodeLinesAndRequire([
   //a = round_to_nearest_representable(a);
   //b = round_to_nearest_representable(b);
 
-  const enable_custom = enable_custom_string===null ? false : parseBoolean(enable_custom_string);
-
   const xformUrlPart = urlPart=>urlPart;
   setURLParamModule.setURLAndParamsInURLBar(xformUrlPart,
-                                            [['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(a)],['b',toFractionString(b)],['enable_custom', enable_custom_string!==null?''+enable_custom:null]],
+                                            [['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(a)],['b',toFractionString(b)]],
                                             /*whetherToEncodeValue=*/false);  // don't encode the '/' as  %2F
 
 
@@ -2682,79 +2678,75 @@ registerSourceCodeLinesAndRequire([
     }
   };  // is_valid_expression
 
-  if (enable_custom) {
-    window.add_custom_expression.onclick = () => {
-      console.log("in window.add_custom_expression.onclick");
+  window.add_custom_expression.onclick = () => {
+    console.log("in window.add_custom_expression.onclick");
 
-      // Create a new tr element above the current tr element.
+    // Create a new tr element above the current tr element.
 
-      const current_table = window.add_custom_expression.closest("table");
-      const new_tr = current_table.insertRow(current_table.rows.length-1);
-      new_tr.style.whiteSpace = "nowrap";
+    const current_table = window.add_custom_expression.closest("table");
+    const new_tr = current_table.insertRow(current_table.rows.length-1);
+    new_tr.style.whiteSpace = "nowrap";
 
-      const x_td = new_tr.insertCell(0);
-      console.log("  x_td = ",x_td);
-      x_td.innerHTML = '<button type="button" style="padding:1px;">&#x2716;</button> <!-- heavy multiplication x -->';
-      const x_button = x_td.children[0];
-      x_button.onclick = () => new_tr.remove();
+    const x_td = new_tr.insertCell(0);
+    console.log("  x_td = ",x_td);
+    x_td.innerHTML = '<button type="button" style="padding:1px;">&#x2716;</button> <!-- heavy multiplication x -->';
+    const x_button = x_td.children[0];
+    x_button.onclick = () => new_tr.remove();
 
-      const radiobutton_td = new_tr.insertCell(1);
-      radiobutton_td.innerHTML = '<input type="radio" name="lerpmethod"><input type="text" size="75" value="a + t*(b-a)"></input>'
-      const radiobutton = radiobutton_td.children[0];
-      console.log("  radiobutton = ",radiobutton);
-      const textinput = radiobutton_td.children[1];
-      console.log("  textinput = ",textinput);
+    const radiobutton_td = new_tr.insertCell(1);
+    radiobutton_td.innerHTML = '<input type="radio" name="lerpmethod"><input type="text" size="75" value="a + t*(b-a)"></input>'
+    const radiobutton = radiobutton_td.children[0];
+    console.log("  radiobutton = ",radiobutton);
+    const textinput = radiobutton_td.children[1];
+    console.log("  textinput = ",textinput);
 
-      radiobutton.onclick = () => {
-        setLerpMethodToCustom(textinput.old_value);
-      };
-
-      textinput.old_value = textinput.value;  // keep value around so it can be restored
-
-      textinput.onkeydown = event => {
-        console.log("    in textinput.onkeydown");
-        console.log("      event = ",event);
-        if (event.key === 'Escape') {
-          textinput.value = textinput.old_value;
-          textinput.style.backgroundColor = 'white';
-        }
-        console.log("    out textinput.onkeydown");
-      };
-      textinput.oninput = event => {
-        console.log("    in textinput.oninput");
-        console.log("      event = ",event);
-        const new_value = textinput.value;
-        if (new_value === textinput.old_value) {
-          textinput.style.backgroundColor = 'white';
-        } else if (is_valid_expression(new_value)) {
-          textinput.style.backgroundColor = '#ccffcc';  // light green
-        } else {
-          textinput.style.backgroundColor = '#ffcccc';  // pink
-        }
-        console.log("      new_value = "+STRINGIFY(new_value));
-        console.log("    out textinput.oninput");
-      };
-      textinput.onchange = event => {
-        console.log("    in textinput.onchange");
-        console.log("      event = ",event);
-        const new_value = textinput.value;
-        console.log("      new_value = "+STRINGIFY(new_value));
-        if (is_valid_expression(new_value)) {
-          textinput.old_value = new_value;
-          textinput.style.backgroundColor = 'white';
-          if (radiobutton.checked) {
-            setLerpMethodToCustom(textinput.old_value);
-          }
-        }
-        console.log("    out textinput.onchange");
-      };
-
-
-      console.log("out window.add_custom_expression.onclick");
+    radiobutton.onclick = () => {
+      setLerpMethodToCustom(textinput.old_value);
     };
-  } else {
-    window.add_custom_expression.remove();
-  }
+
+    textinput.old_value = textinput.value;  // keep value around so it can be restored
+
+    textinput.onkeydown = event => {
+      console.log("    in textinput.onkeydown");
+      console.log("      event = ",event);
+      if (event.key === 'Escape') {
+        textinput.value = textinput.old_value;
+        textinput.style.backgroundColor = 'white';
+      }
+      console.log("    out textinput.onkeydown");
+    };
+    textinput.oninput = event => {
+      console.log("    in textinput.oninput");
+      console.log("      event = ",event);
+      const new_value = textinput.value;
+      if (new_value === textinput.old_value) {
+        textinput.style.backgroundColor = 'white';
+      } else if (is_valid_expression(new_value)) {
+        textinput.style.backgroundColor = '#ccffcc';  // light green
+      } else {
+        textinput.style.backgroundColor = '#ffcccc';  // pink
+      }
+      console.log("      new_value = "+STRINGIFY(new_value));
+      console.log("    out textinput.oninput");
+    };
+    textinput.onchange = event => {
+      console.log("    in textinput.onchange");
+      console.log("      event = ",event);
+      const new_value = textinput.value;
+      console.log("      new_value = "+STRINGIFY(new_value));
+      if (is_valid_expression(new_value)) {
+        textinput.old_value = new_value;
+        textinput.style.backgroundColor = 'white';
+        if (radiobutton.checked) {
+          setLerpMethodToCustom(textinput.old_value);
+        }
+      }
+      console.log("    out textinput.onchange");
+    };
+
+
+    console.log("out window.add_custom_expression.onclick");
+  };
 
   let xOfMouseDown = undefined;
   let yOfMouseDown = undefined;
@@ -2788,7 +2780,7 @@ registerSourceCodeLinesAndRequire([
       } else if (event.key === '=' || event.key === '+') {
         numFractionBits += 1;
         setURLParamModule.setURLAndParamsInURLBarWithVerboseLevel(xformUrlPart,
-            [['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(a)],['b',toFractionString(b)],['enable_custom', enable_custom_string!==null?''+enable_custom:null]],
+            [['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(a)],['b',toFractionString(b)]],
             /*whetherToEncodeValue=*/false,  // don't encode the '/' as  %2F
             /*verboseLevel=*/0);
         populateTheSVG(svg, Lerp, a, b);
@@ -2796,7 +2788,7 @@ registerSourceCodeLinesAndRequire([
         if (numFractionBits > 0) {
           numFractionBits -= 1;
           setURLParamModule.setURLAndParamsInURLBarWithVerboseLevel(xformUrlPart,
-              [['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(a)],['b',toFractionString(b)],['enable_custom', enable_custom_string!==null?''+enable_custom:null]],
+              [['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(a)],['b',toFractionString(b)]],
               /*whetherToEncodeValue=*/false,  // don't encode the '/' as  %2F
               /*verboseLevel=*/0);
           populateTheSVG(svg, Lerp, a, b);
@@ -2814,7 +2806,7 @@ registerSourceCodeLinesAndRequire([
           b = Succ(b);
         }
         setURLParamModule.setURLAndParamsInURLBarWithVerboseLevel(xformUrlPart,
-            [['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(a)],['b',toFractionString(b)],['enable_custom', enable_custom_string!==null?''+enable_custom:null]],
+            [['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(a)],['b',toFractionString(b)]],
             /*whetherToEncodeValue=*/false,  // don't encode the '/' as  %2F
             /*verboseLevel=*/0);
         populateTheSVG(svg, Lerp, a, b);
@@ -2831,7 +2823,7 @@ registerSourceCodeLinesAndRequire([
           b = Pred(b);
         }
         setURLParamModule.setURLAndParamsInURLBarWithVerboseLevel(xformUrlPart,
-            [['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(a)],['b',toFractionString(b)],['enable_custom', enable_custom_string!==null?''+enable_custom:null]],
+            [['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(a)],['b',toFractionString(b)]],
             /*whetherToEncodeValue=*/false,  // don't encode the '/' as  %2F
             /*verboseLevel=*/0);
         populateTheSVG(svg, Lerp, a, b);
@@ -2912,7 +2904,7 @@ registerSourceCodeLinesAndRequire([
       if (aSnappedNew != aSnappedOld || bSnappedNew != bSnappedOld) {
         // Note that, while mouse is down, a and b in general aren't representable floats, so we round them when setting the URL param here
         setURLParamModule.setURLAndParamsInURLBarWithVerboseLevel(xformUrlPart,
-            [['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(aSnappedNew)],['b',toFractionString(bSnappedNew)],['enable_custom', enable_custom_string!==null?''+enable_custom:null]],
+            [['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(aSnappedNew)],['b',toFractionString(bSnappedNew)]],
             /*whetherToEncodeValue=*/false,  // don't encode the '/' as  %2F
             /*verboseLevel=*/0);
       }
