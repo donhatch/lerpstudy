@@ -49,7 +49,7 @@ define([], function() {
       return answer;
     }
     if (typeof x === 'function') { // JSON.stringify turns these into undefined
-      let answer = 'function(...) {...}';
+      let answer = x.toString();
       return answer;
     }
     return JSON.stringify(x); // XXX hoping all recursion was handled by the above
@@ -81,7 +81,7 @@ define([], function() {
     CHECK.EQ(STRINGIFY({a:0,b:1}), '{a:0,b:1}');
     CHECK.EQ(STRINGIFY({a0:0}), '{a0:0}');
     CHECK.EQ(STRINGIFY({'[':0}), '{"[":0}');
-    CHECK.EQ(STRINGIFY(()=>{}), 'function(...) {...}');
+    CHECK.EQ(STRINGIFY(()=>{}), '()=>{}');
     console.log("        out STRINGIFYbasicTest");
   };
 
@@ -168,7 +168,7 @@ define([], function() {
         }
         answerPieces.push('}');
       } else if (typeof x === 'function') {
-        answerPieces.push('function(...) {...}');
+        answerPieces.push(x.toString());
       } else {
         // this can't happen
         throw new Error("internal error in STRINGIFY");
