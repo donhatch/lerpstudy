@@ -2401,6 +2401,8 @@ registerSourceCodeLinesAndRequire([
       throw new Error("PrintParseTree called on non-string non-list "+STRINGIFY(tree));
     }
   };  // PrintParseTree
+  const ParseTreeToLerpFunction = () => {
+  };  // ParseTreeToLerpFunction
   const parse = (expression, op_table) => {
     const verboseLevel = 1;
     console.log("    in parse(expression="+JSON.stringify(expression)+")");
@@ -2413,15 +2415,21 @@ registerSourceCodeLinesAndRequire([
       }
     };
     const parseLiteral = (literal) => {
+      const verboseLevel = 0;
+      if (verboseLevel >= 1) console.log("                in parseLiteral(literal="+STRINGIFY(literal)+", pos="+pos+")");
       if (suffix_starts_with(expression, pos, literal)) {
         pos += literal.length;
+        if (verboseLevel >= 1) console.log("                out parseLiteral(literal="+STRINGIFY(literal)+", new pos="+pos+"), returning literal="+STRINGIFY(literal));
         return literal;
       } else {
+        if (verboseLevel >= 1) console.log("                out parseLiteral(literal="+STRINGIFY(literal)+", pos="+pos+"), returning null");
         return null;
       }
     };
     const isDigit = c => /^\d$/.test(c);
     const parseNumber = () => {
+      const verboseLevel = 0;
+      if (verboseLevel >= 1) console.log("                in parseNumber(pos="+pos+")");
       // Match the following on input:
       // /^-?[0-9]*\.[0-9]*$/  but must contain at least one digit
       // I.e. -? followed by exactly one of these:
@@ -2460,8 +2468,10 @@ registerSourceCodeLinesAndRequire([
       if (succeeded) {
         const answer = expression.slice(pos, pos1);
         pos = pos1;
+        if (verboseLevel >= 1) console.log("                out parseNumber(pos="+pos+"), returning number "+STRINGIFY(answer));
         return answer;
       } else {
+        if (verboseLevel >= 1) console.log("                out parseNumber(pos="+pos+"), returning null");
         return null;
       }
     };  // parseNumber
@@ -2469,7 +2479,7 @@ registerSourceCodeLinesAndRequire([
       const verboseLevel = 0;
       if (verboseLevel >= 1) console.log("            in parseFactor(pos="+pos+")");
 
-      for (const literal of ["a", "b", "t"]) {
+      for (const literal of ["a", "b", "t", "true", "false"]) {
         if (parseLiteral(literal) !== null) {
           if (verboseLevel >= 1) console.log("            out parseFactor(pos="+pos+"), returning literal "+STRINGIFY(literal));
           return literal;
@@ -2499,6 +2509,7 @@ registerSourceCodeLinesAndRequire([
       discardSpaces();  // XXX where should this go?  inside parseFactor? inside parseLiteral?
       let answer = parseFactor();
       if (verboseLevel >= 1) console.log("          returned from initial parseFactor: "+STRINGIFY(answer));
+      if (verboseLevel >= 1) console.log("          pos = "+pos);
       if (answer !== null) {
         // All binary operators happen to be left-to-right associative,
         // so use a while loop, recursing on precedence+1.
@@ -2512,10 +2523,16 @@ registerSourceCodeLinesAndRequire([
             if (entry_maybe.precedence < lowest_precedence_allowed) continue;
             if (parseLiteral(entry_maybe.name) !== null) {
               entry = entry_maybe;
+              break;
             }
           }
           if (entry === null) break;  // didn't find an op
+          if (verboseLevel >= 1) console.log("          found op "+STRINGIFY(entry.name));
+          if (verboseLevel >= 1) console.log("          pos = "+pos);
           const RHS = parseSubexpression(entry.precedence+1, lowest_precedence_allowed);
+          if (RHS === null) {
+            throw new Error("premature end of string at position "+pos+" after operator "+STRINGIFY(entry.name));
+          }
           answer = combine(entry.name, entry.implementation, [answer, RHS]);
         }
       }
@@ -2564,7 +2581,7 @@ registerSourceCodeLinesAndRequire([
     try {
       return parse(expression, op_table) !== null;
     } catch (error) {
-      console.error(error);
+      console.log("is_valid_expression returning false because: ",error);
       return false;
     }
   };  // is_valid_expression
