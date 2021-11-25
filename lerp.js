@@ -637,7 +637,7 @@ registerSourceCodeLinesAndRequire([
 
   // TODO: maybe replace the stuff in setURLParams.js, which was never fully baked, with this
   const SetParamsInAddressBar = (nameValuePairs) => {
-    const verboseLevel = 1;
+    const verboseLevel = 0;
     if (verboseLevel >= 1) console.log("        in SetParamsInAddressBar");
     if (verboseLevel >= 1) console.log("          window.location was ",window.location);
     const origin = window.location.origin;
@@ -657,7 +657,7 @@ registerSourceCodeLinesAndRequire([
   };  // SetParamsInAddressBar
 
   const SetTheDamnCustomExpressionsInTheDamnAddressBar = () => {
-    const verboseLevel = 1;
+    const verboseLevel = 0;
     if (verboseLevel >= 1) console.log("    in SetTheDamnCustomExpressionsInTheDamnAddressBar");
     const custom_expressions = GetCustomExpressionsFromDOM();
     const custom_expressions_string = STRINGIFY(custom_expressions);
@@ -2890,7 +2890,7 @@ registerSourceCodeLinesAndRequire([
   };  // Parse
 
   const is_valid_expression = expression => {
-    const verboseLevel = 1;
+    const verboseLevel = 0;
     try {
       const tree = Parse(expression);
       if (verboseLevel >= 1) console.log("  is_valid_expression: tree = "+JSON.stringify(tree));
@@ -2915,11 +2915,12 @@ registerSourceCodeLinesAndRequire([
   };  // is_valid_expression
 
   const AddCustomExpression = expression => {
-    console.log("in AddCustomExpression");
+    const verboseLevel = 0;
+    if (verboseLevel >= 1) console.log("in AddCustomExpression");
 
     if (!is_valid_expression(expression)) {
       console.error("  tried to add invalid custom expression "+STRINGIFY(expression));
-      console.log("out AddCustomExpression (expression was invalid)");
+      if (verboseLevel >= 1) console.log("out AddCustomExpression (expression was invalid)");
       return;
     }
 
@@ -3008,7 +3009,7 @@ registerSourceCodeLinesAndRequire([
       if (verboseLevel >= 1) console.log("    out textinput.onchange");
     };
 
-    console.log("out AddCustomExpression");
+    if (verboseLevel >= 1) console.log("out AddCustomExpression");
   };  // AddCustomExpression
 
   window.add_custom_expression_button.onclick = () => {
@@ -3020,7 +3021,7 @@ registerSourceCodeLinesAndRequire([
   // Add initial ones, from the url
   if (true) {
     const expressions = GetTheDamnCustomExpressionsFromTheDamnAddressBar();
-    console.log("  expressions = "+STRINGIFY(expressions));
+    console.log("  initial expressions = "+STRINGIFY(expressions));
     for (const expression of expressions) {
       AddCustomExpression(expression);
     }
