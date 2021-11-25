@@ -1,7 +1,3 @@
-// TODO: "reload with factory settings" button
-// TODO: custom lerp functions: BUG: '+' is getting lost in setting/getting the url params.
-//       ohhh '+' turns into %20 which turns into space.  hmm that sucks! who's doing that?
-// TODO: custom lerp functions: avoid all the %20's in address bar if possible
 // TODO: custom lerp functions: really need to be able to see parse tree for when something goes wrong
 // TODO: custom lerp functions: auto-expand and contract text area? hmm.
 // TODO: custom lerp functions: handle divide-by-zero more gracefully (completely abort)
@@ -543,6 +539,64 @@ registerSourceCodeLinesAndRequire([
     }
   };
 
+  // Like URLSearchParams, but encodes ' ' as '_' instead of '+'.
+  class MyURLSearchParams {
+    #space_char;  // probably '_'
+    #url_search_params;
+    constructor(window_location_search, space_char) {
+      CHECK.EQ(typeof space_char, 'string');
+      CHECK.EQ(space_char.length, 1);
+      let old_search = window_location_search;
+
+      if (space_char !== '+') {
+        old_search = old_search.replaceAll('+', '%2B');
+        old_search = old_search.replaceAll(space_char, '+');
+        // no need to decode %?? to '_'; URLSearchParams ctor will do that
+      }
+
+      this.#url_search_params = new URLSearchParams(old_search);
+      this.#space_char = space_char;
+    }
+    get(name) {
+      return this.#url_search_params.get(name);
+    }
+    set(name, value) {
+      return this.#url_search_params.set(name, value);
+    }
+    toString() {
+      let new_search = this.#url_search_params.toString();
+
+      // These seem to be harmless too,
+      // and keeping them cleartext enhances readability.
+      // However, do this first, in case this.#space_char is one of the chars.
+      new_search = new_search.replaceAll('%2F', '/');
+      new_search = new_search.replaceAll('%5B', '[');
+      new_search = new_search.replaceAll('%5D', ']');
+      new_search = new_search.replaceAll('%28', '(');
+      new_search = new_search.replaceAll('%29', ')');
+      new_search = new_search.replaceAll('%3F', '?');
+      new_search = new_search.replaceAll('%3A', ':');
+      new_search = new_search.replaceAll('%3D', '=');
+
+      if (this.#space_char !== '+') {
+        let two_digits_hex = this.#space_char.charCodeAt(0).toString(16);
+        while (two_digits_hex.length < 2) {
+          two_digits_hex = '0' + two_digits_hex;
+        }
+
+        new_search = new_search.replaceAll(this.#space_char, '%'+two_digits_hex);
+        new_search = new_search.replaceAll('+', this.#space_char);
+        new_search = new_search.replaceAll('%2B', '+');
+      }
+
+      return new_search;
+    }
+  };  // MyURLSearchParams
+
+  // Character to use for encoding spaces.
+  // URLSearchParams uses '+' but I like '_' better for this app.
+  const space_char = '_';
+
   const GetCustomExpressionsFromDOM = () => {
     const custom_text_inputs = document.querySelectorAll("input.custom");
     const answer = [];
@@ -550,33 +604,11 @@ registerSourceCodeLinesAndRequire([
       answer.push(custom_text_input.old_value);
     }
     return answer;
-  };
-  // TODO: kill this
-  // return list of just one url param:
-  // name="custom", value=stringified list of custom expressions,
-  // or null if none (meaning clear the url param)
-  const GetCustomExpressionsUrlParamsFromDOM = () => {
-    const verboseLevel = 1;
-    if (verboseLevel >= 1) console.log("    in GetCustomExpressionsUrlParamsFromDOM");
-    const texts = GetCustomExpressionsFromDOM();
-    if (verboseLevel >= 1) console.log("      texts = ",texts);
-    let value = texts.length == 0 ? null : STRINGIFY(texts);
-    // HACK: we're passing whetherToEncodeValue=false (so that '/' and maybe other stuff doesn't get molested),
-    // but we *must* encode '+'.  Probably need to more fully bake an option to setURLAndParamsInURLBar,
-    // but, for now, we just encode '+' explicitly.
-    if (value !== null) {
-      value = value.replace(/\+/g, '%2b');
-      // And more hack: replace ' ' with '+'
-      value = value.replace(/ /g, '+');
-    }
-    const answer = [["custom", value]];
-    if (verboseLevel >= 1) console.log("      answer = "+STRINGIFY(answer));
-    if (verboseLevel >= 1) console.log("    out GetCustomExpressionsUrlParamsFromDOM");
-    return answer;
-  };  // GetCustomExpressionsUrlParamsFromDOM
+  };  // GetCustomExpressionsFromDOM
 
   const GetTheDamnCustomExpressionsFromTheDamnAddressBar = () => {
-    const search_params = new URLSearchParams(window.location.search);
+    let old_search = window.location.search;
+    const search_params = new MyURLSearchParams(old_search, space_char);
     const custom_expressions_string = search_params.get("custom");
     if (custom_expressions_string == null) return [];
     try {
@@ -593,53 +625,20 @@ registerSourceCodeLinesAndRequire([
     }
   };  // GetTheDamnCustomExpressionsFromTheDamnAddressBar
 
+  // TODO: maybe replace the stuff in setURLParams.js, which was never fully baked, with this
   const SetParamsInAddressBar = (nameValuePairs) => {
     const verboseLevel = 1;
     if (verboseLevel >= 1) console.log("        in SetParamsInAddressBar");
     if (verboseLevel >= 1) console.log("          window.location was ",window.location);
     const origin = window.location.origin;
     const pathname = window.location.pathname;
-    const old_search = window.location.search;
+    let old_search = window.location.search;
     const hash = window.location.hash;
-    const search_params = new URLSearchParams(old_search);
+    const my_search_params = new MyURLSearchParams(old_search, space_char);
     for (const [name,value] of nameValuePairs) {
-      search_params.set(name, value);
+      my_search_params.set(name, value);
     }
-    let new_search = search_params.toString();
-    if (true) {
-      // Not sure how robust this is in general, but it seems to work ok for us.
-      // Note that we must leave '+' encoded as %2B; otherwise
-      // it will turn into ' ' when a later URLSearchParams is constructed.
-      // TODO: but think about using a different char for that!
-      // I think underscore would make everything more readable overall.
-      //       that is:
-      //         1. read window.location.search
-      //              (which has ' ' encoded as '_', '_' encoded as %??, '+' left alone)
-      //         2. convert:
-      //              '+' -> %2B   (representing '+')
-      //              '_' -> '+'   (representing '_')
-      //              and '_' is left encoded
-      //         3. Make a new URLSearchParams out of it, which decodes:
-      //              '+' -> ' '
-      //              '%2B' -> '+'
-      //              '%2??' -> '_'
-      //         4. fiddle fiddle
-      //         5. toString on that, which encodes:
-      //              '+' to %2B
-      //              ' ' to '+'
-      //              leaves '_' alone
-      //         6. convert:
-      //              '_' -> %??
-      //              '+' -> '_'
-      //         7. save into window.location.search
-      new_search = new_search.replace(/%2F/g, '/');
-      new_search = new_search.replace(/%5B/g, '[');
-      new_search = new_search.replace(/%5D/g, ']');
-      new_search = new_search.replace(/%28/g, '(');
-      new_search = new_search.replace(/%29/g, ')');
-      new_search = new_search.replace(/%3F/g, '?');
-      new_search = new_search.replace(/%3A/g, ':');
-    }
+    let new_search = my_search_params.toString();
     const new_href= origin+pathname+'?'+new_search+hash;
     window.history.replaceState(/*stateObj=*/null, /*title=*/'', new_href);
     CHECK.EQ(window.location.search, '?'+new_search);  // assumes there is at least one thing, probably
@@ -655,13 +654,12 @@ registerSourceCodeLinesAndRequire([
     SetParamsInAddressBar([["custom", custom_expressions_string]]);
     if (true) {
       // Make sure the round trip isn't lossy
-      CHECK.EQ(new URLSearchParams(window.location.search).get("custom"), custom_expressions_string);
+      CHECK.EQ(new MyURLSearchParams(window.location.search, space_char).get("custom"), custom_expressions_string);
       CHECK.EQ(STRINGIFY(GetTheDamnCustomExpressionsFromTheDamnAddressBar()),
                custom_expressions_string);
     }
     if (verboseLevel >= 1) console.log("    out SetTheDamnCustomExpressionsInTheDamnAddressBar");
   };  // SetTheDamnCustomExpressionsInTheDamnAddressBar
-
 
   let a = parseFractionString(aString);
   let b = parseFractionString(bString);
