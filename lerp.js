@@ -1,3 +1,5 @@
+// TODO: custom lerp functions: really need to be able to see parse tree for when something goes wrong
+// TODO: custom lerp functions: auto-expand and contract text area? hmm.
 // TODO: custom lerp functions: handle divide-by-zero more gracefully (completely abort)
 // TODO: custom lerp functions: support "return" instead of setting "answer" which is a bit weird
 // TODO: the tooltip stays up when it's up when I leave the svg
@@ -2469,6 +2471,12 @@ registerSourceCodeLinesAndRequire([
             vars.set(name, value);
             return value;
           }
+        } else if (operands.length == 1) {
+          const RHS_function = recurse(operands[0]);
+          if (verboseLevel >= 1) console.log("    out recurse");
+          return (a,b,t,vars) => {
+            return implementation(RHS_function(a,b,t,vars));
+          }
         } else {
           CHECK.EQ(operands.length, 2);
           const LHS_function = recurse(operands[0]);
@@ -2500,7 +2508,7 @@ registerSourceCodeLinesAndRequire([
     return answer;
   };  // ParseTreeToLerpFunction
 
-  const parse = (expression, op_table) => {
+  const parse = (expression, binary_op_table, left_unary_op_table) => {
     const verboseLevel = 0;
     if (verboseLevel >= 1) console.log("    in parse(expression="+JSON.stringify(expression)+")");
     // Current position within expression string.
@@ -2613,63 +2621,77 @@ registerSourceCodeLinesAndRequire([
       }
       if (verboseLevel >= 1) console.log("            out parseFactor(pos="+pos+"), returning null at bottom");
       return null;
-    };
+    };  // parseFactor
+
+    const parseOp = (op_table, lowest_precedence_allowed) => {
+      for (const entry of op_table) {
+        if (entry.precedence >= lowest_precedence_allowed &&
+            parseLiteral(entry.name) !== null) {
+          return entry;
+        }
+      }
+      return null;
+    };  // parseOp
+
     const parseSubexpression = (lowest_precedence_allowed) => {
       const verboseLevel = 0;
       if (verboseLevel >= 1) console.log("        in parseSubexpression(expression="+JSON.stringify(expression)+", pos="+pos+")");
       if (verboseLevel >= 1) console.log("          calling initial parseFactor");
-      discardSpaces();  // TODO: where should this go?  inside parseFactor? inside parseLiteral?
-      let answer = parseFactor();
-      if (verboseLevel >= 1) console.log("          returned from initial parseFactor: "+STRINGIFY(answer));
-      if (verboseLevel >= 1) console.log("          pos = "+pos);
-      if (answer !== null) {
-        // All binary operators happen to be left-to-right associative,
-        // so use a while loop, recursing on precedence+1.
-        // (If we had a right-to-left associative binary operator,
-        // we'd just recurse once using the same precedence).
-        // (And, actually, '?' *is* right-to-left associative,
-        // so we make a special case for it below.)
-        while (true) {
-          discardSpaces();  // TODO: where should this go?  inside parseFactor? inside parseLiteral?
-          let entry = null;
-          for (const entry_maybe of op_table) {
-            if (entry_maybe.precedence < lowest_precedence_allowed) continue;
-            if (parseLiteral(entry_maybe.name) !== null) {
-              entry = entry_maybe;
-              break;
-            }
-          }
-          if (entry === null) break;  // didn't find an op
-          if (verboseLevel >= 1) console.log("          found op "+STRINGIFY(entry.name));
-          if (verboseLevel >= 1) console.log("          pos = "+pos);
 
-          if (entry.name === "?") {
-            const i0 = pos-1;
-            // entry.precedence rather than entry.precedence+1,
-            // i.e. allow "?" in the MHS, i.e. right-to-left-associative,
-            // so "true?true?a:b:t" will be accepted
-            // and correctly interpreted as "true?(true?a:b):c"
-            const MHS = parseSubexpression(entry.precedence);
-            discardSpaces();
-            if (parseLiteral(":") === null) {
-              throw new Error("unmatched '?' at position "+i0);
+      discardSpaces();  // TODO: where should this go?  inside parseFactor? inside parseLiteral?
+
+      let answer;
+
+      const left_op_entry = parseOp(left_unary_op_table, lowest_precedence_allowed);
+      if (left_op_entry !== null) {
+        const RHS = parseSubexpression(left_op_entry.precedence);
+        answer = combine(left_op_entry.name, left_op_entry.implementation, [RHS]);
+      } else {
+        answer = parseFactor();
+        if (verboseLevel >= 1) console.log("          returned from initial parseFactor: "+STRINGIFY(answer));
+        if (verboseLevel >= 1) console.log("          pos = "+pos);
+        if (answer !== null) {
+          // All binary operators happen to be left-to-right associative,
+          // so use a while loop, recursing on precedence+1.
+          // (If we had a right-to-left associative binary operator,
+          // we'd just recurse once using the same precedence).
+          // (And, actually, '?' *is* right-to-left associative,
+          // so we make a special case for it below.)
+          while (true) {
+            discardSpaces();  // TODO: where should this go?  inside parseFactor? inside parseLiteral?
+            const entry = parseOp(binary_op_table, lowest_precedence_allowed);
+            if (entry === null) break;  // didn't find an op
+            if (verboseLevel >= 1) console.log("          found op "+STRINGIFY(entry.name));
+            if (verboseLevel >= 1) console.log("          pos = "+pos);
+
+            if (entry.name === "?") {
+              const i0 = pos-1;
+              // entry.precedence rather than entry.precedence+1,
+              // i.e. allow "?" in the MHS, i.e. right-to-left-associative,
+              // so "true?true?a:b:t" will be accepted
+              // and correctly interpreted as "true?(true?a:b):c"
+              const MHS = parseSubexpression(entry.precedence);
+              discardSpaces();
+              if (parseLiteral(":") === null) {
+                throw new Error("unmatched '?' at position "+i0);
+              }
+              // entry.precedence rather than entry.precedence+1,
+              // i.e. allow "?" in the RHS, i.e. right-to-left-associative,
+              // so "true?a:true?b:t" will be correctly interpreted as
+              // "true?a:(true?b:t)" rather than "(true?a:true)?b:t"
+              const RHS = parseSubexpression(entry.precedence);
+              answer = combine(entry.name, entry.implementation, [answer, MHS, RHS]);
+            } else {
+              const is_right_to_left_associative = false;  // nothing other than ?: is right-to-left associative, currently
+              const RHS = parseSubexpression(is_right_to_left_associative ? entry.precedence
+                                                                          : entry.precedence+1);
+              if (RHS === null) {
+                throw new Error("premature end of string at position "+pos+" after operator "+STRINGIFY(entry.name));
+              }
+              answer = combine(entry.name, entry.implementation, [answer, RHS]);
             }
-            // entry.precedence rather than entry.precedence+1,
-            // i.e. allow "?" in the RHS, i.e. right-to-left-associative,
-            // so "true?a:true?b:t" will be correctly interpreted as
-            // "true?a:(true?b:t)" rather than "(true?a:true)?b:t"
-            const RHS = parseSubexpression(entry.precedence);
-            answer = combine(entry.name, entry.implementation, [answer, MHS, RHS]);
-          } else {
-            const is_right_to_left_associative = false;  // nothing other than ?: is right-to-left associative, currently
-            const RHS = parseSubexpression(is_right_to_left_associative ? entry.precedence
-                                                                        : entry.precedence+1);
-            if (RHS === null) {
-              throw new Error("premature end of string at position "+pos+" after operator "+STRINGIFY(entry.name));
-            }
-            answer = combine(entry.name, entry.implementation, [answer, RHS]);
-          }
-        }
+          }  // while true
+        }  // if answer !== null
       }
       if (verboseLevel >= 1) console.log("          answer = "+STRINGIFY(answer));
       if (verboseLevel >= 1) PrintParseTree(answer, /*indentString=*/"              ", /*recursionLevel=*/0);
@@ -2689,39 +2711,56 @@ registerSourceCodeLinesAndRequire([
     if (verboseLevel >= 1) console.log("    out parse(expression="+JSON.stringify(expression)+")");
     return answer;
   };  // parse
-  const op_table = [
-    {name:"*", precedence:6, implementation:(x,y)=>Times(x,y)},
-    {name:"/", precedence:6, implementation:(x,y)=>DividedBy(x,y)},
+  const binary_op_table = [
+    // precedence:8 is for left-unary "-"
 
-    {name:"+", precedence:5, implementation:(x,y)=>Plus(x,y)},
-    {name:"-", precedence:5, implementation:(x,y)=>Minus(x,y)},
+    {name:"*", precedence:7, implementation:(x,y)=>Times(x,y)},
+    {name:"/", precedence:7, implementation:(x,y)=>DividedBy(x,y)},
+
+    {name:"+", precedence:6, implementation:(x,y)=>Plus(x,y)},
+    {name:"-", precedence:6, implementation:(x,y)=>Minus(x,y)},
 
     // NOTE: "<=" must come before "<" so it will be preferred
-    {name:"<=", precedence:4, implementation:(x,y)=>x<=y},
-    {name:"<", precedence:4, implementation:(x,y)=>x<y},
+    {name:"<=", precedence:5, implementation:(x,y)=>x<=y},
+    {name:"<", precedence:5, implementation:(x,y)=>x<y},
     // NOTE: ">=" must come before ">" so it will be preferred
-    {name:">=", precedence:4, implementation:(x,y)=>x>=y},
-    {name:">", precedence:4, implementation:(x,y)=>x>y},
+    {name:">=", precedence:5, implementation:(x,y)=>x>=y},
+    {name:">", precedence:5, implementation:(x,y)=>x>y},
     // NOTE: "==" must come before "=" so it will be preferred
-    {name:"==", precedence:4, implementation:(x,y)=>x==y},
-    {name:"!=", precedence:4, implementation:(x,y)=>x!=y},
+    {name:"==", precedence:5, implementation:(x,y)=>x==y},
+    {name:"!=", precedence:5, implementation:(x,y)=>x!=y},
 
-    {name:"?", precedence:3, implementation:null},  // special case in code
+    {name:"?", precedence:4, implementation:null},  // special case in code
 
-    {name:"=", precedence:2, implementation:null},  // special case in code
+    {name:"=", precedence:3, implementation:null},  // special case in code
 
-    {name:",", precedence:1, implementation:(x,y)=>(x,y)},
+    {name:",", precedence:2, implementation:(x,y)=>(x,y)},
+
+    // precedence:1 is for "return"
 
     {name:";", precedence:0, implementation:(x,y)=>(x,y)},
-  ];  // op_table
+  ];  // binary_op_table
+  const left_unary_op_table = [
+    // CBB: negative numbers end up being interpreted as unary-minus
+    // followed by positive number.  I guess that's ok.
+    {name:"-", precedence:8, implementation:(x)=>-x},
+
+    // "return" is actually ignored (function return value
+    // is the expression, anyway); the only reason for this
+    // is so we can reject anything with a "return"
+    // before a ";".  Which perhaps we can simply detect
+    // with a regex.
+    {name:"return", precedence:1, implementation:(x)=>x},
+  ];  // left_unary_op_table
+
   const Parse = expression => {
-    return parse(expression, op_table);
+    return parse(expression, binary_op_table, left_unary_op_table);
   };  // Parse
 
   const is_valid_expression = expression => {
-    const verboseLevel = 0;
+    const verboseLevel = 1;
     try {
-      const tree = parse(expression, op_table);
+      const tree = Parse(expression);
       if (verboseLevel >= 1) console.log("  is_valid_expression: tree = "+JSON.stringify(tree));
       if (tree !== null) {
         if (verboseLevel >= 1) PrintParseTree(tree, /*indentString=*/"      ", /*recursionLevel=*/0);
