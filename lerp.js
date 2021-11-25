@@ -584,10 +584,18 @@ registerSourceCodeLinesAndRequire([
     const my_search_params = new MyURLSearchOrHashParams(old_search);
     const my_hash_params = new MyURLSearchOrHashParams(old_hash);
     for (const [name,value] of searchNameValuePairs) {
-      my_search_params.set(name, value);
+      if (value === null) {
+        my_search_params.delete(name);
+      } else {
+        my_search_params.set(name, value);
+      }
     }
     for (const [name,value] of hashNameValuePairs) {
-      my_hash_params.set(name, value);
+      if (value === null) {
+        my_hash_params.delete(name);
+      } else {
+        my_hash_params.set(name, value);
+      }
     }
     let new_search = my_search_params.toString();
     let new_hash = my_hash_params.toString();
@@ -618,12 +626,13 @@ registerSourceCodeLinesAndRequire([
     const verboseLevel = 0;
     if (verboseLevel >= 1) console.log("    in SetTheDamnCustomExpressionsInTheDamnAddressBar");
     const custom_expressions = GetCustomExpressionsFromDOM();
-    const custom_expressions_string = STRINGIFY(custom_expressions);
-    SetSearchAndHashParamsInAddressBar([], [["custom", custom_expressions_string]]);
+    const custom_expressions_stringified = STRINGIFY(custom_expressions);
+    const value = custom_expressions.length==0 ? null : custom_expressions_stringified;
+    SetSearchAndHashParamsInAddressBar([], [["custom", value]]);
     if (true) {
       // Make sure the round trip isn't lossy
-      CHECK.EQ(new MyURLSearchOrHashParams(window.location.hash).get("custom"), custom_expressions_string);
-      CHECK.EQ(STRINGIFY(GetTheDamnCustomExpressionsFromTheDamnAddressBar()), custom_expressions_string);
+      CHECK.EQ(new MyURLSearchOrHashParams(window.location.hash).get("custom"), value);
+      CHECK.EQ(STRINGIFY(GetTheDamnCustomExpressionsFromTheDamnAddressBar()), custom_expressions_stringified);
     }
     if (verboseLevel >= 1) console.log("    out SetTheDamnCustomExpressionsInTheDamnAddressBar");
   };  // SetTheDamnCustomExpressionsInTheDamnAddressBar

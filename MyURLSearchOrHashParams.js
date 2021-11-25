@@ -25,6 +25,9 @@ registerSourceCodeLinesAndDefine(['./CHECK.js'], function(CHECK) {
     set(name, value) {
       return this.#url_search_params.set(name, value);
     }
+    delete(name) {
+      return this.#url_search_params.delete(name);
+    }
     // Note that the returned string does *not* include an initial '?' or '#'.
     toString() {
       let new_search_or_hash = this.#url_search_params.toString();
