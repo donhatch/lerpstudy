@@ -1,3 +1,13 @@
+// TODO: I don't understand: initially for some reason address bar says:
+//      (NOTE: do not copy-paste the whole thing, or it will come out different!!!)
+//      ?numFractionBits=3&minExponent=-6&a=11/256&b=1&custom=["a_a=t,t_<_0.5_?_a_+_t*(b-a)_:_t_>_0.5_?_b_-_(1-t)*(b-a)_:_(a+b)*0.5"]
+// but window.location.search says:
+//      "?numFractionBits=3&minExponent=-6&a=11/256&b=1&custom=[%22a%5fa=t,t_%3C_0.5_?_a_+_t*(b-a)_:_t_%3E_0.5_?_b_-_(1-t)*(b-a)_:_(a+b)*0.5%22]"
+//      Oh holy moly
+
+
+
+
 // TODO: custom lerp functions: really need to be able to see parse tree for when something goes wrong
 // TODO: custom lerp functions: auto-expand and contract text area? hmm.
 // TODO: custom lerp functions: handle divide-by-zero more gracefully (completely abort)
@@ -551,7 +561,7 @@ registerSourceCodeLinesAndRequire([
       if (space_char !== '+') {
         old_search = old_search.replaceAll('+', '%2B');
         old_search = old_search.replaceAll(space_char, '+');
-        // no need to decode %?? to '_'; URLSearchParams ctor will do that
+        // no need to decode %?? to space_char; URLSearchParams ctor will do that
       }
 
       this.#url_search_params = new URLSearchParams(old_search);
@@ -577,6 +587,7 @@ registerSourceCodeLinesAndRequire([
       new_search = new_search.replaceAll('%3F', '?');
       new_search = new_search.replaceAll('%3A', ':');
       new_search = new_search.replaceAll('%3D', '=');
+      new_search = new_search.replaceAll('%2C', ',');
 
       if (this.#space_char !== '+') {
         let two_digits_hex = this.#space_char.charCodeAt(0).toString(16);
@@ -595,7 +606,9 @@ registerSourceCodeLinesAndRequire([
 
   // Character to use for encoding spaces.
   // URLSearchParams uses '+' but I like '_' better for this app.
-  const space_char = '_';
+  // NOPE.  It's too confusing if I do this. (See note at top of file.)
+  // Leaving it '+' for now.
+  const space_char = '+';
 
   const GetCustomExpressionsFromDOM = () => {
     const custom_text_inputs = document.querySelectorAll("input.custom");
@@ -671,7 +684,6 @@ registerSourceCodeLinesAndRequire([
   // initially without "custom", since we don't have the model for that til we add the buttons
   // (although maybe we should make an explicit model instead of storing it in the ui)
   SetParamsInAddressBar([['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(a)],['b',toFractionString(b)]]);
-
 
   //======================================
   // Begin float utilities
