@@ -44,7 +44,6 @@ send_lerpstudy_to_donhatchsw:
 	cp require.js /tmp/lerpstudy_scratch/lerpstudy
 	cp registerSourceCodeLinesAndRequire.js /tmp/lerpstudy_scratch/lerpstudy
 	cp getURLParameter.js /tmp/lerpstudy_scratch/lerpstudy
-	cp setURLParam.js /tmp/lerpstudy_scratch/lerpstudy
 	cp PRINT.js /tmp/lerpstudy_scratch/lerpstudy
 	cp CHECK.js /tmp/lerpstudy_scratch/lerpstudy
 	cp STRINGIFY.js /tmp/lerpstudy_scratch/lerpstudy
