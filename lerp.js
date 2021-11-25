@@ -407,40 +407,21 @@ registerSourceCodeLinesAndRequire([
   CHECK.EQ(shouldBeUndefined, undefined);
 
 
-  // Like URLSearchParams, but encodes ' ' as '_' instead of '+',
-  // and has helpers:
+  // Like URLSearchParams, with helpers:
   //    getOrDefault()
   //    getIntOrDefaultOrThrow()
   //    getFloatOrDefaultOrThrow()
   // and the constructor ignores a leading '#' if any.
 
-  // TODO: I don't understand: when I use this with space_char='_',
-  // initially for some reason address bar says:
-  //      (NOTE: do not copy-paste the whole thing, or it will come out different!!!?)
-  //      ?numFractionBits=3&minExponent=-6&a=11/256&b=1&custom=["a_a=t,t_<_0.5_?_a_+_t*(b-a)_:_t_>_0.5_?_b_-_(1-t)*(b-a)_:_(a+b)*0.5"]
-  // but window.location.search says:
-  //      "?numFractionBits=3&minExponent=-6&a=11/256&b=1&custom=[%22a%5fa=t,t_%3C_0.5_?_a_+_t*(b-a)_:_t_%3E_0.5_?_b_-_(1-t)*(b-a)_:_(a+b)*0.5%22]"
-  //      Oh holy moly.
-  //      Ok, for now, just using it with space_char='+'
   class MyURLSearchOrHashParams {
-    #space_char;  // probably '+' or '_'
     #url_search_params;
-    constructor(window_location_search_or_hash, space_char) {
-      CHECK.EQ(typeof space_char, 'string');
-      CHECK.EQ(space_char.length, 1);
+    constructor(window_location_search_or_hash) {
+      CHECK.EQ(typeof window_location_search_or_hash, 'string');
       let old_search_or_hash = window_location_search_or_hash;
       if (old_search_or_hash.startsWith('#')) {
         old_search_or_hash = old_search_or_hash.slice(1);
       }
-
-      if (space_char !== '+') {
-        old_search_or_hash = old_search_or_hash.replaceAll('+', '%2B');
-        old_search_or_hash = old_search_or_hash.replaceAll(space_char, '+');
-        // no need to decode %?? to space_char; URLSearchParams ctor will do that
-      }
-
       this.#url_search_params = new URLSearchParams(old_search_or_hash);
-      this.#space_char = space_char;
     }
     get(name) {
       return this.#url_search_params.get(name);
@@ -452,9 +433,8 @@ registerSourceCodeLinesAndRequire([
     toString() {
       let new_search_or_hash = this.#url_search_params.toString();
 
-      // These seem to be harmless too,
+      // These seem to be harmless,
       // and keeping them cleartext enhances readability.
-      // However, do this first, in case this.#space_char is one of these chars.
       // (Thought: maybe the reason it so aggressively encodes
       // is to protect, e.g., when someone pastes a link into email
       // and then follows it by a ')' or something)
@@ -469,17 +449,6 @@ registerSourceCodeLinesAndRequire([
       new_search_or_hash = new_search_or_hash.replaceAll('%3A', ':');
       new_search_or_hash = new_search_or_hash.replaceAll('%3D', '=');
       new_search_or_hash = new_search_or_hash.replaceAll('%2C', ',');
-
-      if (this.#space_char !== '+') {
-        let two_digits_hex = this.#space_char.charCodeAt(0).toString(16);
-        while (two_digits_hex.length < 2) {
-          two_digits_hex = '0' + two_digits_hex;
-        }
-
-        new_search_or_hash = new_search_or_hash.replaceAll(this.#space_char, '%'+two_digits_hex);
-        new_search_or_hash = new_search_or_hash.replaceAll('+', this.#space_char);
-        new_search_or_hash = new_search_or_hash.replaceAll('%2B', '+');
-      }
 
       return new_search_or_hash;
     }
@@ -526,16 +495,8 @@ registerSourceCodeLinesAndRequire([
 
   };  // MyURLSearchOrHashParams
 
-  // Character to use for encoding spaces.
-  // URLSearchParams uses '+' but I like '_' better for this app.
-  // NOPE.  It's too confusing if I do this. (See note above.)
-  // So, leaving it '+' for now.
-  // TODO: just kill this feature, I think; it's asking for trouble
-  const space_char_for_my_url_search_params = '+';
-
-
   const initial_hash = window.location.hash;
-  const hash_params = new MyURLSearchOrHashParams(initial_hash, space_char_for_my_url_search_params);
+  const hash_params = new MyURLSearchOrHashParams(initial_hash);
   console.log("      hash_params = ",hash_params);
 
   const numFractionBitsDefault = 3;
@@ -677,7 +638,7 @@ registerSourceCodeLinesAndRequire([
 
   const GetTheDamnCustomExpressionsFromTheDamnAddressBar = () => {
     const old_hash = window.location.hash;
-    const hash_params = new MyURLSearchOrHashParams(old_hash, space_char_for_my_url_search_params);
+    const hash_params = new MyURLSearchOrHashParams(old_hash);
     const custom_expressions_string = hash_params.get("custom");
     if (custom_expressions_string == null) return [];
     try {
@@ -705,8 +666,8 @@ registerSourceCodeLinesAndRequire([
     const pathname = window.location.pathname;
     const old_search = window.location.search;
     const old_hash = window.location.hash;
-    const my_search_params = new MyURLSearchOrHashParams(old_search, space_char_for_my_url_search_params);
-    const my_hash_params = new MyURLSearchOrHashParams(old_hash, space_char_for_my_url_search_params);
+    const my_search_params = new MyURLSearchOrHashParams(old_search);
+    const my_hash_params = new MyURLSearchOrHashParams(old_hash);
     for (const [name,value] of searchNameValuePairs) {
       my_search_params.set(name, value);
     }
@@ -746,7 +707,7 @@ registerSourceCodeLinesAndRequire([
     SetSearchAndHashParamsInAddressBar([], [["custom", custom_expressions_string]]);
     if (true) {
       // Make sure the round trip isn't lossy
-      CHECK.EQ(new MyURLSearchOrHashParams(window.location.hash, space_char_for_my_url_search_params).get("custom"), custom_expressions_string);
+      CHECK.EQ(new MyURLSearchOrHashParams(window.location.hash).get("custom"), custom_expressions_string);
       CHECK.EQ(STRINGIFY(GetTheDamnCustomExpressionsFromTheDamnAddressBar()), custom_expressions_string);
     }
     if (verboseLevel >= 1) console.log("    out SetTheDamnCustomExpressionsInTheDamnAddressBar");
