@@ -1,4 +1,6 @@
-// TODO: custom lerp functions: BUG: '+' is getting lost in setting/getting the url params
+// TODO: "reload with factory settings" button
+// TODO: custom lerp functions: BUG: '+' is getting lost in setting/getting the url params.
+//       ohhh '+' turns into %20 which turns into space.  hmm that sucks! who's doing that?
 // TODO: custom lerp functions: avoid all the %20's in address bar if possible
 // TODO: custom lerp functions: really need to be able to see parse tree for when something goes wrong
 // TODO: custom lerp functions: auto-expand and contract text area? hmm.
@@ -397,13 +399,11 @@
 console.log("in lerp.js")
 registerSourceCodeLinesAndRequire([
   "./getURLParameter.js",
-  "./setURLParam.js",
   "./PRINT.js",
   "./CHECK.js",
   "./STRINGIFY.js",
 ], function(
   getURLParameterModule,
-  setURLParamModule,
   PRINT,
   CHECK,
   STRINGIFY,
@@ -543,7 +543,7 @@ registerSourceCodeLinesAndRequire([
     }
   };
 
-  const GetCustomExpressionssFromDOM = () => {
+  const GetCustomExpressionsFromDOM = () => {
     const custom_text_inputs = document.querySelectorAll("input.custom");
     const answer = [];
     for (const custom_text_input of custom_text_inputs) {
@@ -551,19 +551,117 @@ registerSourceCodeLinesAndRequire([
     }
     return answer;
   };
+  // TODO: kill this
   // return list of just one url param:
   // name="custom", value=stringified list of custom expressions,
   // or null if none (meaning clear the url param)
   const GetCustomExpressionsUrlParamsFromDOM = () => {
     const verboseLevel = 1;
     if (verboseLevel >= 1) console.log("    in GetCustomExpressionsUrlParamsFromDOM");
-    const texts = GetCustomExpressionssFromDOM();
+    const texts = GetCustomExpressionsFromDOM();
     if (verboseLevel >= 1) console.log("      texts = ",texts);
-    const answer = [["custom", texts.length == 0 ? null : STRINGIFY(texts)]];
+    let value = texts.length == 0 ? null : STRINGIFY(texts);
+    // HACK: we're passing whetherToEncodeValue=false (so that '/' and maybe other stuff doesn't get molested),
+    // but we *must* encode '+'.  Probably need to more fully bake an option to setURLAndParamsInURLBar,
+    // but, for now, we just encode '+' explicitly.
+    if (value !== null) {
+      value = value.replace(/\+/g, '%2b');
+      // And more hack: replace ' ' with '+'
+      value = value.replace(/ /g, '+');
+    }
+    const answer = [["custom", value]];
     if (verboseLevel >= 1) console.log("      answer = "+STRINGIFY(answer));
     if (verboseLevel >= 1) console.log("    out GetCustomExpressionsUrlParamsFromDOM");
     return answer;
   };  // GetCustomExpressionsUrlParamsFromDOM
+
+  const GetTheDamnCustomExpressionsFromTheDamnAddressBar = () => {
+    const search_params = new URLSearchParams(window.location.search);
+    const custom_expressions_string = search_params.get("custom");
+    if (custom_expressions_string == null) return [];
+    try {
+      const expressions = JSON.parse(custom_expressions_string);
+      console.log("  expressions = "+STRINGIFY(expressions));
+      CHECK(Array.isArray(expressions));
+      for (const expression of expressions) {
+        CHECK.EQ(typeof expression, 'string');
+      }
+      return expressions;
+    } catch (error) {
+      console.log("Aww fooey, couldn't parse custom expressions string "+STRINGIFY(custom_expressions_string)+" as json: "+error);
+      throw error;
+    }
+  };  // GetTheDamnCustomExpressionsFromTheDamnAddressBar
+
+  const SetParamsInAddressBar = (nameValuePairs) => {
+    const verboseLevel = 1;
+    if (verboseLevel >= 1) console.log("        in SetParamsInAddressBar");
+    if (verboseLevel >= 1) console.log("          window.location was ",window.location);
+    const origin = window.location.origin;
+    const pathname = window.location.pathname;
+    const old_search = window.location.search;
+    const hash = window.location.hash;
+    const search_params = new URLSearchParams(old_search);
+    for (const [name,value] of nameValuePairs) {
+      search_params.set(name, value);
+    }
+    let new_search = search_params.toString();
+    if (true) {
+      // Not sure how robust this is in general, but it seems to work ok for us.
+      // Note that we must leave '+' encoded as %2B; otherwise
+      // it will turn into ' ' when a later URLSearchParams is constructed.
+      // TODO: but think about using a different char for that!
+      // I think underscore would make everything more readable overall.
+      //       that is:
+      //         1. read window.location.search
+      //              (which has ' ' encoded as '_', '_' encoded as %??, '+' left alone)
+      //         2. convert:
+      //              '+' -> %2B   (representing '+')
+      //              '_' -> '+'   (representing '_')
+      //              and '_' is left encoded
+      //         3. Make a new URLSearchParams out of it, which decodes:
+      //              '+' -> ' '
+      //              '%2B' -> '+'
+      //              '%2??' -> '_'
+      //         4. fiddle fiddle
+      //         5. toString on that, which encodes:
+      //              '+' to %2B
+      //              ' ' to '+'
+      //              leaves '_' alone
+      //         6. convert:
+      //              '_' -> %??
+      //              '+' -> '_'
+      //         7. save into window.location.search
+      new_search = new_search.replace(/%2F/g, '/');
+      new_search = new_search.replace(/%5B/g, '[');
+      new_search = new_search.replace(/%5D/g, ']');
+      new_search = new_search.replace(/%28/g, '(');
+      new_search = new_search.replace(/%29/g, ')');
+      new_search = new_search.replace(/%3F/g, '?');
+      new_search = new_search.replace(/%3A/g, ':');
+    }
+    const new_href= origin+pathname+'?'+new_search+hash;
+    window.history.replaceState(/*stateObj=*/null, /*title=*/'', new_href);
+    CHECK.EQ(window.location.search, '?'+new_search);  // assumes there is at least one thing, probably
+    if (verboseLevel >= 1) console.log("          window.location is ",window.location);
+    if (verboseLevel >= 1) console.log("        out SetParamsInAddressBar");
+  };  // SetParamsInAddressBar
+
+  const SetTheDamnCustomExpressionsInTheDamnAddressBar = () => {
+    const verboseLevel = 1;
+    if (verboseLevel >= 1) console.log("    in SetTheDamnCustomExpressionsInTheDamnAddressBar");
+    const custom_expressions = GetCustomExpressionsFromDOM();
+    const custom_expressions_string = STRINGIFY(custom_expressions);
+    SetParamsInAddressBar([["custom", custom_expressions_string]]);
+    if (true) {
+      // Make sure the round trip isn't lossy
+      CHECK.EQ(new URLSearchParams(window.location.search).get("custom"), custom_expressions_string);
+      CHECK.EQ(STRINGIFY(GetTheDamnCustomExpressionsFromTheDamnAddressBar()),
+               custom_expressions_string);
+    }
+    if (verboseLevel >= 1) console.log("    out SetTheDamnCustomExpressionsInTheDamnAddressBar");
+  };  // SetTheDamnCustomExpressionsInTheDamnAddressBar
+
 
   let a = parseFractionString(aString);
   let b = parseFractionString(bString);
@@ -574,9 +672,7 @@ registerSourceCodeLinesAndRequire([
   const xformUrlPart = urlPart=>urlPart;
   // initially without "custom", since we don't have the model for that til we add the buttons
   // (although maybe we should make an explicit model instead of storing it in the ui)
-  setURLParamModule.setURLAndParamsInURLBar(xformUrlPart,
-                                            [['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(a)],['b',toFractionString(b)]],
-                                            /*whetherToEncodeValue=*/false);  // don't encode the '/' as  %2F
+  SetParamsInAddressBar([['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(a)],['b',toFractionString(b)]]);
 
 
   //======================================
@@ -2812,11 +2908,12 @@ registerSourceCodeLinesAndRequire([
   };  // is_valid_expression
 
   const AddCustomExpression = expression => {
-    console.log("in window.add_custom_expression_button.onclick");
+    console.log("in AddCustomExpression");
 
     if (!is_valid_expression(expression)) {
       console.error("  tried to add invalid custom expression "+STRINGIFY(expression));
-      console.log("out window.add_custom_expression_button.onclick (expression was invalid)");
+      console.log("out AddCustomExpression (expression was invalid)");
+      return;
     }
 
     // Create a new tr element above the current tr element.
@@ -2832,10 +2929,7 @@ registerSourceCodeLinesAndRequire([
     x_button.onclick = () => {
       new_tr.remove();
       // custom expressions changed, so...
-      setURLParamModule.setURLAndParamsInURLBarWithVerboseLevel(xformUrlPart,
-          [...GetCustomExpressionsUrlParamsFromDOM()],
-          /*whetherToEncodeValue=*/false,  // don't encode the '/' as  %2F
-          /*verboseLevel=*/0);
+      SetTheDamnCustomExpressionsInTheDamnAddressBar();
     };
 
     const radiobutton_td = new_tr.insertCell(1);
@@ -2854,10 +2948,7 @@ registerSourceCodeLinesAndRequire([
     textinput.old_value = textinput.value;  // keep value around so it can be restored
 
     // custom expressions changed, so...
-    setURLParamModule.setURLAndParamsInURLBarWithVerboseLevel(xformUrlPart,
-        [...GetCustomExpressionsUrlParamsFromDOM()],
-        /*whetherToEncodeValue=*/false,  // don't encode the '/' as  %2F
-        /*verboseLevel=*/0);
+    SetTheDamnCustomExpressionsInTheDamnAddressBar();
 
     textinput.onkeydown = event => {
       const verboseLevel = 0;
@@ -2898,16 +2989,12 @@ registerSourceCodeLinesAndRequire([
         }
 
         // custom expressions changed, so...
-        setURLParamModule.setURLAndParamsInURLBarWithVerboseLevel(xformUrlPart,
-            [...GetCustomExpressionsUrlParamsFromDOM()],
-            /*whetherToEncodeValue=*/false,  // don't encode the '/' as  %2F
-            /*verboseLevel=*/0);
-
+        SetTheDamnCustomExpressionsInTheDamnAddressBar();
       }
       if (verboseLevel >= 1) console.log("    out textinput.onchange");
     };
 
-    console.log("out window.add_custom_expression_button.onclick");
+    console.log("out AddCustomExpression");
   };  // AddCustomExpression
 
   window.add_custom_expression_button.onclick = () => {
@@ -2918,26 +3005,11 @@ registerSourceCodeLinesAndRequire([
 
   // Add initial ones, from the url
   if (true) {
-    let custom_expressions_string = getURLParameterModule.getURLParameter("custom");
-    console.log("  ==============");
-    console.log("  STRINGIFY(custom_expressions_string) = "+STRINGIFY(custom_expressions_string));
-    console.log("  custom_expressions_string = "+custom_expressions_string);
-    if (custom_expressions_string !== null) {
-      try {
-        const expressions = JSON.parse(custom_expressions_string);
-        console.log("  expressions = "+STRINGIFY(expressions));
-        CHECK(Array.isArray(expressions));
-        for (const expression of expressions) {
-          CHECK.EQ(typeof expression, 'string');
-        }
-        for (const expression of expressions) {
-          AddCustomExpression(expression);
-        }
-      } catch (error) {
-        console.log("Aww fooey, couldn't parse customs string "+STRINGIFY(custom_expressions_string)+" as json: "+error);
-      }
+    const expressions = GetTheDamnCustomExpressionsFromTheDamnAddressBar();
+    console.log("  expressions = "+STRINGIFY(expressions));
+    for (const expression of expressions) {
+      AddCustomExpression(expression);
     }
-    console.log("  ==============");
   }
 
   let xOfMouseDown = undefined;
@@ -2971,18 +3043,12 @@ registerSourceCodeLinesAndRequire([
       if (false) {
       } else if (event.key === '=' || event.key === '+') {
         numFractionBits += 1;
-        setURLParamModule.setURLAndParamsInURLBarWithVerboseLevel(xformUrlPart,
-            [['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(a)],['b',toFractionString(b)], ...GetCustomExpressionsUrlParamsFromDOM()],
-            /*whetherToEncodeValue=*/false,  // don't encode the '/' as  %2F
-            /*verboseLevel=*/0);
+        SetParamsInAddressBar([['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(a)],['b',toFractionString(b)]]);
         populateTheSVG(svg, Lerp, a, b);
       } else if (event.key == '-') {
         if (numFractionBits > 0) {
           numFractionBits -= 1;
-          setURLParamModule.setURLAndParamsInURLBarWithVerboseLevel(xformUrlPart,
-              [['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(a)],['b',toFractionString(b)], ...GetCustomExpressionsUrlParamsFromDOM()],
-              /*whetherToEncodeValue=*/false,  // don't encode the '/' as  %2F
-              /*verboseLevel=*/0);
+          SetParamsInAddressBar([['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(a)],['b',toFractionString(b)]]);
           populateTheSVG(svg, Lerp, a, b);
         }
       } else if (event.key == "ArrowUp") {
@@ -2997,10 +3063,7 @@ registerSourceCodeLinesAndRequire([
           a = Succ(a);
           b = Succ(b);
         }
-        setURLParamModule.setURLAndParamsInURLBarWithVerboseLevel(xformUrlPart,
-            [['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(a)],['b',toFractionString(b)], ...GetCustomExpressionsUrlParamsFromDOM()],
-            /*whetherToEncodeValue=*/false,  // don't encode the '/' as  %2F
-            /*verboseLevel=*/0);
+        SetParamsInAddressBar([['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(a)],['b',toFractionString(b)]]);
         populateTheSVG(svg, Lerp, a, b);
       } else if (event.key == "ArrowDown") {
         event.preventDefault();  // prevent scrolling
@@ -3014,10 +3077,7 @@ registerSourceCodeLinesAndRequire([
           a = Pred(a);
           b = Pred(b);
         }
-        setURLParamModule.setURLAndParamsInURLBarWithVerboseLevel(xformUrlPart,
-            [['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(a)],['b',toFractionString(b)], ...GetCustomExpressionsUrlParamsFromDOM()],
-            /*whetherToEncodeValue=*/false,  // don't encode the '/' as  %2F
-            /*verboseLevel=*/0);
+        SetParamsInAddressBar([['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(a)],['b',toFractionString(b)]]);
         populateTheSVG(svg, Lerp, a, b);
       }
     }  // if !event.ctrlKey
@@ -3095,10 +3155,7 @@ registerSourceCodeLinesAndRequire([
 
       if (aSnappedNew != aSnappedOld || bSnappedNew != bSnappedOld) {
         // Note that, while mouse is down, a and b in general aren't representable floats, so we round them when setting the URL param here
-        setURLParamModule.setURLAndParamsInURLBarWithVerboseLevel(xformUrlPart,
-            [['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(aSnappedNew)],['b',toFractionString(bSnappedNew)], ...GetCustomExpressionsUrlParamsFromDOM()],
-            /*whetherToEncodeValue=*/false,  // don't encode the '/' as  %2F
-            /*verboseLevel=*/0);
+        SetParamsInAddressBar([['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(aSnappedNew)],['b',toFractionString(bSnappedNew)]]);
       }
 
       populateTheSVG(svg, Lerp, a, b);

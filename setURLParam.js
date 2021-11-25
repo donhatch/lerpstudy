@@ -1,3 +1,4 @@
+// TODO:  probably just kill this, it's subsumed by URLSearchParams manipulations, as done in lerp.js
 'use strict';
 console.log("in setURLParam.js");
 define([
