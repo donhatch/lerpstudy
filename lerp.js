@@ -1,3 +1,4 @@
+// TODO: custom lerp functions: "return" instead of setting "answer" which is a bit weird
 // TODO: the tooltip stays up when it's up when I leave the svg
 // TODO: custom lerp functions: unary minus
 // TODO: custom lerp functions: "at twice precision"
@@ -45,7 +46,6 @@
 // TODO: make lerp-favicon.png a real picture of something
 // TODO: the usual event screwup, need to listen on window instead
 // TODO: the usual select-the-text screwup; how to disable?
-// TODO: put the a and b labels next to the moving line
 // TODO: label axes
 // TODO: allow adjusting minExponent too
 // TODO: show numFractionBits and minExponent
@@ -55,13 +55,6 @@
 // TODO: show more interesting lines for the various algorithms
 // TODO: dragging a or b up or down slowly doesn't redraw until I've stopped moving; that's unfriendly
 // TODO: highlight non-monotonicity! (how?)
-// TODO: custom expressions?  would be cool, need to be able to parse
-//             ()
-//             + -
-//             *   (maybe not division? not sure)
-//             ?:
-//             < <= > >=
-//             variables? hmm
 
 
 /*
@@ -2419,47 +2412,96 @@ registerSourceCodeLinesAndRequire([
   // (i.e. a function that returns a number);
   // but subexpression functions may return bools.
   const ParseTreeToLerpFunction = (tree) => {
-    if (typeof tree === 'string') {
-      if (tree === "a") return (a,b,t) => a;
-      if (tree === "b") return (a,b,t) => b;
-      if (tree === "t") return (a,b,t) => t;
-      if (tree === "true") return (a,b,t) => true;
-      if (tree === "false") return (a,b,t) => false;
+    const verboseLevel = 0;
+    if (verboseLevel >= 1) console.log("in ParseTreeToLerpFunction");
 
-      const number = Number(tree);
-      CHECK(!Number.isNaN(number));
-      const rounded_number = Round(number);
-      return (a,b,t) => rounded_number;
+    // This recursive helper function constructs
+    // a function that takes a,b,t,vars
+    // instead of a,b,t.
+    // vars is created by the top-level constructed function.
+    // TODO: actually don't need to pass a,b,t around any more, since they are in vars
+    const recurse = (tree) => {
+      const verboseLevel = 0;
+      if (verboseLevel >= 1) console.log("    in recurse");
+      if (verboseLevel >= 1) console.log("      tree = "+STRINGIFY(tree));
+      if (typeof tree === 'string') {
 
-    } else if (Array.isArray(tree)) {
-      CHECK.EQ(tree.length, 3);
-      const [opname, implementation, operands] = tree;
-      if (opname === "?") {
-        CHECK.EQ(operands.length, 3);
-        const LHS_function = ParseTreeToLerpFunction(operands[0]);
-        const MHS_function = ParseTreeToLerpFunction(operands[1]);
-        const RHS_function = ParseTreeToLerpFunction(operands[2]);
-        return (a,b,t) => {
-          return LHS_function(a,b,t) ? MHS_function(a,b,t)
-                                     : RHS_function(a,b,t);
+        const number = Number(tree);
+        if (!Number.isNaN(number)) {
+          const rounded_number = Round(number);
+          if (verboseLevel >= 1) console.log("    out recurse");
+          return (a,b,t,vars) => rounded_number;
+        }
+
+        CHECK(/[_a-zA-Z][_a-zA-Z0-9]*/.test(tree));
+        const name = tree;
+          if (verboseLevel >= 1) console.log("    out recurse");
+        return (a,b,t,vars) => {
+          if (!vars.has(name)) {
+            throw new Error("undefined variable "+STRINGIFY(name));
+          }
+          const value = vars.get(name);
+          return value;
         };
+      } else if (Array.isArray(tree)) {
+        CHECK.EQ(tree.length, 3);
+        const [opname, implementation, operands] = tree;
+        if (opname === "?") {
+          CHECK.EQ(operands.length, 3);
+          const LHS_function = recurse(operands[0]);
+          const MHS_function = recurse(operands[1]);
+          const RHS_function = recurse(operands[2]);
+          if (verboseLevel >= 1) console.log("    out recurse");
+          return (a,b,t,vars) => {
+            return LHS_function(a,b,t,vars) ? MHS_function(a,b,t,vars)
+                                            : RHS_function(a,b,t,vars);
+          };
+        } else if (opname === "=") {
+          CHECK.EQ(operands.length, 2);
+          const name = operands[0];
+          CHECK.EQ(typeof name, 'string');
+          CHECK(/[_a-zA-Z][_a-zA-Z0-9]*/.test(name));
+          const RHS_function = recurse(operands[1]);
+          if (verboseLevel >= 1) console.log("    out recurse");
+          return (a,b,t,vars) => {
+            const value = RHS_function(a,b,t,vars);
+            vars.set(name, value);
+            return value;
+          }
+        } else {
+          CHECK.EQ(operands.length, 2);
+          const LHS_function = recurse(operands[0]);
+          const RHS_function = recurse(operands[1]);
+          // CBB: possible optimization: detect when LHS and/or RHS is a leaf, and inline its value
+          if (verboseLevel >= 1) console.log("    out recurse");
+          return (a,b,t,vars) => {
+            return implementation(LHS_function(a,b,t,vars), RHS_function(a,b,t,vars));
+          };
+        }
       } else {
-        CHECK.EQ(operands.length, 2);
-        const LHS_function = ParseTreeToLerpFunction(operands[0]);
-        const RHS_function = ParseTreeToLerpFunction(operands[1]);
-        // CBB: possible optimization: detect when LHS and/or RHS is a leaf, and inline its value
-        return (a,b,t) => {
-          return implementation(LHS_function(a,b,t), RHS_function(a,b,t));
-        };
+        throw new Error("ParseTreeToLerpFunction called on non-string non-list "+STRINGIFY(tree));
       }
-    } else {
-      throw new Error("ParseTreeToLerpFunction called on non-string non-list "+STRINGIFY(tree));
-    }
+    };
+
+    const f = recurse(tree);
+    const answer = (a,b,t) => {
+      const vars = new Map([
+        ["a",a],
+        ["b",b],
+        ["t",t],
+        ["true",true],
+        ["false",false],
+      ]);
+      let answer = f(a,b,t,vars);
+      // Prefer value of "answer" variable if it was set.
+      return vars.has("answer") ? vars.get("answer") : answer;
+    };
+    return answer;
   };  // ParseTreeToLerpFunction
 
   const parse = (expression, op_table) => {
-    const verboseLevel = 1;
-    console.log("    in parse(expression="+JSON.stringify(expression)+")");
+    const verboseLevel = 0;
+    if (verboseLevel >= 1) console.log("    in parse(expression="+JSON.stringify(expression)+")");
     // Current position within expression string.
     // All the helper functions in here have the side effect of moving pos.
     let pos = 0;
@@ -2529,16 +2571,31 @@ registerSourceCodeLinesAndRequire([
         return null;
       }
     };  // parseNumber
+    const parseIdentifier = () => {
+      let pos1 = pos;
+      if (pos1 < expression.length && /[_a-zA-Z]/.test(expression[pos1])) {
+        pos1++;
+        while (pos1 < expression.length && /[_a-zA-Z0-9]/.test(expression[pos1])) {
+          pos1++;
+        }
+        const answer = expression.slice(pos, pos1);
+        pos = pos1;
+        return answer;
+      } else {
+        return null;
+      }
+    };  // parseIdentifier
+
     const parseFactor = () => {
       const verboseLevel = 0;
       if (verboseLevel >= 1) console.log("            in parseFactor(pos="+pos+")");
 
-      for (const literal of ["true", "false", "a", "b", "t"]) {  // "true" must come before "t" !
-        if (parseLiteral(literal) !== null) {
-          if (verboseLevel >= 1) console.log("            out parseFactor(pos="+pos+"), returning literal "+STRINGIFY(literal));
-          return literal;
-        }
+      const identifier = parseIdentifier();
+      if (identifier != null) {
+        if (verboseLevel >= 1) console.log("            out parseFactor(pos="+pos+"), returning identifier "+STRINGIFY(identifier));
+        return identifier;
       }
+
       const number = parseNumber();
       if (number !== null) {
         if (verboseLevel >= 1) console.log("            out parseFactor(pos="+pos+"), returning number "+STRINGIFY(number));
@@ -2632,22 +2689,25 @@ registerSourceCodeLinesAndRequire([
     return answer;
   };  // parse
   const op_table = [
-    {name:"*", precedence:5, implementation:(x,y)=>Times(x,y)},
-    {name:"/", precedence:5, implementation:(x,y)=>DividedBy(x,y)},
+    {name:"*", precedence:6, implementation:(x,y)=>Times(x,y)},
+    {name:"/", precedence:6, implementation:(x,y)=>DividedBy(x,y)},
 
-    {name:"+", precedence:4, implementation:(x,y)=>Plus(x,y)},
-    {name:"-", precedence:4, implementation:(x,y)=>Minus(x,y)},
+    {name:"+", precedence:5, implementation:(x,y)=>Plus(x,y)},
+    {name:"-", precedence:5, implementation:(x,y)=>Minus(x,y)},
 
     // NOTE: "<=" must come before "<" so it will be preferred
-    {name:"<=", precedence:3, implementation:(x,y)=>x<=y},
-    {name:"<", precedence:3, implementation:(x,y)=>x<y},
+    {name:"<=", precedence:4, implementation:(x,y)=>x<=y},
+    {name:"<", precedence:4, implementation:(x,y)=>x<y},
     // NOTE: ">=" must come before ">" so it will be preferred
-    {name:">=", precedence:3, implementation:(x,y)=>x>=y},
-    {name:">", precedence:3, implementation:(x,y)=>x>y},
-    {name:"==", precedence:3, implementation:(x,y)=>x==y},
-    {name:"!=", precedence:3, implementation:(x,y)=>x!=y},
+    {name:">=", precedence:4, implementation:(x,y)=>x>=y},
+    {name:">", precedence:4, implementation:(x,y)=>x>y},
+    // NOTE: "==" must come before "=" so it will be preferred
+    {name:"==", precedence:4, implementation:(x,y)=>x==y},
+    {name:"!=", precedence:4, implementation:(x,y)=>x!=y},
 
-    {name:"?", precedence:2, implementation:null},  // special case in code
+    {name:"?", precedence:3, implementation:null},  // special case in code
+
+    {name:"=", precedence:2, implementation:null},  // special case in code
 
     {name:",", precedence:1, implementation:(x,y)=>(x,y)},
 
@@ -2658,23 +2718,26 @@ registerSourceCodeLinesAndRequire([
   };  // Parse
 
   const is_valid_expression = expression => {
+    const verboseLevel = 0;
     try {
       const tree = parse(expression, op_table);
-      console.log("  is_valid_expression: tree = "+JSON.stringify(tree));
+      if (verboseLevel >= 1) console.log("  is_valid_expression: tree = "+JSON.stringify(tree));
       if (tree !== null) {
-        PrintParseTree(tree, /*indentString=*/"      ", /*recursionLevel=*/0);
+        if (verboseLevel >= 1) PrintParseTree(tree, /*indentString=*/"      ", /*recursionLevel=*/0);
         const lerp_function = ParseTreeToLerpFunction(tree);
-        console.log("  lerp_function = "+STRINGIFY(lerp_function));
+        if (verboseLevel >= 1) console.log("  lerp_function = "+STRINGIFY(lerp_function));
+        if (verboseLevel >= 1) console.log("  TESTING: lerp_function(1, 2, 0.5)");
         const test_answer = lerp_function(.25, .75, 0.5);
-        console.log("  TESTING: lerp_function(1, 2, 0.5) = ",STRINGIFY(test_answer));
+        if (verboseLevel >= 1) console.log("  TESTING: lerp_function(1, 2, 0.5) = ",STRINGIFY(test_answer));
         if (typeof test_answer !== 'number') {
-          console.log("is_valid_expression returning false because lerp_function(1, 2, 0.5) returned "+STRINGIFY(test_answer)+" which is of type "+STRINGIFY(typeof test_answer)+", not 'number'");
+          console.log("is_valid_expression("+STRINGIFY(expression)+" returning false because lerp_function(1, 2, 0.5) returned "+STRINGIFY(test_answer)+" which is of type "+STRINGIFY(typeof test_answer)+", not 'number'");
           return false;
         }
       }
+      if (verboseLevel >= 1) console.log("is_valid_expression returning (tree!==null) = "+STRINGIFY(tree!==null));
       return tree !== null;
     } catch (error) {
-      console.log("is_valid_expression returning false because: ",error);
+      if (verboseLevel >= 1) console.log("is_valid_expression returning false because: ",error);
       return false;
     }
   };  // is_valid_expression
@@ -2695,7 +2758,8 @@ registerSourceCodeLinesAndRequire([
     x_button.onclick = () => new_tr.remove();
 
     const radiobutton_td = new_tr.insertCell(1);
-    radiobutton_td.innerHTML = '<input type="radio" name="lerpmethod"><input type="text" style="font-family:monospace;" size="75" value="t < 0.5 ? a + t*(b-a) : t > 0.5 ? b - (1-t)*(b-a) : (a+b)*0.5"></input>'
+    // font-size:13px empirically matches the font size of the radio button labels, although I wouldn't know how to predict that
+    radiobutton_td.innerHTML = '<input type="radio" name="lerpmethod"><input type="text" style="font-family:monospace; font-size:13px;" size="80" value="t < 0.5 ? a + t*(b-a) : t > 0.5 ? b - (1-t)*(b-a) : (a+b)*0.5"></input>'
     const radiobutton = radiobutton_td.children[0];
     console.log("  radiobutton = ",radiobutton);
     const textinput = radiobutton_td.children[1];
@@ -2708,17 +2772,19 @@ registerSourceCodeLinesAndRequire([
     textinput.old_value = textinput.value;  // keep value around so it can be restored
 
     textinput.onkeydown = event => {
-      console.log("    in textinput.onkeydown");
-      console.log("      event = ",event);
+      const verboseLevel = 0;
+      if (verboseLevel >= 1) console.log("    in textinput.onkeydown");
+      if (verboseLevel >= 1) console.log("      event = ",event);
       if (event.key === 'Escape') {
         textinput.value = textinput.old_value;
         textinput.style.backgroundColor = 'white';
       }
-      console.log("    out textinput.onkeydown");
+      if (verboseLevel >= 1) console.log("    out textinput.onkeydown");
     };
     textinput.oninput = event => {
-      console.log("    in textinput.oninput");
-      console.log("      event = ",event);
+      const verboseLevel = 0;
+      if (verboseLevel >= 1) console.log("    in textinput.oninput");
+      if (verboseLevel >= 1) console.log("      event = ",event);
       const new_value = textinput.value;
       if (new_value === textinput.old_value) {
         textinput.style.backgroundColor = 'white';
@@ -2727,14 +2793,15 @@ registerSourceCodeLinesAndRequire([
       } else {
         textinput.style.backgroundColor = '#ffcccc';  // pink
       }
-      console.log("      new_value = "+STRINGIFY(new_value));
-      console.log("    out textinput.oninput");
+      if (verboseLevel >= 1) console.log("      new_value = "+STRINGIFY(new_value));
+      if (verboseLevel >= 1) console.log("    out textinput.oninput");
     };
     textinput.onchange = event => {
-      console.log("    in textinput.onchange");
-      console.log("      event = ",event);
+      const verboseLevel = 0;
+      if (verboseLevel >= 1) console.log("    in textinput.onchange");
+      if (verboseLevel >= 1) console.log("      event = ",event);
       const new_value = textinput.value;
-      console.log("      new_value = "+STRINGIFY(new_value));
+      if (verboseLevel >= 1) console.log("      new_value = "+STRINGIFY(new_value));
       if (is_valid_expression(new_value)) {
         textinput.old_value = new_value;
         textinput.style.backgroundColor = 'white';
@@ -2742,7 +2809,7 @@ registerSourceCodeLinesAndRequire([
           setLerpMethodToCustom(textinput.old_value);
         }
       }
-      console.log("    out textinput.onchange");
+      if (verboseLevel >= 1) console.log("    out textinput.onchange");
     };
 
     console.log("out window.add_custom_expression.onclick");
@@ -2942,6 +3009,8 @@ registerSourceCodeLinesAndRequire([
     xOfPreviousMouseEvent = event.offsetX;
     yOfPreviousMouseEvent = event.offsetY;
   });
+
+  STRINGIFY.test();
 
   console.log("    out lerp.js require callback");
 });
