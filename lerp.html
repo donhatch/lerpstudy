@@ -146,7 +146,7 @@
         <td>
          <label>
           <input type="radio" id="lerpmethodMaybe2" name="lerpmethod">
-          <span class="mono">answer0 = a+t(b-a); answer1 = b-(1-t)(b-a); answer = (1-t)*answer0 + t*answer1</span>
+          <span class="mono">answer0 = a+t*(b-a); answer1 = b-(1-t)*(b-a); answer = (1-t)*answer0 + t*answer1</span>
          </label>
 
        <tr>
@@ -154,7 +154,7 @@
         <td>
          <label>
           <input type="radio" id="lerpmethodMaybe3" name="lerpmethod">
-          <span class="mono">answer0 = (1-t)*a+t*b; answer = answer0 - ((answer0-a)/t+a-b)*t</span>
+          <span class="mono">answer0 = (1-t)*a+t*b; answer = t==0 ? answer0 : answer0 - ((answer0-a)/t+a-b)*t</span>
          </label>
 
        <tr>
@@ -162,7 +162,7 @@
         <td>
          <label>
           <input type="radio" id="lerpmethodMaybe4" name="lerpmethod">
-          <span class="mono">answer0 = (1-t)*a+t*b; answer = answer0 - ((answer0-b)/(1-t)+b-a)*(1-t)</span>
+          <span class="mono">answer0 = (1-t)*a+t*b; answer = t==1 ? answer0 : answer0 - ((answer0-b)/(1-t)+b-a)*(1-t)</span>
          </label>
 
        <tr>
