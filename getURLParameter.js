@@ -20,8 +20,11 @@ registerSourceCodeLinesAndDefine(['./CHECK.js'], function(CHECK) {
     CHECK.EQ(typeof(name), 'string');
     let valueString = getURLParameter(name);
     if (valueString == null) return defaultValue;
-    let value = parseInt(valueString); // CBB: parseInt allows trailing garbage
-    if (isNaN(value)) {
+    // Do not use parseInt for this, since that ignores trailing spaces.
+    // However, beware that the Number constructor unhelpfully converts
+    // zero-or-more spaces to 0.
+    let value = /\s*/.test(valueString) ? NaN : Number(valueString);
+    if (!Number.isInteger(value)) {
       throw Error('bad url param '+name+'='+valueString+'');
     }
     return value;
@@ -31,7 +34,10 @@ registerSourceCodeLinesAndDefine(['./CHECK.js'], function(CHECK) {
     CHECK.EQ(typeof(name), 'string');
     let valueString = getURLParameter(name);
     if (valueString == null) return defaultValue;
-    let value = parseFloat(valueString); // CBB: parseFloat allows trailing garbage
+    // Do not use parseFloat for this, since that ignores trailing spaces.
+    // However, beware that the Number constructor unhelpfully converts
+    // zero-or-more spaces to 0.
+    let value = /\s*/.test(valueString) ? NaN : Number(valueString);
     if (isNaN(value)) {
       throw Error('bad url param '+name+'='+valueString+'');
     }
