@@ -110,6 +110,15 @@ define([], function() {
           for (let i = 0; i < x.length; ++i) {
             pass1(x[i], locationToIndex, indexToRefCount);
           }
+        } else if (x instanceof Map) {  // have to test this before 'object'
+          x.forEach((value,key) => {
+            pass1(key, locationToIndex, indexToRefCount);
+            pass1(value, locationToIndex, indexToRefCount);
+          });
+        } else if (x instanceof Set) {  // have to test this before 'object'
+          x.forEach(value => {
+            pass1(value, locationToIndex, indexToRefCount);
+          });
         } else if (typeof x === 'object') {
           let keys = Object.getOwnPropertyNames(x);
           for (let i = 0; i < keys.length; ++i) {
@@ -149,6 +158,32 @@ define([], function() {
           pass2(x[i], locationToIndex, locationIndexToVarIndex, varIndexToRefsSeenSoFar, answerPieces);
         }
         answerPieces.push(']');
+      } else if (x instanceof Map) {  // have to test this before 'object'
+        answerPieces.push('Map('+x.size+')');
+        answerPieces.push('{');
+        let i = 0;
+        x.forEach((value,key) => {
+          if (i > 0) answerPieces.push(',');
+          if (typeof key === 'string' && /^[_a-zA-Z0-9]+$/.test(key)) { // conservative test; assume *not* an identifier if in doubt
+            answerPieces.push(key);
+          } else {
+            pass2(key, locationToIndex, locationIndexToVarIndex, varIndexToRefsSeenSoFar, answerPieces);
+          }
+          answerPieces.push('=>');
+          pass2(value, locationToIndex, locationIndexToVarIndex, varIndexToRefsSeenSoFar, answerPieces);
+          i++;
+        });
+        answerPieces.push('}');
+      } else if (x instanceof Set) {  // have to test this before 'object'
+        answerPieces.push('Set('+x.size+')');
+        answerPieces.push('{');
+        let i = 0;
+        x.forEach(value => {
+          if (i > 0) answerPieces.push(',');
+          pass2(value, locationToIndex, locationIndexToVarIndex, varIndexToRefsSeenSoFar, answerPieces);
+          i++;
+        });
+        answerPieces.push('}');
       } else if (typeof x === 'object') {
         if (x.constructor.name !== 'Object') {
           answerPieces.push('[object '+x.constructor.name+']');
@@ -217,6 +252,18 @@ define([], function() {
       let d = [c,c];
       d.push(d);
       CHECK.EQ(STRINGIFYsmart(d), 'x0=[x1=[],x1,x0]');
+    }
+    {
+      let e = [];
+      let f = new Map([["a",e], ["b",e]]);
+      f.set("f",f);
+      CHECK.EQ(STRINGIFYsmart(f), "x0=Map(3){a=>x1=[],b=>x1,f=>x0}");
+    }
+    {
+      let g = [];
+      let h = new Set("a");
+      h.add(h);
+      CHECK.EQ(STRINGIFYsmart(h), 'x0=Set(2){"a",x0}');
     }
     console.log("      passed!");
     console.log("    out STRINGIFYsmart.test");
