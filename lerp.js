@@ -1,10 +1,7 @@
-// TODO: custom lerp functions: "return 0;" syntax error (because ; is treated as a binop requiring RHS)
-// TODO: custom lerp functions: maybe kill semicolons?  commas suffice.
 // TODO: custom lerp functions: really need to be able to see parse tree for when something goes wrong
 // TODO: custom lerp functions: auto-expand and contract text area? hmm.
 // TODO: custom lerp functions: handle divide-by-zero more gracefully (completely abort)
 // TODO: the tooltip stays up when it's up when I leave the svg
-// TODO: custom lerp functions: unary minus
 // TODO: custom lerp functions: "at twice precision"
 // TODO: custom lerp functions: persist in address bar
 // TODO: now that I want to copy-paste a lot, I don't think I want radio buttons to be checked when I click on them
@@ -2722,7 +2719,7 @@ registerSourceCodeLinesAndRequire([
     return answer;
   };  // parse
   const binary_op_table = [
-    // precedence:6 is for left-unary ops "-" and "!"
+    // precedence:6 is for left-unary ops, e.g. "-" and "!"
 
     {name:"*", precedence:5, implementation:(x,y)=>Times(x,y)},
     {name:"/", precedence:5, implementation:(x,y)=>DividedBy(x,y)},
@@ -2749,6 +2746,10 @@ registerSourceCodeLinesAndRequire([
   ];  // binary_op_table
 
   const left_unary_op_table = [
+    // sort of a hack: treat these as left unary ops.  so "pred t" works
+    {name:"pred", precedence:6, implementation:(x)=>Pred(x)},
+    {name:"succ", precedence:6, implementation:(x)=>Succ(x)},
+
     {name:"!", precedence:6, implementation:(x)=>UnaryNot(x)},
 
     // CBB: negative numbers end up being interpreted as unary-minus
