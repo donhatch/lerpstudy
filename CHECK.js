@@ -149,7 +149,9 @@ define(['./sourceCodeLines.js', './STRINGIFY.js', './getStackTrace.js'], functio
       throw new Error("Bad CHECK.EQ: arguments.length is "+arguments.length+", should be 2");
     }
     if (!(a === b)) {
-      let condDescription = ""+STRINGIFY(a)+" === "+STRINGIFY(b);
+      // The newlines are a bit messy, but they can help eyeballing where
+      // differences are, when a and b are strings.
+      let condDescription = "\n"+STRINGIFY(a)+" === \n"+STRINGIFY(b);
       if (!(a !== b)) {
         throw new Error("Bad CHECK.EQ: "+condDescription+" (neither === nor !==)");
       }
