@@ -10,7 +10,6 @@
 
 // TODO: custom lerp functions: really need to be able to see parse tree for when something goes wrong
 // TODO: custom lerp functions: handle divide-by-zero more gracefully (completely abort)
-// TODO: the tooltip stays up when it's up when I leave the svg
 // TODO: custom lerp functions: "at twice precision"
 // TODO: now that I want to copy-paste a lot, I don't think I want radio buttons to be checked when I click on them
 //       (or do I?  it's only a problem if user double-clicks. hmm. https://stackoverflow.com/questions/5497073/how-to-differentiate-single-click-event-and-double-click-event )
@@ -3149,6 +3148,7 @@ registerSourceCodeLinesAndRequire([
     if (eventVerboseLevel >= 1) console.log("  event = ",event);
     xOfPreviousMouseEvent = event.offsetX;
     yOfPreviousMouseEvent = event.offsetY;
+    hideTooltip();
   });
   svg.addEventListener("mousemove", (event) => {
     if (draggingA || draggingB) {
