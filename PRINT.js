@@ -20,6 +20,7 @@ define(['./sourceCodeLines.js', './STRINGIFY.js', './getStackTrace.js'], functio
   if (false) {  // TODO: remove this if I can
     // XXX HACK- I am lost.
     // XXX why did I do this, exactly??
+    // XXX maybe just so I can experiment in the console?
     if (window.STRINGIFY === undefined) {
       console.log("HACK HACK HACK-- setting window.STRINGIFY to STRINGIFY");
       window.STRINGIFY = STRINGIFY;
