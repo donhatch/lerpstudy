@@ -744,6 +744,7 @@ registerSourceCodeLinesAndRequire([
   const pred = (numFractionBits, minExponent, x) => {
     CHECK.NE(x, undefined);
     CHECK.GE(numFractionBits, 0);
+    CHECK(is_representable(numFractionBits, minExponent, x));
     const answer = pred_without_checking_against_succ(numFractionBits, minExponent, x);
     CHECK.EQ(succ_without_checking_against_pred(numFractionBits, minExponent, answer), x);
     return answer;
@@ -751,6 +752,7 @@ registerSourceCodeLinesAndRequire([
   const succ = (numFractionBits, minExponent, x) => {
     CHECK.NE(x, undefined);
     CHECK.GE(numFractionBits, 0);
+    CHECK(is_representable(numFractionBits, minExponent, x));
     const answer = succ_without_checking_against_pred(numFractionBits, minExponent, x);
     CHECK.EQ(pred_without_checking_against_succ(numFractionBits, minExponent, answer), x);
     return answer;
