@@ -1,3 +1,5 @@
+// TODO: custom lerp functions: "return 0;" syntax error (because ; is treated as a binop requiring RHS)
+// TODO: custom lerp functions: maybe kill semicolons?  commas suffice.
 // TODO: custom lerp functions: really need to be able to see parse tree for when something goes wrong
 // TODO: custom lerp functions: auto-expand and contract text area? hmm.
 // TODO: custom lerp functions: handle divide-by-zero more gracefully (completely abort)
@@ -2418,10 +2420,9 @@ registerSourceCodeLinesAndRequire([
     if (verboseLevel >= 1) console.log("in ParseTreeToLerpFunction");
 
     // This recursive helper function constructs
-    // a function that takes a,b,t,vars
-    // instead of a,b,t.
-    // vars is created by the top-level constructed function.
-    // TODO: actually don't need to pass a,b,t around any more, since they are in vars
+    // a function that takes vars instead of a,b,t.
+    // (vars is created by the top-level constructed function,
+    // and is pre-loaded with the values of a,b,t,true,false)
     const recurse = (tree) => {
       const verboseLevel = 0;
       if (verboseLevel >= 1) console.log("    in recurse");
@@ -2432,13 +2433,13 @@ registerSourceCodeLinesAndRequire([
         if (!Number.isNaN(number)) {
           const rounded_number = Round(number);
           if (verboseLevel >= 1) console.log("    out recurse");
-          return (a,b,t,vars) => rounded_number;
+          return (vars) => rounded_number;
         }
 
         CHECK(/[_a-zA-Z][_a-zA-Z0-9]*/.test(tree));
         const name = tree;
           if (verboseLevel >= 1) console.log("    out recurse");
-        return (a,b,t,vars) => {
+        return (vars) => {
           if (!vars.has(name)) {
             throw new Error("undefined variable "+STRINGIFY(name));
           }
@@ -2454,9 +2455,9 @@ registerSourceCodeLinesAndRequire([
           const MHS_function = recurse(operands[1]);
           const RHS_function = recurse(operands[2]);
           if (verboseLevel >= 1) console.log("    out recurse");
-          return (a,b,t,vars) => {
-            return LHS_function(a,b,t,vars) ? MHS_function(a,b,t,vars)
-                                            : RHS_function(a,b,t,vars);
+          return (vars) => {
+            return LHS_function(vars) ? MHS_function(vars)
+                                      : RHS_function(vars);
           };
         } else if (opname === "=") {
           CHECK.EQ(operands.length, 2);
@@ -2465,16 +2466,16 @@ registerSourceCodeLinesAndRequire([
           CHECK(/[_a-zA-Z][_a-zA-Z0-9]*/.test(name));
           const RHS_function = recurse(operands[1]);
           if (verboseLevel >= 1) console.log("    out recurse");
-          return (a,b,t,vars) => {
-            const value = RHS_function(a,b,t,vars);
+          return (vars) => {
+            const value = RHS_function(vars);
             vars.set(name, value);
             return value;
           }
         } else if (operands.length == 1) {
           const RHS_function = recurse(operands[0]);
           if (verboseLevel >= 1) console.log("    out recurse");
-          return (a,b,t,vars) => {
-            return implementation(RHS_function(a,b,t,vars));
+          return (vars) => {
+            return implementation(RHS_function(vars));
           }
         } else {
           CHECK.EQ(operands.length, 2);
@@ -2482,8 +2483,8 @@ registerSourceCodeLinesAndRequire([
           const RHS_function = recurse(operands[1]);
           // CBB: possible optimization: detect when LHS and/or RHS is a leaf, and inline its value
           if (verboseLevel >= 1) console.log("    out recurse");
-          return (a,b,t,vars) => {
-            return implementation(LHS_function(a,b,t,vars), RHS_function(a,b,t,vars));
+          return (vars) => {
+            return implementation(LHS_function(vars), RHS_function(vars));
           };
         }
       } else {
@@ -2500,7 +2501,7 @@ registerSourceCodeLinesAndRequire([
         ["true",true],
         ["false",false],
       ]);
-      return f(a,b,t,vars);
+      return f(vars);
     };
     if (verboseLevel >= 1) console.log("out ParseTreeToLerpFunction");
     return answer;
