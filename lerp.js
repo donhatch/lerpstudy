@@ -1,10 +1,3 @@
-// TODO: I don't understand: initially for some reason address bar says:
-//      (NOTE: do not copy-paste the whole thing, or it will come out different!!!)
-//      ?numFractionBits=3&minExponent=-6&a=11/256&b=1&custom=["a_a=t,t_<_0.5_?_a_+_t*(b-a)_:_t_>_0.5_?_b_-_(1-t)*(b-a)_:_(a+b)*0.5"]
-// but window.location.search says:
-//      "?numFractionBits=3&minExponent=-6&a=11/256&b=1&custom=[%22a%5fa=t,t_%3C_0.5_?_a_+_t*(b-a)_:_t_%3E_0.5_?_b_-_(1-t)*(b-a)_:_(a+b)*0.5%22]"
-//      Oh holy moly
-
 
 
 
@@ -401,12 +394,10 @@
 "use strict";
 console.log("in lerp.js")
 registerSourceCodeLinesAndRequire([
-  "./getURLParameter.js",
   "./PRINT.js",
   "./CHECK.js",
   "./STRINGIFY.js",
 ], function(
-  getURLParameterModule,
   PRINT,
   CHECK,
   STRINGIFY,
@@ -415,17 +406,146 @@ registerSourceCodeLinesAndRequire([
   console.log("    in lerp.js require callback");
   CHECK.EQ(shouldBeUndefined, undefined);
 
-  //const numFractionBitsDefault = 2;
-  //const minExponentDefault = -5;
+
+  // Like URLSearchParams, but encodes ' ' as '_' instead of '+',
+  // and has helpers:
+  //    getOrDefault()
+  //    getIntOrDefaultOrThrow()
+  //    getFloatOrDefaultOrThrow()
+  // and the constructor ignores a leading '#' if any.
+
+  // TODO: I don't understand: when I use this with space_char='_',
+  // initially for some reason address bar says:
+  //      (NOTE: do not copy-paste the whole thing, or it will come out different!!!?)
+  //      ?numFractionBits=3&minExponent=-6&a=11/256&b=1&custom=["a_a=t,t_<_0.5_?_a_+_t*(b-a)_:_t_>_0.5_?_b_-_(1-t)*(b-a)_:_(a+b)*0.5"]
+  // but window.location.search says:
+  //      "?numFractionBits=3&minExponent=-6&a=11/256&b=1&custom=[%22a%5fa=t,t_%3C_0.5_?_a_+_t*(b-a)_:_t_%3E_0.5_?_b_-_(1-t)*(b-a)_:_(a+b)*0.5%22]"
+  //      Oh holy moly.
+  //      Ok, for now, just using it with space_char='+'
+  class MyURLSearchOrHashParams {
+    #space_char;  // probably '+' or '_'
+    #url_search_params;
+    constructor(window_location_search_or_hash, space_char) {
+      CHECK.EQ(typeof space_char, 'string');
+      CHECK.EQ(space_char.length, 1);
+      let old_search_or_hash = window_location_search_or_hash;
+      if (old_search_or_hash.startsWith('#')) {
+        old_search_or_hash = old_search_or_hash.slice(1);
+      }
+
+      if (space_char !== '+') {
+        old_search_or_hash = old_search_or_hash.replaceAll('+', '%2B');
+        old_search_or_hash = old_search_or_hash.replaceAll(space_char, '+');
+        // no need to decode %?? to space_char; URLSearchParams ctor will do that
+      }
+
+      this.#url_search_params = new URLSearchParams(old_search_or_hash);
+      this.#space_char = space_char;
+    }
+    get(name) {
+      return this.#url_search_params.get(name);
+    }
+    set(name, value) {
+      return this.#url_search_params.set(name, value);
+    }
+    // Note that the returned string does *not* include an initial '?' or '#'.
+    toString() {
+      let new_search_or_hash = this.#url_search_params.toString();
+
+      // These seem to be harmless too,
+      // and keeping them cleartext enhances readability.
+      // However, do this first, in case this.#space_char is one of these chars.
+      // (Thought: maybe the reason it so aggressively encodes
+      // is to protect, e.g., when someone pastes a link into email
+      // and then follows it by a ')' or something)
+      // (OH, yes, hmm, if we don't encode ')' then we can't put it as-is
+      // inside the []() syntax of markdown.)
+      new_search_or_hash = new_search_or_hash.replaceAll('%2F', '/');
+      new_search_or_hash = new_search_or_hash.replaceAll('%5B', '[');
+      new_search_or_hash = new_search_or_hash.replaceAll('%5D', ']');
+      new_search_or_hash = new_search_or_hash.replaceAll('%28', '(');
+      new_search_or_hash = new_search_or_hash.replaceAll('%29', ')');
+      new_search_or_hash = new_search_or_hash.replaceAll('%3F', '?');
+      new_search_or_hash = new_search_or_hash.replaceAll('%3A', ':');
+      new_search_or_hash = new_search_or_hash.replaceAll('%3D', '=');
+      new_search_or_hash = new_search_or_hash.replaceAll('%2C', ',');
+
+      if (this.#space_char !== '+') {
+        let two_digits_hex = this.#space_char.charCodeAt(0).toString(16);
+        while (two_digits_hex.length < 2) {
+          two_digits_hex = '0' + two_digits_hex;
+        }
+
+        new_search_or_hash = new_search_or_hash.replaceAll(this.#space_char, '%'+two_digits_hex);
+        new_search_or_hash = new_search_or_hash.replaceAll('+', this.#space_char);
+        new_search_or_hash = new_search_or_hash.replaceAll('%2B', '+');
+      }
+
+      return new_search_or_hash;
+    }
+
+    getOrDefault(name, defaultValue) {
+      CHECK.EQ(arguments.length, 2);
+      CHECK.EQ(typeof(name), 'string');
+      CHECK.EQ(typeof(defaultValue), 'string');  // not sure about this-- maybe allow null?
+      const value = this.get(name);
+      return value !== null ? value : defaultValue;
+    }  // getOrDefault
+
+    getIntOrDefaultOrThrow(name, defaultValue) {
+      CHECK.EQ(arguments.length, 2);
+      CHECK.EQ(typeof(name), 'string');
+      CHECK(Number.isInteger(defaultValue)); // not sure about this-- maybe allow null?
+      const valueString = this.get(name);
+      if (valueString === null) return defaultValue;
+      // Do not use parseInt for this, since that ignores trailing spaces.
+      // However, beware that the Number constructor unhelpfully converts
+      // zero-or-more spaces to 0.
+      let value = /^\s*$/.test(valueString) ? NaN : Number(valueString);
+      if (!Number.isInteger(value)) {
+        throw Error('bad url param '+name+'='+STRINGIFY(valueString)+'');
+      }
+      return value;
+    }  // getIntOrDefaultOrThrow
+
+    getFloatOrDefaultOrThrow(name, defaultValue) {
+      CHECK.EQ(arguments.length, 2);
+      CHECK.EQ(typeof(name), 'string');
+      CHECK.EQ(typeof(defaultValue), 'number');  // not sure about this-- maybe allow null?
+      const valueString = this.get(name);
+      if (valueString === null) return defaultValue;
+      // Do not use parseFloat for this, since that ignores trailing spaces.
+      // However, beware that the Number constructor unhelpfully converts
+      // zero-or-more spaces to 0.
+      let value = /^\s*$/.test(valueString) ? NaN : Number(valueString);
+      if (isNaN(value)) {
+        throw Error('bad url param '+name+'='+STRINGIFY(valueString)+'');
+      }
+      return value;
+    }  // getFloatOrDefaultOrThrow
+
+  };  // MyURLSearchOrHashParams
+
+  // Character to use for encoding spaces.
+  // URLSearchParams uses '+' but I like '_' better for this app.
+  // NOPE.  It's too confusing if I do this. (See note above.)
+  // So, leaving it '+' for now.
+  // TODO: just kill this feature, I think; it's asking for trouble
+  const space_char_for_my_url_search_params = '+';
+
+
+  const initial_hash = window.location.hash;
+  const hash_params = new MyURLSearchOrHashParams(initial_hash, space_char_for_my_url_search_params);
+  console.log("      hash_params = ",hash_params);
 
   const numFractionBitsDefault = 3;
-  const minExponentDefault = -6;  // 4 if using 512*1024
+  const minExponentDefault = -6;
 
-  let numFractionBits = getURLParameterModule.getURLParameterFloatOr("numFractionBits", numFractionBitsDefault);
-  let minExponent = getURLParameterModule.getURLParameterFloatOr("minExponent", minExponentDefault);
+  let numFractionBits = hash_params.getIntOrDefaultOrThrow("numFractionBits", numFractionBitsDefault);
+  let minExponent = hash_params.getIntOrDefaultOrThrow("minExponent", minExponentDefault);
 
-  let aString = getURLParameterModule.getURLParameterOr("a", "11/256");
-  let bString = getURLParameterModule.getURLParameterOr("b", "1");
+  let aString = hash_params.getOrDefault("a", "11/256");
+  let bString = hash_params.getOrDefault("b", "1");
 
   const parseBinaryFloat = s => {
     CHECK.NE(s, undefined);
@@ -546,67 +666,6 @@ registerSourceCodeLinesAndRequire([
     }
   };
 
-  // Like URLSearchParams, but encodes ' ' as '_' instead of '+'.
-  class MyURLSearchParams {
-    #space_char;  // probably '_'
-    #url_search_params;
-    constructor(window_location_search, space_char) {
-      CHECK.EQ(typeof space_char, 'string');
-      CHECK.EQ(space_char.length, 1);
-      let old_search = window_location_search;
-
-      if (space_char !== '+') {
-        old_search = old_search.replaceAll('+', '%2B');
-        old_search = old_search.replaceAll(space_char, '+');
-        // no need to decode %?? to space_char; URLSearchParams ctor will do that
-      }
-
-      this.#url_search_params = new URLSearchParams(old_search);
-      this.#space_char = space_char;
-    }
-    get(name) {
-      return this.#url_search_params.get(name);
-    }
-    set(name, value) {
-      return this.#url_search_params.set(name, value);
-    }
-    toString() {
-      let new_search = this.#url_search_params.toString();
-
-      // These seem to be harmless too,
-      // and keeping them cleartext enhances readability.
-      // However, do this first, in case this.#space_char is one of the chars.
-      new_search = new_search.replaceAll('%2F', '/');
-      new_search = new_search.replaceAll('%5B', '[');
-      new_search = new_search.replaceAll('%5D', ']');
-      new_search = new_search.replaceAll('%28', '(');
-      new_search = new_search.replaceAll('%29', ')');
-      new_search = new_search.replaceAll('%3F', '?');
-      new_search = new_search.replaceAll('%3A', ':');
-      new_search = new_search.replaceAll('%3D', '=');
-      new_search = new_search.replaceAll('%2C', ',');
-
-      if (this.#space_char !== '+') {
-        let two_digits_hex = this.#space_char.charCodeAt(0).toString(16);
-        while (two_digits_hex.length < 2) {
-          two_digits_hex = '0' + two_digits_hex;
-        }
-
-        new_search = new_search.replaceAll(this.#space_char, '%'+two_digits_hex);
-        new_search = new_search.replaceAll('+', this.#space_char);
-        new_search = new_search.replaceAll('%2B', '+');
-      }
-
-      return new_search;
-    }
-  };  // MyURLSearchParams
-
-  // Character to use for encoding spaces.
-  // URLSearchParams uses '+' but I like '_' better for this app.
-  // NOPE.  It's too confusing if I do this. (See note at top of file.)
-  // Leaving it '+' for now.
-  const space_char = '+';
-
   const GetCustomExpressionsFromDOM = () => {
     const custom_text_inputs = document.querySelectorAll("input.custom");
     const answer = [];
@@ -617,13 +676,13 @@ registerSourceCodeLinesAndRequire([
   };  // GetCustomExpressionsFromDOM
 
   const GetTheDamnCustomExpressionsFromTheDamnAddressBar = () => {
-    let old_search = window.location.search;
-    const search_params = new MyURLSearchParams(old_search, space_char);
-    const custom_expressions_string = search_params.get("custom");
+    const old_hash = window.location.hash;
+    const hash_params = new MyURLSearchOrHashParams(old_hash, space_char_for_my_url_search_params);
+    const custom_expressions_string = hash_params.get("custom");
     if (custom_expressions_string == null) return [];
     try {
       const expressions = JSON.parse(custom_expressions_string);
-      console.log("  expressions = "+STRINGIFY(expressions));
+      //console.log("  expressions = "+STRINGIFY(expressions));
       CHECK(Array.isArray(expressions));
       for (const expression of expressions) {
         CHECK.EQ(typeof expression, 'string');
@@ -636,37 +695,59 @@ registerSourceCodeLinesAndRequire([
   };  // GetTheDamnCustomExpressionsFromTheDamnAddressBar
 
   // TODO: maybe replace the stuff in setURLParams.js, which was never fully baked, with this
-  const SetParamsInAddressBar = (nameValuePairs) => {
+  const SetSearchAndHashParamsInAddressBar = (searchNameValuePairs, hashNameValuePairs) => {
     const verboseLevel = 0;
-    if (verboseLevel >= 1) console.log("        in SetParamsInAddressBar");
+    if (verboseLevel >= 1) console.log("        in SetSearchAndHashParamsInAddressBar");
     if (verboseLevel >= 1) console.log("          window.location was ",window.location);
+    CHECK(Array.isArray(searchNameValuePairs));
+    CHECK(Array.isArray(hashNameValuePairs));
     const origin = window.location.origin;
     const pathname = window.location.pathname;
-    let old_search = window.location.search;
-    const hash = window.location.hash;
-    const my_search_params = new MyURLSearchParams(old_search, space_char);
-    for (const [name,value] of nameValuePairs) {
+    const old_search = window.location.search;
+    const old_hash = window.location.hash;
+    const my_search_params = new MyURLSearchOrHashParams(old_search, space_char_for_my_url_search_params);
+    const my_hash_params = new MyURLSearchOrHashParams(old_hash, space_char_for_my_url_search_params);
+    for (const [name,value] of searchNameValuePairs) {
       my_search_params.set(name, value);
     }
+    for (const [name,value] of hashNameValuePairs) {
+      my_hash_params.set(name, value);
+    }
     let new_search = my_search_params.toString();
-    const new_href= origin+pathname+'?'+new_search+hash;
+    let new_hash = my_hash_params.toString();
+    if (new_search.length > 0) new_search = '?'+new_search;
+    if (new_hash.length > 0) new_hash = '#'+new_hash;
+
+    const new_href= origin+pathname+new_search+new_hash;
     window.history.replaceState(/*stateObj=*/null, /*title=*/'', new_href);
-    CHECK.EQ(window.location.search, '?'+new_search);  // assumes there is at least one thing, probably
+    CHECK.EQ(window.location.search, new_search);
+    CHECK.EQ(window.location.hash, new_hash);
     if (verboseLevel >= 1) console.log("          window.location is ",window.location);
-    if (verboseLevel >= 1) console.log("        out SetParamsInAddressBar");
-  };  // SetParamsInAddressBar
+    if (verboseLevel >= 1) console.log("        out SetSearchAndHashParamsInAddressBar");
+  };  // SetSearchAndHashParamsInAddressBar
+
+  if (true) {
+    // Quick check that SetSearchAndHashParamsInAddressBar
+    // with no changes doesn't change anything.
+    const old_search = window.location.search;
+    const old_hash = window.location.hash;
+    SetSearchAndHashParamsInAddressBar([], []);
+    const new_search = window.location.search;
+    const new_hash = window.location.hash;
+    CHECK.EQ(old_search, new_search);
+    CHECK.EQ(old_hash, new_hash);
+  }
 
   const SetTheDamnCustomExpressionsInTheDamnAddressBar = () => {
     const verboseLevel = 0;
     if (verboseLevel >= 1) console.log("    in SetTheDamnCustomExpressionsInTheDamnAddressBar");
     const custom_expressions = GetCustomExpressionsFromDOM();
     const custom_expressions_string = STRINGIFY(custom_expressions);
-    SetParamsInAddressBar([["custom", custom_expressions_string]]);
+    SetSearchAndHashParamsInAddressBar([], [["custom", custom_expressions_string]]);
     if (true) {
       // Make sure the round trip isn't lossy
-      CHECK.EQ(new MyURLSearchParams(window.location.search, space_char).get("custom"), custom_expressions_string);
-      CHECK.EQ(STRINGIFY(GetTheDamnCustomExpressionsFromTheDamnAddressBar()),
-               custom_expressions_string);
+      CHECK.EQ(new MyURLSearchOrHashParams(window.location.hash, space_char_for_my_url_search_params).get("custom"), custom_expressions_string);
+      CHECK.EQ(STRINGIFY(GetTheDamnCustomExpressionsFromTheDamnAddressBar()), custom_expressions_string);
     }
     if (verboseLevel >= 1) console.log("    out SetTheDamnCustomExpressionsInTheDamnAddressBar");
   };  // SetTheDamnCustomExpressionsInTheDamnAddressBar
@@ -680,7 +761,7 @@ registerSourceCodeLinesAndRequire([
   const xformUrlPart = urlPart=>urlPart;
   // initially without "custom", since we don't have the model for that til we add the buttons
   // (although maybe we should make an explicit model instead of storing it in the ui)
-  SetParamsInAddressBar([['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(a)],['b',toFractionString(b)]]);
+  SetSearchAndHashParamsInAddressBar([], [['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(a)],['b',toFractionString(b)]]);
 
   //======================================
   // Begin float utilities
@@ -3058,12 +3139,12 @@ registerSourceCodeLinesAndRequire([
       if (false) {
       } else if (event.key === '=' || event.key === '+') {
         numFractionBits += 1;
-        SetParamsInAddressBar([['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(a)],['b',toFractionString(b)]]);
+        SetSearchAndHashParamsInAddressBar([], [['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(a)],['b',toFractionString(b)]]);
         populateTheSVG(svg, Lerp, a, b);
       } else if (event.key == '-') {
         if (numFractionBits > 0) {
           numFractionBits -= 1;
-          SetParamsInAddressBar([['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(a)],['b',toFractionString(b)]]);
+          SetSearchAndHashParamsInAddressBar([], [['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(a)],['b',toFractionString(b)]]);
           populateTheSVG(svg, Lerp, a, b);
         }
       } else if (event.key == "ArrowUp") {
@@ -3078,7 +3159,7 @@ registerSourceCodeLinesAndRequire([
           a = Succ(a);
           b = Succ(b);
         }
-        SetParamsInAddressBar([['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(a)],['b',toFractionString(b)]]);
+        SetSearchAndHashParamsInAddressBar([], [['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(a)],['b',toFractionString(b)]]);
         populateTheSVG(svg, Lerp, a, b);
       } else if (event.key == "ArrowDown") {
         event.preventDefault();  // prevent scrolling
@@ -3092,7 +3173,7 @@ registerSourceCodeLinesAndRequire([
           a = Pred(a);
           b = Pred(b);
         }
-        SetParamsInAddressBar([['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(a)],['b',toFractionString(b)]]);
+        SetSearchAndHashParamsInAddressBar([], [['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(a)],['b',toFractionString(b)]]);
         populateTheSVG(svg, Lerp, a, b);
       }
     }  // if !event.ctrlKey
@@ -3171,7 +3252,7 @@ registerSourceCodeLinesAndRequire([
 
       if (aSnappedNew != aSnappedOld || bSnappedNew != bSnappedOld) {
         // Note that, while mouse is down, a and b in general aren't representable floats, so we round them when setting the URL param here
-        SetParamsInAddressBar([['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(aSnappedNew)],['b',toFractionString(bSnappedNew)]]);
+        SetSearchAndHashParamsInAddressBar([], [['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(aSnappedNew)],['b',toFractionString(bSnappedNew)]]);
       }
 
       populateTheSVG(svg, Lerp, a, b);
