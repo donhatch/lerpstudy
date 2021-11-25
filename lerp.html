@@ -280,7 +280,7 @@
 
        <tr>
         <td>
-         <button type="button" id="add_custom_expression_button" style="padding:1px;">&#x271A;</button> <!-- heavy plus sign -->
+         <button type="button" id="add_custom_expression_button" title="add new custom lerp expression" style="padding:1px;">&#x271A;</button> <!-- heavy plus sign -->
         <td>
 
       </table>
@@ -328,10 +328,12 @@ Things to know:
    </tr>
   </table>
 
-  <!-- https://stackoverflow.com/questions/10643426/how-to-add-a-tooltip-to-an-svg-graphic#answer-50543963 -->
-  <div id="tooltip" display="none" style="position:absolute; display:none; background-color:white; border: 1px solid black;"></div>
   <div id="b" style="position:absolute; left:526px; top:118px;"><span class="mono">b</span></div>
   <div id="a" style="position:absolute; left:526px; top:608px;"><span class="mono">a</span></div>
+
+  <!-- https://stackoverflow.com/questions/10643426/how-to-add-a-tooltip-to-an-svg-graphic#answer-50543963 -->
+  <!-- must come after "a" and "b" so that it will be on top of them -->
+  <div id="tooltip" display="none" style="position:absolute; display:none; background-color:white; border: 1px solid black;"></div>
 
    <hr>
    Related links:

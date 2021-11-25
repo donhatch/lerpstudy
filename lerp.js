@@ -3013,7 +3013,7 @@ registerSourceCodeLinesAndRequire([
 
     const x_td = new_tr.insertCell(0);
     console.log("  x_td = ",x_td);
-    x_td.innerHTML = '<button type="button" style="padding:1px;">&#x2716;</button> <!-- heavy multiplication x -->';
+    x_td.innerHTML = '<button type="button" title="remove this custom lerp expression" style="padding:1px;">&#x2716;</button> <!-- heavy multiplication x -->';
     const x_button = x_td.children[0];
     x_button.onclick = () => {
       new_tr.remove();
