@@ -1,9 +1,10 @@
+// TODO: custom lerp functions: BUG: '+' is getting lost in setting/getting the url params
+// TODO: custom lerp functions: avoid all the %20's in address bar if possible
 // TODO: custom lerp functions: really need to be able to see parse tree for when something goes wrong
 // TODO: custom lerp functions: auto-expand and contract text area? hmm.
 // TODO: custom lerp functions: handle divide-by-zero more gracefully (completely abort)
 // TODO: the tooltip stays up when it's up when I leave the svg
 // TODO: custom lerp functions: "at twice precision"
-// TODO: custom lerp functions: persist in address bar
 // TODO: now that I want to copy-paste a lot, I don't think I want radio buttons to be checked when I click on them
 //       (or do I?  it's only a problem if user double-clicks. hmm. https://stackoverflow.com/questions/5497073/how-to-differentiate-single-click-event-and-double-click-event )
 // TODO: custom lerp functions: allow variables
@@ -542,6 +543,28 @@ registerSourceCodeLinesAndRequire([
     }
   };
 
+  const GetCustomExpressionssFromDOM = () => {
+    const custom_text_inputs = document.querySelectorAll("input.custom");
+    const answer = [];
+    for (const custom_text_input of custom_text_inputs) {
+      answer.push(custom_text_input.old_value);
+    }
+    return answer;
+  };
+  // return list of just one url param:
+  // name="custom", value=stringified list of custom expressions,
+  // or null if none (meaning clear the url param)
+  const GetCustomExpressionsUrlParamsFromDOM = () => {
+    const verboseLevel = 1;
+    if (verboseLevel >= 1) console.log("    in GetCustomExpressionsUrlParamsFromDOM");
+    const texts = GetCustomExpressionssFromDOM();
+    if (verboseLevel >= 1) console.log("      texts = ",texts);
+    const answer = [["custom", texts.length == 0 ? null : STRINGIFY(texts)]];
+    if (verboseLevel >= 1) console.log("      answer = "+STRINGIFY(answer));
+    if (verboseLevel >= 1) console.log("    out GetCustomExpressionsUrlParamsFromDOM");
+    return answer;
+  };  // GetCustomExpressionsUrlParamsFromDOM
+
   let a = parseFractionString(aString);
   let b = parseFractionString(bString);
 
@@ -549,6 +572,8 @@ registerSourceCodeLinesAndRequire([
   //b = round_to_nearest_representable(b);
 
   const xformUrlPart = urlPart=>urlPart;
+  // initially without "custom", since we don't have the model for that til we add the buttons
+  // (although maybe we should make an explicit model instead of storing it in the ui)
   setURLParamModule.setURLAndParamsInURLBar(xformUrlPart,
                                             [['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(a)],['b',toFractionString(b)]],
                                             /*whetherToEncodeValue=*/false);  // don't encode the '/' as  %2F
@@ -2786,12 +2811,17 @@ registerSourceCodeLinesAndRequire([
     }
   };  // is_valid_expression
 
-  window.add_custom_expression.onclick = () => {
-    console.log("in window.add_custom_expression.onclick");
+  const AddCustomExpression = expression => {
+    console.log("in window.add_custom_expression_button.onclick");
+
+    if (!is_valid_expression(expression)) {
+      console.error("  tried to add invalid custom expression "+STRINGIFY(expression));
+      console.log("out window.add_custom_expression_button.onclick (expression was invalid)");
+    }
 
     // Create a new tr element above the current tr element.
 
-    const current_table = window.add_custom_expression.closest("table");
+    const current_table = window.add_custom_expression_button.closest("table");
     const new_tr = current_table.insertRow(current_table.rows.length-1);
     new_tr.style.whiteSpace = "nowrap";
 
@@ -2799,21 +2829,35 @@ registerSourceCodeLinesAndRequire([
     console.log("  x_td = ",x_td);
     x_td.innerHTML = '<button type="button" style="padding:1px;">&#x2716;</button> <!-- heavy multiplication x -->';
     const x_button = x_td.children[0];
-    x_button.onclick = () => new_tr.remove();
+    x_button.onclick = () => {
+      new_tr.remove();
+      // custom expressions changed, so...
+      setURLParamModule.setURLAndParamsInURLBarWithVerboseLevel(xformUrlPart,
+          [...GetCustomExpressionsUrlParamsFromDOM()],
+          /*whetherToEncodeValue=*/false,  // don't encode the '/' as  %2F
+          /*verboseLevel=*/0);
+    };
 
     const radiobutton_td = new_tr.insertCell(1);
     // font-size:13px empirically matches the font size of the radio button labels, although I wouldn't know how to predict that
-    radiobutton_td.innerHTML = '<input type="radio" name="lerpmethod"><input type="text" style="font-family:monospace; font-size:13px;" size="80" value="t < 0.5 ? a + t*(b-a) : t > 0.5 ? b - (1-t)*(b-a) : (a+b)*0.5"></input>'
+    radiobutton_td.innerHTML = '<input type="radio" name="lerpmethod"><input type="text" class="custom" style="font-family:monospace; font-size:13px;" size="80" value="(TO BE SET BELOW)"></input>'
     const radiobutton = radiobutton_td.children[0];
     console.log("  radiobutton = ",radiobutton);
     const textinput = radiobutton_td.children[1];
     console.log("  textinput = ",textinput);
+    textinput.value = expression;
 
     radiobutton.onclick = () => {
       setLerpMethodToCustom(textinput.old_value);
     };
 
     textinput.old_value = textinput.value;  // keep value around so it can be restored
+
+    // custom expressions changed, so...
+    setURLParamModule.setURLAndParamsInURLBarWithVerboseLevel(xformUrlPart,
+        [...GetCustomExpressionsUrlParamsFromDOM()],
+        /*whetherToEncodeValue=*/false,  // don't encode the '/' as  %2F
+        /*verboseLevel=*/0);
 
     textinput.onkeydown = event => {
       const verboseLevel = 0;
@@ -2852,12 +2896,49 @@ registerSourceCodeLinesAndRequire([
         if (radiobutton.checked) {
           setLerpMethodToCustom(textinput.old_value);
         }
+
+        // custom expressions changed, so...
+        setURLParamModule.setURLAndParamsInURLBarWithVerboseLevel(xformUrlPart,
+            [...GetCustomExpressionsUrlParamsFromDOM()],
+            /*whetherToEncodeValue=*/false,  // don't encode the '/' as  %2F
+            /*verboseLevel=*/0);
+
       }
       if (verboseLevel >= 1) console.log("    out textinput.onchange");
     };
 
-    console.log("out window.add_custom_expression.onclick");
-  };
+    console.log("out window.add_custom_expression_button.onclick");
+  };  // AddCustomExpression
+
+  window.add_custom_expression_button.onclick = () => {
+    console.log("in window.add_custom_expression_button.onclick");
+    AddCustomExpression("t < 0.5 ? a + t*(b-a) : t > 0.5 ? b - (1-t)*(b-a) : (a+b)*0.5");
+    console.log("out window.add_custom_expression_button.onclick");
+  }; // window.add_custom_expression_button.onclick
+
+  // Add initial ones, from the url
+  if (true) {
+    let custom_expressions_string = getURLParameterModule.getURLParameter("custom");
+    console.log("  ==============");
+    console.log("  STRINGIFY(custom_expressions_string) = "+STRINGIFY(custom_expressions_string));
+    console.log("  custom_expressions_string = "+custom_expressions_string);
+    if (custom_expressions_string !== null) {
+      try {
+        const expressions = JSON.parse(custom_expressions_string);
+        console.log("  expressions = "+STRINGIFY(expressions));
+        CHECK(Array.isArray(expressions));
+        for (const expression of expressions) {
+          CHECK.EQ(typeof expression, 'string');
+        }
+        for (const expression of expressions) {
+          AddCustomExpression(expression);
+        }
+      } catch (error) {
+        console.log("Aww fooey, couldn't parse customs string "+STRINGIFY(custom_expressions_string)+" as json: "+error);
+      }
+    }
+    console.log("  ==============");
+  }
 
   let xOfMouseDown = undefined;
   let yOfMouseDown = undefined;
@@ -2891,7 +2972,7 @@ registerSourceCodeLinesAndRequire([
       } else if (event.key === '=' || event.key === '+') {
         numFractionBits += 1;
         setURLParamModule.setURLAndParamsInURLBarWithVerboseLevel(xformUrlPart,
-            [['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(a)],['b',toFractionString(b)]],
+            [['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(a)],['b',toFractionString(b)], ...GetCustomExpressionsUrlParamsFromDOM()],
             /*whetherToEncodeValue=*/false,  // don't encode the '/' as  %2F
             /*verboseLevel=*/0);
         populateTheSVG(svg, Lerp, a, b);
@@ -2899,7 +2980,7 @@ registerSourceCodeLinesAndRequire([
         if (numFractionBits > 0) {
           numFractionBits -= 1;
           setURLParamModule.setURLAndParamsInURLBarWithVerboseLevel(xformUrlPart,
-              [['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(a)],['b',toFractionString(b)]],
+              [['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(a)],['b',toFractionString(b)], ...GetCustomExpressionsUrlParamsFromDOM()],
               /*whetherToEncodeValue=*/false,  // don't encode the '/' as  %2F
               /*verboseLevel=*/0);
           populateTheSVG(svg, Lerp, a, b);
@@ -2917,7 +2998,7 @@ registerSourceCodeLinesAndRequire([
           b = Succ(b);
         }
         setURLParamModule.setURLAndParamsInURLBarWithVerboseLevel(xformUrlPart,
-            [['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(a)],['b',toFractionString(b)]],
+            [['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(a)],['b',toFractionString(b)], ...GetCustomExpressionsUrlParamsFromDOM()],
             /*whetherToEncodeValue=*/false,  // don't encode the '/' as  %2F
             /*verboseLevel=*/0);
         populateTheSVG(svg, Lerp, a, b);
@@ -2934,7 +3015,7 @@ registerSourceCodeLinesAndRequire([
           b = Pred(b);
         }
         setURLParamModule.setURLAndParamsInURLBarWithVerboseLevel(xformUrlPart,
-            [['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(a)],['b',toFractionString(b)]],
+            [['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(a)],['b',toFractionString(b)], ...GetCustomExpressionsUrlParamsFromDOM()],
             /*whetherToEncodeValue=*/false,  // don't encode the '/' as  %2F
             /*verboseLevel=*/0);
         populateTheSVG(svg, Lerp, a, b);
@@ -3015,7 +3096,7 @@ registerSourceCodeLinesAndRequire([
       if (aSnappedNew != aSnappedOld || bSnappedNew != bSnappedOld) {
         // Note that, while mouse is down, a and b in general aren't representable floats, so we round them when setting the URL param here
         setURLParamModule.setURLAndParamsInURLBarWithVerboseLevel(xformUrlPart,
-            [['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(aSnappedNew)],['b',toFractionString(bSnappedNew)]],
+            [['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(aSnappedNew)],['b',toFractionString(bSnappedNew)], ...GetCustomExpressionsUrlParamsFromDOM()],
             /*whetherToEncodeValue=*/false,  // don't encode the '/' as  %2F
             /*verboseLevel=*/0);
       }
