@@ -1,7 +1,6 @@
 // TODO: custom lerp functions: really need to be able to see parse tree for when something goes wrong
 // TODO: custom lerp functions: auto-expand and contract text area? hmm.
 // TODO: custom lerp functions: handle divide-by-zero more gracefully (completely abort)
-// TODO: custom lerp functions: support "return" instead of setting "answer" which is a bit weird
 // TODO: the tooltip stays up when it's up when I leave the svg
 // TODO: custom lerp functions: unary minus
 // TODO: custom lerp functions: "at twice precision"
@@ -2201,7 +2200,7 @@ registerSourceCodeLinesAndRequire([
       return answer;
     };
     populateTheSVG(svg, Lerp, a, b);
-    theTitle.innerHTML = "answer0 = a+t*(b-a); answer1 = b-(1-t)*(b-a); answer = (1-t)*answer0 + t*answer1";
+    theTitle.innerHTML = "answer0 = a+t*(b-a); answer1 = b-(1-t)*(b-a); return (1-t)*answer0 + t*answer1";
   };
   const setLerpMethodToMaybe3 = () => {
     Lerp = (a,b,t) => {
@@ -2216,7 +2215,7 @@ registerSourceCodeLinesAndRequire([
       return answer;
     };
     populateTheSVG(svg, Lerp, a, b);
-    theTitle.innerHTML = "answer0 = (1-t)*a+t*b; answer = t==0 ? answer0 : answer0 - ((answer0-a)/t+a-b)*t";
+    theTitle.innerHTML = "answer0 = (1-t)*a+t*b; return t==0 ? answer0 : answer0 - ((answer0-a)/t+a-b)*t";
   };
   const setLerpMethodToMaybe4 = () => {
     Lerp = (a,b,t) => {
@@ -2231,7 +2230,7 @@ registerSourceCodeLinesAndRequire([
       return answer;
     };
     populateTheSVG(svg, Lerp, a, b);
-    theTitle.innerHTML = "answer0 = (1-t)*a+t*b; answer = t==1 ? answer0 : answer0 - ((answer0-b)/(1-t)+b-a)*(1-t)";
+    theTitle.innerHTML = "answer0 = (1-t)*a+t*b; return t==1 ? answer0 : answer0 - ((answer0-b)/(1-t)+b-a)*(1-t)";
   };
 
   const setLerpMethodToTBlast = () => {
@@ -2501,10 +2500,9 @@ registerSourceCodeLinesAndRequire([
         ["true",true],
         ["false",false],
       ]);
-      let answer = f(a,b,t,vars);
-      // Prefer value of "answer" variable if it was set.
-      return vars.has("answer") ? vars.get("answer") : answer;
+      return f(a,b,t,vars);
     };
+    if (verboseLevel >= 1) console.log("out ParseTreeToLerpFunction");
     return answer;
   };  // ParseTreeToLerpFunction
 
