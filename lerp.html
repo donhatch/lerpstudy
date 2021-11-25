@@ -138,7 +138,7 @@
         <td>
          <label>
           <input type="radio" id="lerpmethodMaybe" name="lerpmethod">
-          <span class="mono">answer0 = (1-t)*a + t*b; return answer0 + ((1-t)*(a-answer0) + t*(b-answer0))</span>
+          <span class="mono">answer0 = (1-t)*a + t*b, answer0 + ((1-t)*(a-answer0) + t*(b-answer0))</span>
          </label>
 
        <tr>
@@ -146,7 +146,7 @@
         <td>
          <label>
           <input type="radio" id="lerpmethodMaybe2" name="lerpmethod">
-          <span class="mono">answer0 = a+t*(b-a); answer1 = b-(1-t)*(b-a); return (1-t)*answer0 + t*answer1</span>
+          <span class="mono">answer0 = a+t*(b-a), answer1 = b-(1-t)*(b-a), (1-t)*answer0 + t*answer1</span>
          </label>
 
        <tr>
@@ -154,7 +154,7 @@
         <td>
          <label>
           <input type="radio" id="lerpmethodMaybe3" name="lerpmethod">
-          <span class="mono">answer0 = (1-t)*a+t*b; return t==0 ? answer0 : answer0 - ((answer0-a)/t+a-b)*t</span>
+          <span class="mono">answer0 = (1-t)*a+t*b, t==0 ? answer0 : answer0 - ((answer0-a)/t+a-b)*t</span>
          </label>
 
        <tr>
@@ -162,7 +162,7 @@
         <td>
          <label>
           <input type="radio" id="lerpmethodMaybe4" name="lerpmethod">
-          <span class="mono">answer0 = (1-t)*a+t*b; return t==1 ? answer0 : answer0 - ((answer0-b)/(1-t)+b-a)*(1-t)</span>
+          <span class="mono">answer0 = (1-t)*a+t*b, t==1 ? answer0 : answer0 - ((answer0-b)/(1-t)+b-a)*(1-t)</span>
          </label>
 
        <tr>
@@ -309,10 +309,12 @@ Things to know:
    <li><span class="monowrap">0 + t*(b-a rounded to nearest representable number)</span>
   </ul>
  <li>
-  You can enter a custom lerp expression, using any of the syntax
-  that appears in any of the expressions above,
-  including variable assignments
-  (except for "at twice precision", dot products, "using Kahan-ish summation", etc.).
+  You can enter custom lerp expressions, using the &#x271A; button.
+  <ul>
+   <li> Use any of the C expression syntax that appears in any of the expressions above, including variable assignments.
+   <li> green or pink means the expression being typed is good or bad
+   <li> Enter to use typed expression; Escape to revert it
+  </ul>
 </ul>
     </td>
    </tr>

@@ -693,6 +693,10 @@ registerSourceCodeLinesAndRequire([
     CHECK(is_representable(numFractionBits, minExponent, b));
     return round_to_nearest_representable(numFractionBits, minExponent, a-b);
   };
+  const unary_minus = (numFractionBits, minExponent, a) => {
+    CHECK(is_representable(numFractionBits, minExponent, a));
+    return round_to_nearest_representable(numFractionBits, minExponent, -a);
+  };
   const times = (numFractionBits, minExponent, a, b) => {
     CHECK(is_representable(numFractionBits, minExponent, a));
     CHECK(is_representable(numFractionBits, minExponent, b));
@@ -1554,6 +1558,7 @@ registerSourceCodeLinesAndRequire([
   const Times = (a,b) => times(numFractionBits, minExponent, a, b);
   const DividedBy = (a,b) => dividedby(numFractionBits, minExponent, a, b);
   const Minus = (a,b) => minus(numFractionBits, minExponent, a, b);
+  const UnaryMinus = a => unary_minus(numFractionBits, minExponent, a);
   const Fma = (a,b,c) => fma(numFractionBits, minExponent, a, b, c);
   const TwoSum = (a,b) => {
     if (Math.abs(a) < Math.abs(b)) {
@@ -1642,6 +1647,12 @@ registerSourceCodeLinesAndRequire([
   };  // DotButImSkeptical
   const DotCorrect = (xs,ys) => {
     return dot_correct(numFractionBits, minExponent, xs, ys);
+  };
+  const UnaryNot = x => {
+    if (typeof x !== 'boolean') {
+      throw new Error("type error: unary '!' called on non-boolean");
+    }
+    return !x;
   };
 
   if (false) {
@@ -2192,7 +2203,7 @@ registerSourceCodeLinesAndRequire([
       return answer;
     };
     populateTheSVG(svg, Lerp, a, b);
-    theTitle.innerHTML = "answer0 = (1-t)*a + t*b; answer0 += ((1-t)*(a-answer0) + t*(b-answer0)";
+    theTitle.innerHTML = "answer0 = (1-t)*a + t*b, answer0 += ((1-t)*(a-answer0) + t*(b-answer0)";
   };
   const setLerpMethodToMaybe2 = () => {
     Lerp = (a,b,t) => {
@@ -2202,7 +2213,7 @@ registerSourceCodeLinesAndRequire([
       return answer;
     };
     populateTheSVG(svg, Lerp, a, b);
-    theTitle.innerHTML = "answer0 = a+t*(b-a); answer1 = b-(1-t)*(b-a); return (1-t)*answer0 + t*answer1";
+    theTitle.innerHTML = "answer0 = a+t*(b-a), answer1 = b-(1-t)*(b-a), (1-t)*answer0 + t*answer1";
   };
   const setLerpMethodToMaybe3 = () => {
     Lerp = (a,b,t) => {
@@ -2217,7 +2228,7 @@ registerSourceCodeLinesAndRequire([
       return answer;
     };
     populateTheSVG(svg, Lerp, a, b);
-    theTitle.innerHTML = "answer0 = (1-t)*a+t*b; return t==0 ? answer0 : answer0 - ((answer0-a)/t+a-b)*t";
+    theTitle.innerHTML = "answer0 = (1-t)*a+t*b, t==0 ? answer0 : answer0 - ((answer0-a)/t+a-b)*t";
   };
   const setLerpMethodToMaybe4 = () => {
     Lerp = (a,b,t) => {
@@ -2232,7 +2243,7 @@ registerSourceCodeLinesAndRequire([
       return answer;
     };
     populateTheSVG(svg, Lerp, a, b);
-    theTitle.innerHTML = "answer0 = (1-t)*a+t*b; return t==1 ? answer0 : answer0 - ((answer0-b)/(1-t)+b-a)*(1-t)";
+    theTitle.innerHTML = "answer0 = (1-t)*a+t*b, t==1 ? answer0 : answer0 - ((answer0-b)/(1-t)+b-a)*(1-t)";
   };
 
   const setLerpMethodToTBlast = () => {
@@ -2711,47 +2722,38 @@ registerSourceCodeLinesAndRequire([
     return answer;
   };  // parse
   const binary_op_table = [
-    // precedence:8 is for left-unary ops "-" and "!"
+    // precedence:6 is for left-unary ops "-" and "!"
 
-    {name:"*", precedence:7, implementation:(x,y)=>Times(x,y)},
-    {name:"/", precedence:7, implementation:(x,y)=>DividedBy(x,y)},
+    {name:"*", precedence:5, implementation:(x,y)=>Times(x,y)},
+    {name:"/", precedence:5, implementation:(x,y)=>DividedBy(x,y)},
 
-    {name:"+", precedence:6, implementation:(x,y)=>Plus(x,y)},
-    {name:"-", precedence:6, implementation:(x,y)=>Minus(x,y)},
+    {name:"+", precedence:4, implementation:(x,y)=>Plus(x,y)},
+    {name:"-", precedence:4, implementation:(x,y)=>Minus(x,y)},
 
     // NOTE: "<=" must come before "<" so it will be preferred
-    {name:"<=", precedence:5, implementation:(x,y)=>x<=y},
-    {name:"<", precedence:5, implementation:(x,y)=>x<y},
+    {name:"<=", precedence:3, implementation:(x,y)=>x<=y},
+    {name:"<", precedence:3, implementation:(x,y)=>x<y},
     // NOTE: ">=" must come before ">" so it will be preferred
-    {name:">=", precedence:5, implementation:(x,y)=>x>=y},
-    {name:">", precedence:5, implementation:(x,y)=>x>y},
+    {name:">=", precedence:3, implementation:(x,y)=>x>=y},
+    {name:">", precedence:3, implementation:(x,y)=>x>y},
     // NOTE: "==" must come before "=" so it will be preferred
-    {name:"==", precedence:5, implementation:(x,y)=>x==y},
-    {name:"!=", precedence:5, implementation:(x,y)=>x!=y},
+    {name:"==", precedence:3, implementation:(x,y)=>x==y},
+    {name:"!=", precedence:3, implementation:(x,y)=>x!=y},
 
-    {name:"?", precedence:4, implementation:null},  // special case in code
+    {name:"?", precedence:2, implementation:null},  // special case in code
 
-    {name:"=", precedence:3, implementation:null},  // special case in code
+    {name:"=", precedence:1, implementation:null},  // special case in code
 
-    {name:",", precedence:2, implementation:(x,y)=>(x,y)},
+    {name:",", precedence:0, implementation:(x,y)=>(x,y)},
 
-    // precedence:1 is for "return"
-
-    {name:";", precedence:0, implementation:(x,y)=>(x,y)},
   ];  // binary_op_table
+
   const left_unary_op_table = [
-    {name:"!", precedence:8, implementation:(x)=>!x},  // TODO: type check
+    {name:"!", precedence:6, implementation:(x)=>UnaryNot(x)},
 
     // CBB: negative numbers end up being interpreted as unary-minus
     // followed by positive number.  I guess that's ok.
-    {name:"-", precedence:8, implementation:(x)=>-x},  // TODO: type check
-
-    // "return" is actually ignored (function return value
-    // is the expression, anyway); the only reason for this
-    // is so we can reject anything with a "return"
-    // before a ";".  Which perhaps we can simply detect
-    // with a regex.
-    {name:"return", precedence:1, implementation:(x)=>x},
+    {name:"-", precedence:6, implementation:(x)=>UnaryMinus(x)},
   ];  // left_unary_op_table
 
   const Parse = expression => {
