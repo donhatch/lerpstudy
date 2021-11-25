@@ -1,6 +1,3 @@
-
-
-
 // TODO: custom lerp functions: really need to be able to see parse tree for when something goes wrong
 // TODO: custom lerp functions: handle divide-by-zero more gracefully (completely abort)
 // TODO: custom lerp functions: "at twice precision"
@@ -41,7 +38,6 @@
 
 // TODO: "smartest" seems perfect, but only if minExponent is sufficiently low.  can we make it perfect even with not-so-low minE?
 // TODO: make the selection of lerp algorithm persist in url bar
-// TODO: the stuff in url bar should probably be hash '#' params rather than '?' params
 // TODO: oscillating between two methods mode?  could be helpful, although the most common thing we want, that is, comparison with magic exact, is accompliced via the ringed dots
 // TODO: make lerp-favicon.png a real picture of something
 // TODO: the usual event screwup, need to listen on window instead
@@ -2897,7 +2893,7 @@ registerSourceCodeLinesAndRequire([
     new_tr.style.whiteSpace = "nowrap";
 
     const x_td = new_tr.insertCell(0);
-    console.log("  x_td = ",x_td);
+    if (verboseLevel >= 1) console.log("  x_td = ",x_td);
     x_td.innerHTML = '<button type="button" title="remove this custom lerp expression" style="padding:1px;">&#x2716;</button> <!-- heavy multiplication x -->';
     const x_button = x_td.children[0];
     x_button.onclick = () => {
@@ -2910,9 +2906,9 @@ registerSourceCodeLinesAndRequire([
     // font-size:13px empirically matches the font size of the radio button labels, although I wouldn't know how to predict that
     radiobutton_td.innerHTML = '<input type="radio" name="lerpmethod"><input type="text" class="custom" style="font-family:monospace; font-size:13px;" size="(TO BE SET BELOW)" value="(TO BE SET BELOW)"></input>'
     const radiobutton = radiobutton_td.children[0];
-    console.log("  radiobutton = ",radiobutton);
+    if (verboseLevel >= 1) console.log("  radiobutton = ",radiobutton);
     const textinput = radiobutton_td.children[1];
-    console.log("  textinput = ",textinput);
+    if (verboseLevel >= 1) console.log("  textinput = ",textinput);
     textinput.value = expression;
 
     const minWidth = 30;
@@ -2979,9 +2975,10 @@ registerSourceCodeLinesAndRequire([
   };  // AddCustomExpression
 
   window.add_custom_expression_button.onclick = () => {
-    console.log("in window.add_custom_expression_button.onclick");
+    const verboseLevel = 0;
+    if (verboseLevel >= 1) console.log("in window.add_custom_expression_button.onclick");
     AddCustomExpression("t < 0.5 ? a + t*(b-a) : t > 0.5 ? b - (1-t)*(b-a) : (a+b)*0.5");
-    console.log("out window.add_custom_expression_button.onclick");
+    if (verboseLevel >= 1) console.log("out window.add_custom_expression_button.onclick");
   }; // window.add_custom_expression_button.onclick
 
   // Add initial ones, from the url
