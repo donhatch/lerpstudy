@@ -1,5 +1,3 @@
-// TODO: custom exprs: starting to type "-" or "!" or "--" or "succ" fails with "unexpected failure to convert parse tree to lerp expression: Error: ParseTreeToLerpFunction called on non-string non-list null"
-// TODO: custom exprs: "true?t:" fails with "unexpected failure to convert parse tree to lerp expression: Error: ParseTreeToLerpFunction called on non-string non-list null"
 // TODO: custom exprs: need more friendly tooltip on failure; this one doesn't appear unless you leave and re-enter
 // TODO: custom exprs: failure mode on "-true" spams console with CHECK failure.  needs to throw more quietly (minus, and all the other functions I guess? or, can we prevent this at compile time? or, is CHECK being too verbose to begin with?)
 // TODO: custom lerp functions: really need to be able to see parse tree for when something goes wrong, especially when it goes wrong during converting parse tree to function
@@ -2800,6 +2798,10 @@ registerSourceCodeLinesAndRequire([
       const left_op_entry = parseOp(left_unary_op_table, lowest_precedence_allowed);
       if (left_op_entry !== null) {
         const RHS = parseSubexpression(left_op_entry.precedence);
+        if (RHS === null) {
+          // CBB: "premature end of string" isn't necessarily right
+          throw new Error("premature end of string at position "+posHolder[0]+" after left-unary operator "+STRINGIFY(left_op_entry.name));
+        }
         answer = combine(left_op_entry.name, left_op_entry.implementation, [RHS]);
       } else {
         answer = parseFactor();
@@ -2827,6 +2829,10 @@ registerSourceCodeLinesAndRequire([
             // so "true?true?a:b:t" will be accepted
             // and correctly interpreted as "true?(true?a:b):c"
             const MHS = parseSubexpression(entry.precedence);
+            if (MHS === null) {
+              // CBB: "premature end of string" isn't necessarily right
+              throw new Error("premature end of string at position "+posHolder[0]+" after operator "+STRINGIFY(entry.name));
+            }
             discardSpaces();
             if (parseLiteral(":") === null) {
               throw new Error("unmatched '?' at position "+i0);
@@ -2836,12 +2842,17 @@ registerSourceCodeLinesAndRequire([
             // so "true?a:true?b:t" will be correctly interpreted as
             // "true?a:(true?b:t)" rather than "(true?a:true)?b:t"
             const RHS = parseSubexpression(entry.precedence);
+            if (RHS === null) {
+              // CBB: "premature end of string" isn't necessarily right
+              throw new Error("premature end of string at position "+posHolder[0]+" after operator ':'");
+            }
             answer = combine(entry.name, entry.implementation, [answer, MHS, RHS]);
           } else {
             const is_right_to_left_associative = false;  // nothing other than ?: is right-to-left associative, currently
             const RHS = parseSubexpression(is_right_to_left_associative ? entry.precedence
                                                                         : entry.precedence+1);
             if (RHS === null) {
+              // CBB: "premature end of string" isn't necessarily right
               throw new Error("premature end of string at position "+posHolder[0]+" after operator "+STRINGIFY(entry.name));
             }
             answer = combine(entry.name, entry.implementation, [answer, RHS]);
@@ -2948,8 +2959,11 @@ registerSourceCodeLinesAndRequire([
     try {
       lerp_function = ParseTreeToLerpFunction(tree);
     } catch (error) {
-      const reason = "internal error: unexpected failure to convert parse tree to lerp function: "+error;
-      if (verboseLevel >= 1) console.log("ExpressionValidity("+STRINGIFY(expression)+") failing because "+reason);
+      const reason = "internal error:\nunexpected failure to convert parse tree to lerp function:\n"+error;
+      if (verboseLevel >= 0) console.log("ExpressionValidity("+STRINGIFY(expression)+") failing because "+reason);
+      if (verboseLevel >= 0) console.log("parse tree = "+STRINGIFY(tree));
+      if (verboseLevel >= 0) console.log("parse tree:");
+      if (verboseLevel >= 0) PrintParseTree(tree, /*indentString=*/"    ", /*recursionLevel=*/0);
       return reason;
     }
     if (verboseLevel >= 1) console.log("  lerp_function = "+STRINGIFY(lerp_function));
@@ -3075,7 +3089,7 @@ registerSourceCodeLinesAndRequire([
         // different from wrong return value type.)
         textinput.style.backgroundColor = '#ffeecc';  // light orange
         textinput.title = expression_validity_string;
-      } else if (expression_validity_string.startsWith("internal errorf:")) {
+      } else if (expression_validity_string.startsWith("internal error:")) {
         textinput.style.backgroundColor = 'red';
         textinput.title = expression_validity_string;
       } else {
