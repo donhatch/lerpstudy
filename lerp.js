@@ -3032,7 +3032,7 @@ registerSourceCodeLinesAndRequire([
       tree = Parse(expression, posHolder);
     } catch (error) {
       // Parse error.
-      const reason = (posHolder[0]==expression.length ? "soft syntax error: " : "hard syntax error: ")+error;
+      const reason = (posHolder[0]==expression.length ? "soft syntax error: " : "hard syntax error: ")+error.message;
       if (verboseLevel >= 1) console.log("ExpressionValidity("+STRINGIFY(expression)+") failing because "+reason);
       return reason;
     }
