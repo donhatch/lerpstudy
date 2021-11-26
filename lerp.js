@@ -404,8 +404,6 @@ registerSourceCodeLinesAndRequire([
   console.log("    in lerp.js require callback");
   CHECK.EQ(shouldBeUndefined, undefined);
 
-
-
   const initial_hash = window.location.hash;
   const hash_params = new MyURLSearchOrHashParams(initial_hash);
   console.log("      hash_params = ",hash_params);
@@ -639,10 +637,21 @@ registerSourceCodeLinesAndRequire([
   //a = round_to_nearest_representable(a);
   //b = round_to_nearest_representable(b);
 
-  const xformUrlPart = urlPart=>urlPart;
+  // Just clear the '?' (search) params.
+  // Why? Because this program doesn't use them at all,
+  // and if they are set, it's a mistake
+  // (maybe from a previous incarnation of the program that did use them,
+  // or maybe the user accidentally changed the '#' to '?')
+  // in which case it's cluttering and misleading.
+  const searchParamPairsForUnsetting = [];
+  for (const key of new URLSearchParams(window.location.search).keys()) {
+    searchParamPairsForUnsetting.push([key, null]);  // unset it
+  }
+
   // initially without "custom", since we don't have the model for that til we add the buttons
   // (although maybe we should make an explicit model instead of storing it in the ui)
-  SetSearchAndHashParamsInAddressBar([], [['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(a)],['b',toFractionString(b)]]);
+  SetSearchAndHashParamsInAddressBar(searchParamPairsForUnsetting, [['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(a)],['b',toFractionString(b)]]);
+
 
   //======================================
   // Begin float utilities
@@ -2537,10 +2546,10 @@ registerSourceCodeLinesAndRequire([
     const additional_radiobutton_onclick_function = () => {
     };  // additional_radio_button_onclick_function
     const radioButtons = document.querySelectorAll('input[type=radio][name=lerpmethod]');
-    console.log("  radioButtons = ",radioButtons);
+    //console.log("  radioButtons = ",radioButtons);
     for (let i = 0; i < radioButtons.length; ++i) {
       const radioButton = radioButtons[i];
-      console.log("      radioButtons["+i+"] = ",radioButton);
+      //console.log("      radioButtons["+i+"] = ",radioButton);
       if (radioButton.checked) {
         previousLerpExpressionIndex = i;
         currentLerpExpressionIndex = i;
