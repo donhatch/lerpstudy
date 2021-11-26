@@ -1,4 +1,5 @@
 // TODO: custom exprs: starting to type "-" or "!" or "--" or "succ" fails with "unexpected failure to convert parse tree to lerp expression: Error: ParseTreeToLerpFunction called on non-string non-list null"
+// TODO: custom exprs: "true?t:" fails with "unexpected failure to convert parse tree to lerp expression: Error: ParseTreeToLerpFunction called on non-string non-list null"
 // TODO: custom exprs: need more friendly tooltip on failure; this one doesn't appear unless you leave and re-enter
 // TODO: custom exprs: need to show the tooltip on red (parse failure) as well as orange. and even maybe on yellow? hmm.
 //       IDEA: on anything but complete success (green), return a reason, with initial part differentiating:
@@ -3054,16 +3055,16 @@ registerSourceCodeLinesAndRequire([
       CHECK.EQ(typeof expression_validity_string, 'string');
       if (new_value === textinput.old_value) {
         textinput.style.backgroundColor = 'white';
-        textinput.title = "";
+        textinput.title = expression_validity_string;
       } else if (expression_validity_string === "valid") {
         textinput.style.backgroundColor = '#ccffcc';  // light green
-        textinput.title = "";
+        textinput.title = "valid! hit Enter to use, Escape to revert";
       } else if (expression_validity_string.startsWith("soft syntax error:")) {
         textinput.style.backgroundColor = '#ffffcc';  // yellow
-        textinput.title = "";
+        textinput.title = expression_validity_string;
       } else if (expression_validity_string.startsWith("hard syntax error:")) {
         textinput.style.backgroundColor = '#ffcccc';  // pink
-        textinput.title = "";
+        textinput.title = expression_validity_string;
       } else if (expression_validity_string.startsWith("failed smoke test:")) {
         // This means the expression is syntactically valid but the smoke test failed,
         // e.g. "returning -1 because lerp_function(1, 2, 0.5) returned false which is of type "boolean", not 'number'".
@@ -3079,34 +3080,6 @@ registerSourceCodeLinesAndRequire([
         textinput.style.backgroundColor = '#4A412A';  // #4A412A is "pantone 448 C" aka "drab dark brown" aka "the ugliest colour in the world".
         // argh, but we need it to be brighter than that so it can be read.
         textinput.style.backgroundColor = '#967117';  // Drab
-
-        if (false) {
-          // https://stackoverflow.com/questions/5560248/programmatically-lighten-or-darken-a-hex-color-or-rgb-and-blend-colors#question
-          const rgb_in = 0x4A412A;
-          const r_in = rgb_in >> 16;
-          const g_in = (rgb_in >> 8) & 255;
-          const b_in = rgb_in & 255;
-          const scale = 0x96 / Math.max(r_in,g_in,b_in);
-          console.log("scale = ",scale);
-          const r_out = Math.round(r_in * scale);
-          const g_out = Math.round(g_in * scale);
-          const b_out = Math.round(b_in * scale);
-          console.log("r_out = ",r_out);
-          console.log("g_out = ",g_out);
-          console.log("b_out = ",b_out);
-          const rgb_out = (((r_out<<8)|g_out)<<8)|b_out;
-          // screw it
-          const rgb_string = '#' + (r_out>>4).toString(16) + (r_out&15).toString(16)
-                                 + (g_out>>4).toString(16) + (g_out&15).toString(16)
-                                 + (b_out>>4).toString(16) + (b_out&15).toString(16);
-          console.log("rgb_string = ",rgb_string);
-          textinput.style.backgroundColor = rgb_string;
-
-          // Q: is that drab light brown?  well, it's: #907E52 or #968455
-          //    and drab light brown is:
-          //       Drab: #967117
-          textinput.style.backgroundColor = '#967117';
-        }
         textinput.title = "THIS REALLY SHOULDN'T HAPPEN: "+expression_validity_string;
       }
       if (verboseLevel >= 1) console.log("      new_value = "+STRINGIFY(new_value));
