@@ -1632,30 +1632,36 @@ registerSourceCodeLinesAndRequire([
     if (true) {
       // Currently debugging the fact that "a+t*(b-a)" seems to do better at numFractionBits=3 than extended precision.
       // bad case a=0 b=13/16 t=13/16 (or 13/32 or 13/64 or...)
+      // Ah, fixed it.  The problem was that I was trying to implement quad precision
+      // by doing double precision and double precision, so it was suffering from multiple rounding.
       const a = 0;
       const b = 13/16;
       const t = 13/16;
       {
         const numFractionBits = 3;
         const minExponent = -6;
-        PRINTDEBUG(plus(numFractionBits, minExponent, a, times(numFractionBits, minExponent, t, minus(numFractionBits, minExponent, b, a))));
+        //PRINTDEBUG(plus(numFractionBits, minExponent, a, times(numFractionBits, minExponent, t, minus(numFractionBits, minExponent, b, a))));
         // should be same
-        PRINTDEBUG(round_to_nearest_representable(3, -6, plus(numFractionBits, minExponent, a, times(numFractionBits, minExponent, t, minus(numFractionBits, minExponent, b, a)))));
+        //PRINTDEBUG(round_to_nearest_representable(3, -6, plus(numFractionBits, minExponent, a, times(numFractionBits, minExponent, t, minus(numFractionBits, minExponent, b, a)))));
+        CHECK.EQ(round_to_nearest_representable(3, -6, plus(numFractionBits, minExponent, a, times(numFractionBits, minExponent, t, minus(numFractionBits, minExponent, b, a)))), 11/16);
       }
       {
         const numFractionBits = 6;
         const minExponent = -36;
-        PRINTDEBUG(round_to_nearest_representable(3, -6, plus(numFractionBits, minExponent, a, times(numFractionBits, minExponent, t, minus(numFractionBits, minExponent, b, a)))));
+        //PRINTDEBUG(round_to_nearest_representable(3, -6, plus(numFractionBits, minExponent, a, times(numFractionBits, minExponent, t, minus(numFractionBits, minExponent, b, a)))));
+        CHECK.EQ(round_to_nearest_representable(3, -6, plus(numFractionBits, minExponent, a, times(numFractionBits, minExponent, t, minus(numFractionBits, minExponent, b, a)))), 5/8);  // temporarily worse due to double rounding!
       }
       {
         const numFractionBits = 12;
         const minExponent = -1000;
-        PRINTDEBUG(round_to_nearest_representable(3, -6, plus(numFractionBits, minExponent, a, times(numFractionBits, minExponent, t, minus(numFractionBits, minExponent, b, a)))));
+        //PRINTDEBUG(round_to_nearest_representable(3, -6, plus(numFractionBits, minExponent, a, times(numFractionBits, minExponent, t, minus(numFractionBits, minExponent, b, a)))));
+        CHECK.EQ(round_to_nearest_representable(3, -6, plus(numFractionBits, minExponent, a, times(numFractionBits, minExponent, t, minus(numFractionBits, minExponent, b, a)))), 11/16);
       }
       {
         const numFractionBits = 24;
         const minExponent = -1000;
-        PRINTDEBUG(round_to_nearest_representable(3, -6, plus(numFractionBits, minExponent, a, times(numFractionBits, minExponent, t, minus(numFractionBits, minExponent, b, a)))));
+        //PRINTDEBUG(round_to_nearest_representable(3, -6, plus(numFractionBits, minExponent, a, times(numFractionBits, minExponent, t, minus(numFractionBits, minExponent, b, a)))));
+        CHECK.EQ(round_to_nearest_representable(3, -6, plus(numFractionBits, minExponent, a, times(numFractionBits, minExponent, t, minus(numFractionBits, minExponent, b, a)))), 11/16);
       }
     }
 
