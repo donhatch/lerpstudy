@@ -2900,46 +2900,46 @@ registerSourceCodeLinesAndRequire([
         // so we make a special case for it below.)
         while (true) {
           discardSpaces();  // TODO: where should this go?  inside parseFactor? inside parseLiteral?
-          const entry = parseOp(binary_op_table, lowest_precedence_allowed);
-          if (entry === null) break;  // didn't find an op
-          if (verboseLevel >= 1) console.log("          found op "+STRINGIFY(entry.name));
+          const binary_op_entry = parseOp(binary_op_table, lowest_precedence_allowed);
+          if (binary_op_entry === null) break;  // didn't find an op
+          if (verboseLevel >= 1) console.log("          found op "+STRINGIFY(binary_op_entry.name));
           if (verboseLevel >= 1) console.log("          pos = "+posHolder[0]);
 
-          if (entry.name === "?") {
+          if (binary_op_entry.name === "?") {
             const i0 = posHolder[0]-1;
-            // entry.precedence rather than entry.precedence+1,
+            // binary_op_entry.precedence rather than binary_op_entry.precedence+1,
             // i.e. allow "?" in the MHS, i.e. right-to-left-associative,
             // so "true?true?a:b:t" will be accepted
             // and correctly interpreted as "true?(true?a:b):c"
-            const MHS = parseSubexpression(entry.precedence);
+            const MHS = parseSubexpression(binary_op_entry.precedence);
             if (MHS === null) {
               // CBB: "premature end of string" isn't necessarily right
-              throw new Error("premature end of string at position "+posHolder[0]+" after operator "+STRINGIFY(entry.name));
+              throw new Error("premature end of string at position "+posHolder[0]+" after operator "+STRINGIFY(binary_op_entry.name));
             }
             discardSpaces();
             if (parseLiteral(":") === null) {
               throw new Error("unmatched '?' at position "+i0);
             }
-            // entry.precedence rather than entry.precedence+1,
+            // binary_op_entry.precedence rather than binary_op_entry.precedence+1,
             // i.e. allow "?" in the RHS, i.e. right-to-left-associative,
             // so "true?a:true?b:t" will be correctly interpreted as
             // "true?a:(true?b:t)" rather than "(true?a:true)?b:t"
-            const RHS = parseSubexpression(entry.precedence);
+            const RHS = parseSubexpression(binary_op_entry.precedence);
             if (RHS === null) {
               // CBB: "premature end of string" isn't necessarily right
               throw new Error("premature end of string at position "+posHolder[0]+" after operator ':'");
             }
-            answer = combine(entry.name, entry.implementation, [answer, MHS, RHS]);
+            answer = combine(binary_op_entry.name, binary_op_entry.implementation, [answer, MHS, RHS]);
           } else {
             // Currently '=' is the only right-to-left-associative binary operator, so hard code it
-            const is_right_to_left_associative = entry.name === '=';
-            const RHS = parseSubexpression(is_right_to_left_associative ? entry.precedence
-                                                                        : entry.precedence+1);
+            const is_right_to_left_associative = binary_op_entry.name === '=';
+            const RHS = parseSubexpression(is_right_to_left_associative ? binary_op_entry.precedence
+                                                                        : binary_op_entry.precedence+1);
             if (RHS === null) {
               // CBB: "premature end of string" isn't necessarily right
-              throw new Error("premature end of string at position "+posHolder[0]+" after operator "+STRINGIFY(entry.name));
+              throw new Error("premature end of string at position "+posHolder[0]+" after operator "+STRINGIFY(binary_op_entry.name));
             }
-            answer = combine(entry.name, entry.implementation, [answer, RHS]);
+            answer = combine(binary_op_entry.name, binary_op_entry.implementation, [answer, RHS]);
           }
         }  // while true
       }  // if answer !== null
