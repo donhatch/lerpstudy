@@ -320,15 +320,15 @@ Things to know:
   <ul>
    <li> Use any of the C expression syntax that appears in any of the expressions above, including variable assignments.
    <li> pred(x) and succ(x) (i.e. previous and next representable number) are supported
-   <li> color coding as you type:
+   <li> color feedback as you type:
    <ul>
-    <li> white means unaltered
-    <li> green means good
-    <li> yellow means syntactically bad but might be good with more typing
-    <li> orange means syntactically good but doesn't pass runtime smoke test (e.g. returns wrong type or encounters zero-division)
-    <li> red means hopelessly syntactically bad
+    <li> <span style="border:1px solid black;">&nbsp;white&nbsp;</span> means unaltered
+    <li> <span style="border:1px solid black; background:#ccffcc;">&nbsp;green&nbsp;</span> means good
+    <li> <span style="border:1px solid black; background:#ffffcc;">&nbsp;yellow&nbsp;</span> means syntactically bad but might be good with more typing
+    <li> <span style="border:1px solid black; background:#ffeecc;">&nbsp;orange&nbsp;</span> means syntactically good but doesn't pass runtime smoke test (e.g. returns wrong type or encounters zero-division)
+    <li> <span style="border:1px solid black; background:#ffcccc;">&nbsp;red&nbsp;</span> means hopelessly syntactically bad
    </ul>
-   <li> type Enter to use typed expression (if green); Escape to revert it
+   <li> type Enter to use typed expression (if <span style="border:1px solid black; background:#ccffcc;">&nbsp;green&nbsp;</span>); Escape to revert it
   </ul>
 </ul>
     </td>
