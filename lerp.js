@@ -1,9 +1,15 @@
-// TODO: custom exprs: starting to type "-" or "!" or "--" or "succ" fails with "unexpect failure to convert parse tree to lerp expression: Error: ParseTreeToLerpFunction called on non-string non-list null"
+// TODO: custom exprs: starting to type "-" or "!" or "--" or "succ" fails with "unexpected failure to convert parse tree to lerp expression: Error: ParseTreeToLerpFunction called on non-string non-list null"
 // TODO: custom exprs: need more friendly tooltip on failure; this one doesn't appear unless you leave and re-enter
+// TODO: custom exprs: need to show the tooltip on red (parse failure) as well as orange. and even maybe on yellow? hmm.
+//       IDEA: on anything but complete success (green), return a reason, with initial part differentiating:
+//         (red)    hard syntax error: ...
+//         (yellow) soft syntax error: ...
+//         (??) internal error: unexpected failure to convert parse tree to lerp expression:
+//         (orange) smoke test failed: ...
+//    
 // TODO: custom exprs: failure mode on "-true" spams console with CHECK failure.  needs to throw more quietly (minus, and all the other functions I guess? or, can we prevent this at compile time? or, is CHECK being too verbose to begin with?)
 // TODO: custom exprs: && and ||
-// TODO: custom lerp functions: "t<.25 ? 0/0 : t" bad at runtime
-// TODO: custom lerp functions: really need to be able to see parse tree for when something goes wrong
+// TODO: custom lerp functions: really need to be able to see parse tree for when something goes wrong, especially when it goes wrong during converting parse tree to function
 // TODO: custom lerp functions: handle divide-by-zero more gracefully (completely abort)
 // TODO: custom lerp functions: "at twice precision"
 // TODO: now that I want to copy-paste a lot, I don't think I want radio buttons to be checked when I click on them
@@ -2913,11 +2919,12 @@ registerSourceCodeLinesAndRequire([
     return parse(expression, binary_op_table, left_unary_op_table, Round, posHolder);
   };  // Parse
 
-  // Returns:
-  //   0 if not a valid prefix
-  //   1 if a valid prefix but not a valid expression
-  //   2 if a valid expression and smoke test of it succeeds
-  //   string describing reason, if whole expression is syntactically valid but smoke test of it fails
+  // Returns a string of one of the following forms:
+  //   "soft syntax error: ..."  (means might be a prefix of something good)
+  //   "hard syntax error: ..."  (means isn't a prefix of anything good)
+  //   "internal error: ..."
+  //   "failed smoke test: ..."
+  //   "valid"
   const ExpressionValidity = expression => {
     const verboseLevel = 0;
     const posHolder = [0];
@@ -2927,9 +2934,9 @@ registerSourceCodeLinesAndRequire([
       tree = Parse(expression, posHolder);
     } catch (error) {
       // Parse error.
-      // TODO: figure out how to make this discoverable!
-      if (verboseLevel >= 1) console.log("ExpressionValidity returning false because: ",error);
-      return posHolder[0]==expression.length ? 1 : 0;
+      const reason = (posHolder[0]==expression.length ? "soft syntax error: " : "hard syntax error: ")+error;
+      if (verboseLevel >= 1) console.log("ExpressionValidity("+STRINGIFY(expression)+") failing because "+reason);
+      return reason;
     }
     CHECK.NE(tree, null);  // because Parse throws rather than returning failure
     if (verboseLevel >= 1) console.log("  ExpressionValidity: tree = "+JSON.stringify(tree));
@@ -2939,7 +2946,7 @@ registerSourceCodeLinesAndRequire([
     try {
       lerp_function = ParseTreeToLerpFunction(tree);
     } catch (error) {
-      const reason = "unexpected failure to convert parse tree to lerp function: "+error;
+      const reason = "internal error: unexpected failure to convert parse tree to lerp function: "+error;
       if (verboseLevel >= 1) console.log("ExpressionValidity("+STRINGIFY(expression)+") failing because "+reason);
       return reason;
     }
@@ -2975,8 +2982,8 @@ registerSourceCodeLinesAndRequire([
       }
     }  // smoke test
 
-    const answer = 2;  // total success
-    if (verboseLevel >= 1) console.log("ExpressionValidity returning "+answer);
+    const answer = "valid";
+    if (verboseLevel >= 1) console.log("ExpressionValidity returning "+STRINGIFY(answer));
     return answer;
   };  // ExpressionValidity
 
@@ -2984,7 +2991,7 @@ registerSourceCodeLinesAndRequire([
     const verboseLevel = 0;
     if (verboseLevel >= 1) console.log("in AddCustomExpression");
 
-    if (ExpressionValidity(expression) !== 2) {
+    if (ExpressionValidity(expression) !== "valid") {
       console.error("  tried to add invalid custom expression "+STRINGIFY(expression));
       if (verboseLevel >= 1) console.log("out AddCustomExpression (expression was invalid)");
       return;
@@ -3043,29 +3050,64 @@ registerSourceCodeLinesAndRequire([
       if (verboseLevel >= 1) console.log("    in textinput.oninput");
       if (verboseLevel >= 1) console.log("      event = ",event);
       const new_value = textinput.value;
-      const expression_validity = ExpressionValidity(new_value);
+      const expression_validity_string = ExpressionValidity(new_value);
+      CHECK.EQ(typeof expression_validity_string, 'string');
       if (new_value === textinput.old_value) {
         textinput.style.backgroundColor = 'white';
         textinput.title = "";
-      } else if (expression_validity === 2) {
+      } else if (expression_validity_string === "valid") {
         textinput.style.backgroundColor = '#ccffcc';  // light green
         textinput.title = "";
-      } else if (expression_validity === 1) {
+      } else if (expression_validity_string.startsWith("soft syntax error:")) {
         textinput.style.backgroundColor = '#ffffcc';  // yellow
         textinput.title = "";
-      } else if (expression_validity === 0) {
+      } else if (expression_validity_string.startsWith("hard syntax error:")) {
         textinput.style.backgroundColor = '#ffcccc';  // pink
-        textinput.title = "";  // CBB: retain the reason and put it here!
-      } else {
-        CHECK.EQ(typeof expression_validity, 'string');
+        textinput.title = "";
+      } else if (expression_validity_string.startsWith("failed smoke test:")) {
         // This means the expression is syntactically valid but the smoke test failed,
         // e.g. "returning -1 because lerp_function(1, 2, 0.5) returned false which is of type "boolean", not 'number'".
-        // In that case it's still a valid prefix, so color it yellow,
-        // but make it ever so slightly different from the normal yellow.
         // (Note: this will probably be misleading if the failure is for a reason
         // different from wrong return value type.)
         textinput.style.backgroundColor = '#ffeecc';  // light orange
-        textinput.title = expression_validity;
+        textinput.title = expression_validity_string;
+      } else if (expression_validity_string.startsWith("internal errorf:")) {
+        textinput.style.backgroundColor = 'red';
+        textinput.title = expression_validity_string;
+      } else {
+        // this shouldn't happen.
+        textinput.style.backgroundColor = '#4A412A';  // #4A412A is "pantone 448 C" aka "drab dark brown" aka "the ugliest colour in the world".
+        // argh, but we need it to be brighter than that so it can be read.
+        textinput.style.backgroundColor = '#967117';  // Drab
+
+        if (false) {
+          // https://stackoverflow.com/questions/5560248/programmatically-lighten-or-darken-a-hex-color-or-rgb-and-blend-colors#question
+          const rgb_in = 0x4A412A;
+          const r_in = rgb_in >> 16;
+          const g_in = (rgb_in >> 8) & 255;
+          const b_in = rgb_in & 255;
+          const scale = 0x96 / Math.max(r_in,g_in,b_in);
+          console.log("scale = ",scale);
+          const r_out = Math.round(r_in * scale);
+          const g_out = Math.round(g_in * scale);
+          const b_out = Math.round(b_in * scale);
+          console.log("r_out = ",r_out);
+          console.log("g_out = ",g_out);
+          console.log("b_out = ",b_out);
+          const rgb_out = (((r_out<<8)|g_out)<<8)|b_out;
+          // screw it
+          const rgb_string = '#' + (r_out>>4).toString(16) + (r_out&15).toString(16)
+                                 + (g_out>>4).toString(16) + (g_out&15).toString(16)
+                                 + (b_out>>4).toString(16) + (b_out&15).toString(16);
+          console.log("rgb_string = ",rgb_string);
+          textinput.style.backgroundColor = rgb_string;
+
+          // Q: is that drab light brown?  well, it's: #907E52 or #968455
+          //    and drab light brown is:
+          //       Drab: #967117
+          textinput.style.backgroundColor = '#967117';
+        }
+        textinput.title = "THIS REALLY SHOULDN'T HAPPEN: "+expression_validity_string;
       }
       if (verboseLevel >= 1) console.log("      new_value = "+STRINGIFY(new_value));
       // tweak: if user is backspacing, don't shrink, until they hit enter
@@ -3078,8 +3120,8 @@ registerSourceCodeLinesAndRequire([
       if (verboseLevel >= 1) console.log("      event = ",event);
       const new_value = textinput.value;
       if (verboseLevel >= 1) console.log("      new_value = "+STRINGIFY(new_value));
-      const expression_validity = ExpressionValidity(new_value);
-      if (expression_validity === 2) {
+      const expression_validity_string = ExpressionValidity(new_value);
+      if (expression_validity_string === "valid") {
         textinput.size = Math.max(minWidth, textinput.value.length);
         textinput.old_value = new_value;
         textinput.style.backgroundColor = 'white';
