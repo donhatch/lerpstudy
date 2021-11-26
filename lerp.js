@@ -1,20 +1,13 @@
 // TODO: custom exprs: starting to type "-" or "!" or "--" or "succ" fails with "unexpected failure to convert parse tree to lerp expression: Error: ParseTreeToLerpFunction called on non-string non-list null"
 // TODO: custom exprs: "true?t:" fails with "unexpected failure to convert parse tree to lerp expression: Error: ParseTreeToLerpFunction called on non-string non-list null"
 // TODO: custom exprs: need more friendly tooltip on failure; this one doesn't appear unless you leave and re-enter
-// TODO: custom exprs: need to show the tooltip on red (parse failure) as well as orange. and even maybe on yellow? hmm.
-//       IDEA: on anything but complete success (green), return a reason, with initial part differentiating:
-//         (red)    hard syntax error: ...
-//         (yellow) soft syntax error: ...
-//         (??) internal error: unexpected failure to convert parse tree to lerp expression:
-//         (orange) smoke test failed: ...
-//    
 // TODO: custom exprs: failure mode on "-true" spams console with CHECK failure.  needs to throw more quietly (minus, and all the other functions I guess? or, can we prevent this at compile time? or, is CHECK being too verbose to begin with?)
-// TODO: custom exprs: && and ||
 // TODO: custom lerp functions: really need to be able to see parse tree for when something goes wrong, especially when it goes wrong during converting parse tree to function
-// TODO: custom lerp functions: handle divide-by-zero more gracefully (completely abort)
+// TODO: custom lerp functions: handle divide-by-zero that didn't get caught by smoke test more gracefully (completely abort?)
 // TODO: custom lerp functions: "at twice precision"
 // TODO: now that I want to copy-paste a lot, I don't think I want radio buttons to be checked when I click on them
 //       (or do I?  it's only a problem if user double-clicks. hmm. https://stackoverflow.com/questions/5497073/how-to-differentiate-single-click-event-and-double-click-event )
+// TODO: when I copy something by double-clicking, it gets an extra space at the beginning
 
 // References:
 //  https://stackoverflow.com/questions/4353525/floating-point-linear-interpolation
@@ -3035,6 +3028,8 @@ registerSourceCodeLinesAndRequire([
     const minWidth = 30;
 
     radiobutton.onclick = () => {
+      // This assumes textinput.old_value has already been validated
+      // (unlike textinput.value which may not have been)
       setLerpMethodToCustom(textinput.old_value);
     };
 
