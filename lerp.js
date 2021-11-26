@@ -1,3 +1,12 @@
+// Interesting: a=7/32 b=1, custom "(1-t)*a + t*b", twice precision is worse for some cases
+//             or 9/32
+//             or 3/8
+//             or 1/2  (t=9/128)  and not fixed even for 4x?? and not even 8x?? wtf?  am I even sure it's right??
+//                well, what's lerp(1/2, 1, 9/128)?  That'll be 1/2 + 9/256 = 128/256 + 9/256 = 137/256.  Hmm!
+//                and the ui says it's being incorrectly rounded to 1/2=128/256, when 9/16=144/256 is closer.
+//                so, why is it doing this, even at 8x precision?? that definitely can't be right :-(
+//       'http://localhost:8000/lerp.html#numFractionBits=3&minExponent=-6&a=1/2&b=1&custom=[%22(1-t)*a+%2B+t*b%22]'
+
 // TODO: internal error on "0=0": "unexpected failure to convert parse tree to lerp function: ... 'object' != 'string'"
 // TODO: custom exprs: need more friendly tooltip on failure; this one doesn't appear unless you leave and re-enter
 // TODO: custom exprs: failure mode on "-true" spams console with CHECK failure.  needs to throw more quietly (minus, and all the other functions I guess? or, can we prevent this at compile time? or, is CHECK being too verbose to begin with?)
@@ -3125,7 +3134,7 @@ registerSourceCodeLinesAndRequire([
 
     const radiobutton_td = new_tr.insertCell(1);
     // font-size:13px empirically matches the font size of the radio button labels, although I wouldn't know how to predict that
-    radiobutton_td.innerHTML = '<input type="radio" name="lerpmethod"><input type="text" class="custom" style="font-family:monospace; font-size:13px;" size="(TO BE SET BELOW)" value="(TO BE SET BELOW)"></input><label><input type="radio" name="lerpmethod">at twice precision</label><label><input type="radio" name="lerpmethod">at 4x precision</label>'
+    radiobutton_td.innerHTML = '<input type="radio" name="lerpmethod"><input type="text" class="custom" style="font-family:monospace; font-size:13px;" size="(TO BE SET BELOW)" value="(TO BE SET BELOW)"></input><label><input type="radio" name="lerpmethod">at 2x precision</label><label><input type="radio" name="lerpmethod">4x</label><label><input type="radio" name="lerpmethod">8x</label>'
     const radiobutton = radiobutton_td.children[0];
     if (verboseLevel >= 1) console.log("  radiobutton = ",radiobutton);
     const textinput = radiobutton_td.children[1];
@@ -3134,6 +3143,8 @@ registerSourceCodeLinesAndRequire([
     if (verboseLevel >= 1) console.log("  radiobutton2 = ",radiobutton2);
     const radiobutton4 = radiobutton_td.children[3].children[0];
     if (verboseLevel >= 1) console.log("  radiobutton4 = ",radiobutton4);
+    const radiobutton8 = radiobutton_td.children[4].children[0];
+    if (verboseLevel >= 1) console.log("  radiobutton8 = ",radiobutton8);
 
     textinput.value = expression;
 
@@ -3150,8 +3161,11 @@ registerSourceCodeLinesAndRequire([
     radiobutton4.onclick = () => {
       setLerpMethodToCustom('twice_precision(twice_precision('+textinput.old_value+'))');
     };
+    radiobutton8.onclick = () => {
+      setLerpMethodToCustom('twice_precision(twice_precision(twice_precision('+textinput.old_value+')))');
+    };
 
-    for (const r of [radiobutton, radiobutton2, radiobutton4]) {
+    for (const r of [radiobutton, radiobutton2, radiobutton4, radiobutton8]) {
       // BEGIN: dup code
       r.addEventListener('click', additional_onclick_event_listener);
       r.onkeydown = event => {
@@ -3232,7 +3246,7 @@ registerSourceCodeLinesAndRequire([
         textinput.old_value = new_value;
         textinput.style.backgroundColor = 'white';
         textinput.title = "";
-        for (const r of [radiobutton, radiobutton2, radiobutton4]) {
+        for (const r of [radiobutton, radiobutton2, radiobutton4, radiobutton8]) {
           if (r.checked) {
             r.onclick();
             break;
