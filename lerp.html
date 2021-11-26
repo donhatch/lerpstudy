@@ -318,8 +318,12 @@ Things to know:
  <li>
   You can enter custom lerp expressions, using the &#x271A; button.
   <ul>
-   <li> Use any of the C expression syntax that appears in any of the expressions above, including variable assignments.
-   <li> pred(x) and succ(x) (i.e. previous and next representable number) are supported
+   <li> Use any of the C expression syntax that appears in any of the expressions above, including created-on-demand-variable assignments; also <span class="mono">&amp;&amp;</span> and <span class="mono">||</span> with short-circuiting
+   <ul>
+     <li> Supported binary and ternary operators: <span class="mono">, = ?: || &amp;&amp; != == &gt; &gt;= &lt; &lt;= + - * / </span>
+     <li> Supported left-unary operators: <span class="mono">- !</span>
+     <li> Supported functions: <span class="mono">pred(x) succ(x)</span>  (previous and next representable number)
+   </ul>
    <li> color feedback as you type:
    <ul>
     <li> <span style="border:1px solid black;">&nbsp;white&nbsp;</span> means unaltered

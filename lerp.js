@@ -1,6 +1,6 @@
-// TODO: custom exprs: need more friendly tooltip on failure
-// TODO: custom exprs: failure mode on "-true" spams console with CHECK failure.  maybe throw more quietly?
-// TODO: custom exprs: starting to type "-" or "!" or "--" throws "lerp.js:2600 Uncaught Error: ParseTreeToLerpFunction called on non-string non-list null"
+// TODO: custom exprs: starting to type "-" or "!" or "--" or "succ" fails with "unexpect failure to convert parse tree to lerp expression: Error: ParseTreeToLerpFunction called on non-string non-list null"
+// TODO: custom exprs: need more friendly tooltip on failure; this one doesn't appear unless you leave and re-enter
+// TODO: custom exprs: failure mode on "-true" spams console with CHECK failure.  needs to throw more quietly (minus, and all the other functions I guess? or, can we prevent this at compile time? or, is CHECK being too verbose to begin with?)
 // TODO: custom exprs: && and ||
 // TODO: custom lerp functions: "t<.25 ? 0/0 : t" bad at runtime
 // TODO: custom lerp functions: really need to be able to see parse tree for when something goes wrong
@@ -2561,7 +2561,7 @@ registerSourceCodeLinesAndRequire([
       } else if (Array.isArray(tree)) {
         CHECK.EQ(tree.length, 3);
         const [opname, implementation, operands] = tree;
-        if (opname === "?") {
+        if (opname === "?") {  // needs special case for short circuiting
           CHECK.EQ(operands.length, 3);
           const LHS_function = recurse(operands[0]);
           const MHS_function = recurse(operands[1]);
@@ -2570,6 +2570,24 @@ registerSourceCodeLinesAndRequire([
           return (vars) => {
             return LHS_function(vars) ? MHS_function(vars)
                                       : RHS_function(vars);
+          };
+        } else if (opname === "||") {  // needs special case for short-circuiting
+          // CBB: really shouldn't need a special case for this; make the implementations take thunks
+          CHECK.EQ(operands.length, 2);
+          const LHS_function = recurse(operands[0]);
+          const RHS_function = recurse(operands[1]);
+          if (verboseLevel >= 1) console.log("    out recurse");
+          return (vars) => {
+            return LHS_function(vars) || RHS_function(vars);
+          };
+        } else if (opname === "&&") {  // needs special case for short-circuiting
+          // CBB: really shouldn't need a special case for this; make the implementations take thunks
+          CHECK.EQ(operands.length, 2);
+          const LHS_function = recurse(operands[0]);
+          const RHS_function = recurse(operands[1]);
+          if (verboseLevel >= 1) console.log("    out recurse");
+          return (vars) => {
+            return LHS_function(vars) && RHS_function(vars);
           };
         } else if (opname === "=") {
           CHECK.EQ(operands.length, 2);
@@ -2593,7 +2611,6 @@ registerSourceCodeLinesAndRequire([
           CHECK.EQ(operands.length, 2);
           const LHS_function = recurse(operands[0]);
           const RHS_function = recurse(operands[1]);
-          // CBB: possible optimization: detect when LHS and/or RHS is a leaf, and inline its value
           if (verboseLevel >= 1) console.log("    out recurse");
           return (vars) => {
             return implementation(LHS_function(vars), RHS_function(vars));
@@ -2847,25 +2864,35 @@ registerSourceCodeLinesAndRequire([
 
   const Parse = (expression,posHolder) => {
     const binary_op_table = [
-      // precedence:6 is for left-unary ops, e.g. "-" and "!"
+      // precedence:8 is for left-unary ops, e.g. "-" and "!"
 
-      {name:"*", precedence:5, implementation:(x,y)=>Times(x,y)},
-      {name:"/", precedence:5, implementation:(x,y)=>DividedBy(x,y)},
+      {name:"*", precedence:7, implementation:(x,y)=>Times(x,y)},
+      {name:"/", precedence:7, implementation:(x,y)=>DividedBy(x,y)},
 
-      {name:"+", precedence:4, implementation:(x,y)=>Plus(x,y)},
-      {name:"-", precedence:4, implementation:(x,y)=>Minus(x,y)},
+      {name:"+", precedence:6, implementation:(x,y)=>Plus(x,y)},
+      {name:"-", precedence:6, implementation:(x,y)=>Minus(x,y)},
 
       // NOTE: "<=" must come before "<" so it will be preferred
-      {name:"<=", precedence:3, implementation:(x,y)=>x<=y},
-      {name:"<", precedence:3, implementation:(x,y)=>x<y},
+      {name:"<=", precedence:5, implementation:(x,y)=>x<=y},
+      {name:"<", precedence:5, implementation:(x,y)=>x<y},
       // NOTE: ">=" must come before ">" so it will be preferred
-      {name:">=", precedence:3, implementation:(x,y)=>x>=y},
-      {name:">", precedence:3, implementation:(x,y)=>x>y},
+      {name:">=", precedence:5, implementation:(x,y)=>x>=y},
+      {name:">", precedence:5, implementation:(x,y)=>x>y},
       // NOTE: "==" must come before "=" so it will be preferred
-      {name:"==", precedence:3, implementation:(x,y)=>x==y},
-      {name:"!=", precedence:3, implementation:(x,y)=>x!=y},
+      {name:"==", precedence:5, implementation:(x,y)=>x==y},
+      {name:"!=", precedence:5, implementation:(x,y)=>x!=y},
 
-      {name:"?", precedence:2, implementation:null},  // special case in code
+      {name:"&&", precedence:4, implementation:(x,y)=>{
+        CHECK.EQ(typeof x, 'boolean');
+        CHECK.EQ(typeof y, 'boolean');
+        return x&&y;}},  // CBB: the type error will spam console. CBB: should short circuit; we risk zero-divides otherwise!  which says the functions need to take funcs rather than values.
+
+      {name:"||", precedence:3, implementation:(x,y)=>{
+        CHECK.EQ(typeof x, 'boolean');
+        CHECK.EQ(typeof y, 'boolean');
+        return x||y;}},  // CBB: the type error will spam console. CBB: should short circuit; we risk zero-divides otherwise!  which says the functions need to take funcs rather than values: implementation:(x,y)=>x()||y()
+
+      {name:"?", precedence:2, implementation:null},  // special case in code.  CBB: if we took thunks, the implementation could be (x,y,z)=>x()?y():z()
 
       {name:"=", precedence:1, implementation:null},  // special case in code
 
@@ -2874,14 +2901,14 @@ registerSourceCodeLinesAndRequire([
     ];  // binary_op_table
     const left_unary_op_table = [
       // sort of a hack: treat these as left unary ops.  so "pred t" works
-      {name:"pred", precedence:6, implementation:(x)=>Pred(x)},
-      {name:"succ", precedence:6, implementation:(x)=>Succ(x)},
+      {name:"pred", precedence:8, implementation:(x)=>Pred(x)},
+      {name:"succ", precedence:8, implementation:(x)=>Succ(x)},
 
-      {name:"!", precedence:6, implementation:(x)=>UnaryNot(x)},
+      {name:"!", precedence:8, implementation:(x)=>UnaryNot(x)},
 
       // CBB: negative numbers end up being interpreted as unary-minus
       // followed by positive number.  I guess that's ok.
-      {name:"-", precedence:6, implementation:(x)=>UnaryMinus(x)},
+      {name:"-", precedence:8, implementation:(x)=>UnaryMinus(x)},
     ];  // left_unary_op_table
     return parse(expression, binary_op_table, left_unary_op_table, Round, posHolder);
   };  // Parse
@@ -2904,12 +2931,22 @@ registerSourceCodeLinesAndRequire([
       if (verboseLevel >= 1) console.log("ExpressionValidity returning false because: ",error);
       return posHolder[0]==expression.length ? 1 : 0;
     }
+    CHECK.NE(tree, null);  // because Parse throws rather than returning failure
     if (verboseLevel >= 1) console.log("  ExpressionValidity: tree = "+JSON.stringify(tree));
-    if (tree !== null) {
-      if (verboseLevel >= 1) PrintParseTree(tree, /*indentString=*/"      ", /*recursionLevel=*/0);
-      const lerp_function = ParseTreeToLerpFunction(tree);
-      if (verboseLevel >= 1) console.log("  lerp_function = "+STRINGIFY(lerp_function));
+    if (verboseLevel >= 1) PrintParseTree(tree, /*indentString=*/"      ", /*recursionLevel=*/0);
 
+    let lerp_function;
+    try {
+      lerp_function = ParseTreeToLerpFunction(tree);
+    } catch (error) {
+      const reason = "unexpected failure to convert parse tree to lerp function: "+error;
+      if (verboseLevel >= 1) console.log("ExpressionValidity("+STRINGIFY(expression)+") failing because "+reason);
+      return reason;
+    }
+    if (verboseLevel >= 1) console.log("  lerp_function = "+STRINGIFY(lerp_function));
+
+    if (true) {
+      // Smoke test.
       // Huh, this is probably more test cases than we are plotting.
       // Overkill?  Not sure, maybe it's appropriate.
       for (const a of [0, .25, .5, .75, 1, -1])
@@ -2936,10 +2973,9 @@ registerSourceCodeLinesAndRequire([
           }
         }
       }
-    }
-    // CBB: actually I don't think parse can return null; so we always return 2 in this code path
-    const answer = tree !== null ? 2 :
-           posHolder[0]==expression.length ? 1 : 0;
+    }  // smoke test
+
+    const answer = 2;  // total success
     if (verboseLevel >= 1) console.log("ExpressionValidity returning "+answer);
     return answer;
   };  // ExpressionValidity
