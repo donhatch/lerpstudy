@@ -2484,6 +2484,79 @@ registerSourceCodeLinesAndRequire([
   window.lerpmethodAlastUsingDotSmartest.onclick = () => setLerpMethodToAlastUsingDotSmartest();
   window.lerpmethodTAlastUsingDotSmartest.onclick = () => setLerpMethodToTAlastUsingDotSmartest();
 
+  let previousLerpExpressionIndex = null;  // so can toggle between two of them
+  let currentLerpExpressionIndex = null;  // so can toggle between two of them
+
+  const additional_onclick_event_listener = event => {
+    const verboseLevel = 0;
+    if (verboseLevel >= 1) console.log("in additional onclick listener");
+    if (verboseLevel >= 1) console.log("  event = ",event);
+    const thisRadioButton = event.target;
+    let thisIndex = null;
+    // what's my index?
+    const radioButtons = document.querySelectorAll('input[type=radio][name=lerpmethod]');
+    for (let i = 0; i < radioButtons.length; ++i) {
+      if (radioButtons[i] === thisRadioButton) {
+        CHECK.EQ(thisIndex, null);
+        thisIndex = i;
+      }
+    }
+    CHECK.NE(thisIndex, null);
+
+    if (verboseLevel >= 1) console.log("  thisIndex = "+thisIndex);
+
+    previousLerpExpressionIndex = currentLerpExpressionIndex;
+    currentLerpExpressionIndex = thisIndex;
+
+    if (verboseLevel >= 1) console.log("out additional onclick listener");
+  };  // additional_onclick_event_listener
+  const toggle_current_and_previous_lerp_expression = event => {
+    const radioButtons = document.querySelectorAll('input[type=radio][name=lerpmethod]');
+    if (currentLerpExpressionIndex < radioButtons.length
+     && previousLerpExpressionIndex < radioButtons.length) {
+      const oldPreviousLerpExpressionIndex = previousLerpExpressionIndex;
+      const oldCurrentLerpExpressionIndex = currentLerpExpressionIndex;
+      const newPreviousLerpExpressionIndex = oldCurrentLerpExpressionIndex;
+      const newCurrentLerpExpressionIndex = oldPreviousLerpExpressionIndex;
+
+      radioButtons[newCurrentLerpExpressionIndex].checked = 'checked';
+      radioButtons[newCurrentLerpExpressionIndex].focus();
+      radioButtons[newCurrentLerpExpressionIndex].onclick();  // hack-- do its onclick thing but without triggering its additional listener thing
+
+      previousLerpExpressionIndex = newPreviousLerpExpressionIndex;
+      currentLerpExpressionIndex = newCurrentLerpExpressionIndex;
+    } else {
+     // something got reordered and we're confused
+     // CBB: don't let this happen-- should reset previous and next whenever
+     // a custom expression is added
+    }
+  }; // toggle_current_and_previous_lerp_expression
+  if (true) {
+    // Additional listening, to track current and previously checked radio button
+    const additional_radiobutton_onclick_function = () => {
+    };  // additional_radio_button_onclick_function
+    const radioButtons = document.querySelectorAll('input[type=radio][name=lerpmethod]');
+    console.log("  radioButtons = ",radioButtons);
+    for (let i = 0; i < radioButtons.length; ++i) {
+      const radioButton = radioButtons[i];
+      console.log("      radioButtons["+i+"] = ",radioButton);
+      if (radioButton.checked) {
+        previousLerpExpressionIndex = i;
+        currentLerpExpressionIndex = i;
+      }
+      // BEGIN: dup code
+      radioButton.addEventListener('click', additional_onclick_event_listener);
+      radioButton.onkeydown = event => {
+        if (event.key === ' ') {
+          event.preventDefault();  // prevent scrolling
+          toggle_current_and_previous_lerp_expression(event);
+        }
+      }
+      // END: dup code
+    }
+  }
+
+
   //===============================================================================
   // BEGIN: parsing stuff that could be moved into its own file
 
@@ -3054,6 +3127,15 @@ registerSourceCodeLinesAndRequire([
       // (unlike textinput.value which may not have been)
       setLerpMethodToCustom(textinput.old_value);
     };
+    // BEGIN: dup code
+    radiobutton.addEventListener('click', additional_onclick_event_listener);
+    radiobutton.onkeydown = event => {
+      if (event.key === ' ') {
+        event.preventDefault();  // prevent scrolling
+        toggle_current_and_previous_lerp_expression(event);
+      }
+    }
+    // END: dup code
 
     textinput.old_value = textinput.value;  // keep value around so it can be restored
     textinput.size = Math.max(minWidth, textinput.value.length);
@@ -3176,8 +3258,6 @@ registerSourceCodeLinesAndRequire([
     return Math.abs(iy-a) < Math.abs(iy-(a+b)/2.);
   };
 
-  let previousLerpExpressionIndex = null;  // so can toggle between two of them
-
   svg.addEventListener("focus", ()=>{});  // magically makes the keydown listener work!
   svg.addEventListener("keydown", (event) => {
     if (eventVerboseLevel >= 1) console.log("keydown");
@@ -3223,30 +3303,12 @@ registerSourceCodeLinesAndRequire([
         SetSearchAndHashParamsInAddressBar([], [['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(a)],['b',toFractionString(b)]]);
         populateTheSVG(svg, Lerp, a, b);
       } else if (event.key == ' ') {
-        // TODO: this listener should go on the radio panel as well
         event.preventDefault();  // prevent scrolling
-        {
-          const radioButtons = document.querySelectorAll('input[type=radio][name=lerpmethod]');
-          console.log("  radioButtons = ",radioButtons);
-          let currentLerpExpressionIndex = null;
-          for (let i = 0; i < radioButtons.length; ++i) {
-            const radioButton = radioButtons[i];
-            console.log("      radioButtons["+i+"] = ",radioButton);
-            if (radioButton.checked) {
-              currentLerpExpressionIndex = i;
-            }
-          }
-          CHECK.NE(currentLerpExpressionIndex, null);
-          if (previousLerpExpressionIndex !== null) {
-            radioButtons[previousLerpExpressionIndex].checked = 'checked';
-            radioButtons[previousLerpExpressionIndex].onclick();  // hack
-          }
-          previousLerpExpressionIndex = currentLerpExpressionIndex;
-        }
+        toggle_current_and_previous_lerp_expression(event);
       }
     }  // if !event.ctrlKey
     // event.stopPropagation(); // TODO: do I want this?  I haven't yet learned what it means
-  });
+  });  // svg keydown listener
   svg.addEventListener("mousedown", (event) => {
     if (eventVerboseLevel >= 1) console.log("mousedown");
     if (eventVerboseLevel >= 1) console.log("  event = ",event);
