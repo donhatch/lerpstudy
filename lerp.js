@@ -1,3 +1,4 @@
+// TODO: internal error on "0=0": "unexpected failure to convert parse tree to lerp function: ... 'object' != 'string'"
 // TODO: custom exprs: need more friendly tooltip on failure; this one doesn't appear unless you leave and re-enter
 // TODO: custom exprs: failure mode on "-true" spams console with CHECK failure.  needs to throw more quietly (minus, and all the other functions I guess? or, can we prevent this at compile time? or, is CHECK being too verbose to begin with?)
 // TODO: custom lerp functions: handle divide-by-zero that didn't get caught by smoke test more gracefully (completely abort?)
@@ -2353,7 +2354,7 @@ registerSourceCodeLinesAndRequire([
   };
   const setLerpMethodToTBlastAtTwicePrecision = () => {
     //Lerp = (a,b,t) => Plus(Minus(a, Times(t,a)), Times(t,b));
-    Lerp = (a,b,t) => Round(plus(2*numFractionBits,2*minExponent,minus(2*numFractionBits,2*minExponent,a, times(2*numFractionBits,2*minExponent,t,a)), times(2*numFractionBits,2*minExponent,t,b)));
+    Lerp = (a,b,t) => Round(plus(2*numFractionBits,-(minExponent**2),minus(2*numFractionBits,-(minExponent**2),a, times(2*numFractionBits,-(minExponent**2),t,a)), times(2*numFractionBits,-(minExponent**2),t,b)));
     populateTheSVG(svg, Lerp, a, b);
     theTitle.innerHTML = "a - t*a + b";
   };
@@ -2364,7 +2365,7 @@ registerSourceCodeLinesAndRequire([
   };
   const setLerpMethodToAlastAtTwicePrecision = () => {
     //Lerp = (a,b,t) => Plus(Minus(Times(t,b), Times(t,a)), a);
-    Lerp = (a,b,t) => Round(plus(2*numFractionBits,2*minExponent,minus(2*numFractionBits,2*minExponent,times(2*numFractionBits,2*minExponent,t,b), times(2*numFractionBits,2*minExponent,t,a)), a));
+    Lerp = (a,b,t) => Round(plus(2*numFractionBits,-(minExponent**2),minus(2*numFractionBits,-(minExponent**2),times(2*numFractionBits,-(minExponent**2),t,b), times(2*numFractionBits,-(minExponent**2),t,a)), a));
     populateTheSVG(svg, Lerp, a, b);
     theTitle.innerHTML = "b - t*a + a";
   };
@@ -2375,7 +2376,7 @@ registerSourceCodeLinesAndRequire([
   };
   const setLerpMethodToTAlastAtTwicePrecision = () => {
     //Lerp = (a,b,t) => Minus(Plus(a,Times(t,b)), Times(t,a));
-    Lerp = (a,b,t) => Round(minus(2*numFractionBits,2*minExponent,plus(2*numFractionBits,2*minExponent,a,times(2*numFractionBits,2*minExponent,t,b)), times(2*numFractionBits,2*minExponent,t,a)));
+    Lerp = (a,b,t) => Round(minus(2*numFractionBits,-(minExponent**2),plus(2*numFractionBits,-(minExponent**2),a,times(2*numFractionBits,-(minExponent**2),t,b)), times(2*numFractionBits,-(minExponent**2),t,a)));
     populateTheSVG(svg, Lerp, a, b);
     theTitle.innerHTML = "a + b - t*a";
   };
@@ -2930,7 +2931,8 @@ registerSourceCodeLinesAndRequire([
             }
             answer = combine(entry.name, entry.implementation, [answer, MHS, RHS]);
           } else {
-            const is_right_to_left_associative = false;  // nothing other than ?: is right-to-left associative, currently
+            // Currently '=' is the only right-to-left-associative binary operator, so hard code it
+            const is_right_to_left_associative = entry.name === '=';
             const RHS = parseSubexpression(is_right_to_left_associative ? entry.precedence
                                                                         : entry.precedence+1);
             if (RHS === null) {
