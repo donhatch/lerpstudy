@@ -7,7 +7,6 @@
 // TODO: custom lerp functions: "at twice precision"
 // TODO: now that I want to copy-paste a lot, I don't think I want radio buttons to be checked when I click on them
 //       (or do I?  it's only a problem if user double-clicks. hmm. https://stackoverflow.com/questions/5497073/how-to-differentiate-single-click-event-and-double-click-event )
-// TODO: when I copy something by double-clicking, it gets an extra space at the beginning
 
 // References:
 //  https://stackoverflow.com/questions/4353525/floating-point-linear-interpolation

@@ -88,132 +88,114 @@
         <td>
         <td>
          <label>
-          <input type="radio" id="lerpmethodExactCrossYourFingers" name="lerpmethod">
-          exact (rounded to nearest representable with ties rounded to even)
+          <input type="radio" id="lerpmethodExactCrossYourFingers" name="lerpmethod">exact (rounded to nearest representable with ties rounded to even)
          </label>
 
        <tr>
         <td>
         <td>
          <label>
-           <input type="radio" id="lerpmethodNaive" name="lerpmethod">
-           <span class="mono">(1-t)*a + t*b</span>
+           <input type="radio" id="lerpmethodNaive" name="lerpmethod"><span class="mono">(1-t)*a + t*b</span>
          </label>
 
        <tr>
         <td>
         <td>
          <label>
-           <input type="radio" id="lerpmethodTypeMeaningful" name="lerpmethod">
-           <span class="mono">a + t*(b-a)</span>
+           <input type="radio" id="lerpmethodTypeMeaningful" name="lerpmethod"><span class="mono">a + t*(b-a)</span>
          </label>
 
        <tr>
         <td>
         <td>
          <label>
-          <input type="radio" id="lerpmethodTypeMeaningfulBackwards" name="lerpmethod">
-          <span class="mono">b - (1-t)*(b-a)</span>
+          <input type="radio" id="lerpmethodTypeMeaningfulBackwards" name="lerpmethod"><span class="mono">b - (1-t)*(b-a)</span>
          </label>
 
        <tr>
         <td>
         <td>
          <label>
-          <input type="radio" id="lerpmethodBidirectional" name="lerpmethod">
-          <span class="mono">t &lt; 0.5 ? a + t*(b-a) : b - (1-t)*(b-a)</span>
+          <input type="radio" id="lerpmethodBidirectional" name="lerpmethod"><span class="mono">t &lt; 0.5 ? a + t*(b-a) : b - (1-t)*(b-a)</span>
          </label>
 
        <tr>
         <td>
         <td>
          <label>
-          <input type="radio" id="lerpmethodBidirectionalAlt" name="lerpmethod">
-          <span class="mono">t &lt;= 0.5 ? a + t*(b-a) : b - (1-t)*(b-a)</span>
+          <input type="radio" id="lerpmethodBidirectionalAlt" name="lerpmethod"><span class="mono">t &lt;= 0.5 ? a + t*(b-a) : b - (1-t)*(b-a)</span>
          </label>
 
        <tr>
         <td>
         <td>
          <label>
-          <input type="radio" id="lerpmethodBidirectionalAlt3" name="lerpmethod">
-          <span class="mono">t &lt; 0.5 ? a + t*(b-a) : t &gt; 0.5 ? b - (1-t)*(b-a) : (a+b)*0.5</span>
+          <input type="radio" id="lerpmethodBidirectionalAlt3" name="lerpmethod"><span class="mono">t &lt; 0.5 ? a + t*(b-a) : t &gt; 0.5 ? b - (1-t)*(b-a) : (a+b)*0.5</span>
          </label>
 
        <tr>
         <td>
         <td>
          <label>
-          <input type="radio" id="lerpmethodMaybe" name="lerpmethod">
-          <span class="mono">answer0 = (1-t)*a + t*b, answer0 + ((1-t)*(a-answer0) + t*(b-answer0))</span>
+          <input type="radio" id="lerpmethodMaybe" name="lerpmethod"><span class="mono">answer0 = (1-t)*a + t*b, answer0 + ((1-t)*(a-answer0) + t*(b-answer0))</span>
          </label>
 
        <tr>
         <td>
         <td>
          <label>
-          <input type="radio" id="lerpmethodMaybe2" name="lerpmethod">
-          <span class="mono">answer0 = a+t*(b-a), answer1 = b-(1-t)*(b-a), (1-t)*answer0 + t*answer1</span>
+          <input type="radio" id="lerpmethodMaybe2" name="lerpmethod"><span class="mono">answer0 = a+t*(b-a), answer1 = b-(1-t)*(b-a), (1-t)*answer0 + t*answer1</span>
          </label>
 
        <tr>
         <td>
         <td>
          <label>
-          <input type="radio" id="lerpmethodMaybe3" name="lerpmethod">
-          <span class="mono">answer0 = (1-t)*a+t*b, t==0 ? answer0 : answer0 - ((answer0-a)/t+a-b)*t</span>
+          <input type="radio" id="lerpmethodMaybe3" name="lerpmethod"><span class="mono">answer0 = (1-t)*a+t*b, t==0 ? answer0 : answer0 - ((answer0-a)/t+a-b)*t</span>
          </label>
 
        <tr>
         <td>
         <td>
          <label>
-          <input type="radio" id="lerpmethodMaybe4" name="lerpmethod">
-          <span class="mono">answer0 = (1-t)*a+t*b, t==1 ? answer0 : answer0 - ((answer0-b)/(1-t)+b-a)*(1-t)</span>
+          <input type="radio" id="lerpmethodMaybe4" name="lerpmethod"><span class="mono">answer0 = (1-t)*a+t*b, t==1 ? answer0 : answer0 - ((answer0-b)/(1-t)+b-a)*(1-t)</span>
          </label>
 
        <tr>
         <td>
         <td>
          <label>
-          <input type="radio" id="lerpmethodTBlast" name="lerpmethod">
-          <span class="mono">a - t*a + t*b</span>
+          <input type="radio" id="lerpmethodTBlast" name="lerpmethod"><span class="mono">a - t*a + t*b</span>
          </label>
          <label>
-          <input type="radio" id="lerpmethodTBlastAtTwicePrecision" name="lerpmethod">
-          at twice precision
+          <input type="radio" id="lerpmethodTBlastAtTwicePrecision" name="lerpmethod"> at twice precision
          </label>
 
        <tr>
         <td>
         <td>
          <label>
-          <input type="radio" id="lerpmethodAlast" name="lerpmethod">
-          <span class="mono">t*b - t*a + a</span>
+          <input type="radio" id="lerpmethodAlast" name="lerpmethod"><span class="mono">t*b - t*a + a</span>
          </label>
          <label>
-          <input type="radio" id="lerpmethodAlastAtTwicePrecision" name="lerpmethod">
-          at twice precision
+          <input type="radio" id="lerpmethodAlastAtTwicePrecision" name="lerpmethod"> at twice precision
          </label>
 
        <tr>
         <td>
         <td>
          <label>
-          <input type="radio" id="lerpmethodTAlast" name="lerpmethod">
-          <span class="mono">a + t*b - t*a</span>
+          <input type="radio" id="lerpmethodTAlast" name="lerpmethod"><span class="mono">a + t*b - t*a</span>
          </label>
          <label>
-          <input type="radio" id="lerpmethodTAlastAtTwicePrecision" name="lerpmethod">
-          at twice precision
+          <input type="radio" id="lerpmethodTAlastAtTwicePrecision" name="lerpmethod"> at twice precision
          </label>
 
        <tr>
         <td>
         <td>
          <label>
-          <input type="radio" id="lerpmethodTBlastUsingDot" name="lerpmethod">
-          <span class="mono">[1,-t,t] <big>&#8226;</big> [a,a,b]</span> using Kahan-ish summation
+          <input type="radio" id="lerpmethodTBlastUsingDot" name="lerpmethod"><span class="mono">[1,-t,t] <big>&#8226;</big> [a,a,b]</span> using Kahan-ish summation
          </label>
          <label>
           <input type="radio" id="lerpmethodTBlastUsingDotTweaked" name="lerpmethod">
@@ -232,8 +214,7 @@
         <td>
         <td>
          <label>
-          <input type="radio" id="lerpmethodAlastUsingDot" name="lerpmethod">
-          <span class="mono">[t,-t,1] <big>&#8226;</big> [b,a,a]</span> using Kahan-ish summation
+          <input type="radio" id="lerpmethodAlastUsingDot" name="lerpmethod"><span class="mono">[t,-t,1] <big>&#8226;</big> [b,a,a]</span> using Kahan-ish summation
          </label>
          <label>
           <input type="radio" id="lerpmethodAlastUsingDotTweaked" name="lerpmethod">
@@ -252,8 +233,7 @@
         <td>
         <td>
          <label>
-          <input type="radio" id="lerpmethodTAlastUsingDot" name="lerpmethod">
-          <span class="mono">[1,t,-t] <big>&#8226;</big> [a,b,a]</span> using Kahan-ish summation
+          <input type="radio" id="lerpmethodTAlastUsingDot" name="lerpmethod"><span class="mono">[1,t,-t] <big>&#8226;</big> [a,b,a]</span> using Kahan-ish summation
          </label>
          <label>
           <input type="radio" id="lerpmethodTAlastUsingDotTweaked" name="lerpmethod">
@@ -272,8 +252,7 @@
         <td>
         <td>
          <label>
-          <input type="radio" id="lerpmethodMagic" name="lerpmethod">
-          magically exact (using exact sum expansions-- doesn't work yet apparently)
+          <input type="radio" id="lerpmethodMagic" name="lerpmethod">magically exact (using exact sum expansions-- doesn't work yet apparently)
          </label>
 
        <!-- additional tr's for custom expressions get inserted here -->
