@@ -1849,14 +1849,23 @@ registerSourceCodeLinesAndRequire([
   const gridLineWidth = 1;
 
   // works well for gridLineWidth=2...
+  // (TODO: what did I mean?
   //const width = 384+gridLineWidth;
   //const height = 768+gridLineWidth;
 
+  // This seems good, it's what I'm using now in prod
   const width = 512+gridLineWidth;
   const height = 1024+gridLineWidth;
 
+  // For experimenting when I want something smaller
   //const width = 256+gridLineWidth;
   //const height = 512+gridLineWidth;
+
+  // for icon
+  //const width = 64+gridLineWidth;
+  //const height = 128+gridLineWidth;
+
+
 
   // input and output coords.
   const ox0 = gridLineWidth*.5;

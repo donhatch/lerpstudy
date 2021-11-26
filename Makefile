@@ -41,6 +41,7 @@ send_lerpstudy_to_donhatchsw:
 	mkdir -p /tmp/lerpstudy_scratch/lerpstudy
 	cp lerp.html /tmp/lerpstudy_scratch/lerpstudy/index.html
 	cp lerp.js /tmp/lerpstudy_scratch/lerpstudy
+	cp lerp-favicon.png /tmp/lerpstudy_scratch/lerpstudy
 	cp require.js /tmp/lerpstudy_scratch/lerpstudy
 	cp registerSourceCodeLinesAndRequire.js /tmp/lerpstudy_scratch/lerpstudy
 	cp MyURLSearchOrHashParams.js /tmp/lerpstudy_scratch/lerpstudy
