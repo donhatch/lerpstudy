@@ -3078,10 +3078,10 @@ registerSourceCodeLinesAndRequire([
         textinput.title = "valid! hit Enter to use, Escape to revert";
       } else if (expression_validity_string.startsWith("soft syntax error:")) {
         textinput.style.backgroundColor = '#ffffcc';  // yellow
-        textinput.title = expression_validity_string;
+        textinput.title = expression_validity_string.replace(/^soft /, '');
       } else if (expression_validity_string.startsWith("hard syntax error:")) {
         textinput.style.backgroundColor = '#ffcccc';  // pink
-        textinput.title = expression_validity_string;
+        textinput.title = expression_validity_string.replace(/^hard /, '');
       } else if (expression_validity_string.startsWith("failed smoke test:")) {
         // This means the expression is syntactically valid but the smoke test failed,
         // e.g. "returning -1 because lerp_function(1, 2, 0.5) returned false which is of type "boolean", not 'number'".
