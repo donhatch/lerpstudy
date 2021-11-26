@@ -1,6 +1,6 @@
+// TODO: custom exprs: this should not be valid: "-t ? 3 : 4"
 // TODO: custom exprs: need more friendly tooltip on failure; this one doesn't appear unless you leave and re-enter
 // TODO: custom exprs: failure mode on "-true" spams console with CHECK failure.  needs to throw more quietly (minus, and all the other functions I guess? or, can we prevent this at compile time? or, is CHECK being too verbose to begin with?)
-// TODO: custom lerp functions: really need to be able to see parse tree for when something goes wrong, especially when it goes wrong during converting parse tree to function
 // TODO: custom lerp functions: handle divide-by-zero that didn't get caught by smoke test more gracefully (completely abort?)
 // TODO: custom lerp functions: "at twice precision"
 // TODO: now that I want to copy-paste a lot, I don't think I want radio buttons to be checked when I click on them
@@ -41,17 +41,15 @@
 // TODO: "smartest" seems perfect, but only if minExponent is sufficiently low.  can we make it perfect even with not-so-low minE?
 // TODO: make the selection of lerp algorithm persist in url bar
 // TODO: oscillating between two methods mode?  could be helpful, although the most common thing we want, that is, comparison with magic exact, is accompliced via the ringed dots
-// TODO: make lerp-favicon.png a real picture of something
-// TODO: the usual event screwup, need to listen on window instead
+// TODO: the usual event screwup, need to listen on window instead  (fixed?)
 // TODO: the usual select-the-text screwup; how to disable?
-// TODO: label axes
+// TODO: label axes? maybe not
 // TODO: allow adjusting minExponent too
 // TODO: show numFractionBits and minExponent
-// TODO: change names so caller only says aIntent,bIntent, to reduce confusion
-// TODO: show in fractional form
-// TODO: figure out if there's a better way!
-// TODO: show more interesting lines for the various algorithms
-// TODO: dragging a or b up or down slowly doesn't redraw until I've stopped moving; that's unfriendly
+// TODO: change names so caller only says aIntent,bIntent, to reduce confusion (TODO: what was I saying here?)
+// TODO: show in fractional form (TODO: show what? is this done?)
+// TODO: show more interesting lines for the various algorithms, maybe
+// TODO: dragging a or b up or down slowly sometimes doesn't redraw until I've stopped moving; that's unfriendly
 // TODO: highlight non-monotonicity! (how?)
 
 
@@ -59,10 +57,10 @@
   Possible stackexchange problem:
     exact floating point sums, and correctly rounded approximations thereof
 
-    I would like to know a simple method for computing and representing the exact sum of an arbitrary number of IEEE-784 floating point values,
+    I would like to know a simple method for computing and representing the exact sum of an arbitrary number of IEEE-754 floating point values,
     and also for correctly rounding it to the nearest representable number, using the round-ties-to-even rule.
 
-    I propose the following very simple method, based on IEEE-784 addition and subtraction
+    I propose the following very simple method, based on IEEE-754 addition and subtraction
     with rounding usint he round-ties-to-even rule:
 
        Put the numbers to be summed in an array A
