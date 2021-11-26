@@ -1,4 +1,6 @@
-// TODO: custom lerp functions: "0/0" ungraceful exception. maybe disallow division?
+// TODO: custom exprs: failure mode on "-true" spams console with CHECK failure.  maybe throw more quietly?
+// TODO: custom exprs: starting to type "-" or "!" or "--" throws "lerp.js:2600 Uncaught Error: ParseTreeToLerpFunction called on non-string non-list null"
+// TODO: custom exprs: && and ||
 // TODO: custom lerp functions: "t<.25 ? 0/0 : t" bad at runtime
 // TODO: custom lerp functions: really need to be able to see parse tree for when something goes wrong
 // TODO: custom lerp functions: handle divide-by-zero more gracefully (completely abort)
@@ -705,7 +707,7 @@ registerSourceCodeLinesAndRequire([
   };
 
   const round_to_nearest_representable = (numFractionBits, minExponent, x) => {
-    CHECK.NE(x, undefined);
+    CHECK(typeof x === 'number');
     CHECK.GE(numFractionBits, 0);
     const answer = round_to_nearest_representable_without_checking_against_opposite(numFractionBits, minExponent, x);
     CHECK.EQ(round_to_nearest_representable_without_checking_against_opposite(numFractionBits, minExponent, -x), -answer);
@@ -713,12 +715,12 @@ registerSourceCodeLinesAndRequire([
   };
 
   const is_representable = (numFractionBits, minExponent, x) => {
-    CHECK.NE(x, undefined);
+    CHECK(typeof x === 'number');
     CHECK.GE(numFractionBits, 0);
     return round_down_to_representable(numFractionBits, minExponent, x) == x;
   };
   const pred_without_checking_against_succ = (numFractionBits, minExponent, x) => {
-    CHECK.NE(x, undefined);
+    CHECK(typeof x === 'number');
     CHECK.GE(numFractionBits, 0);
     CHECK(is_representable(numFractionBits, minExponent, x));
     const quantum = get_rounding_quantum(numFractionBits, minExponent, x);
@@ -730,7 +732,7 @@ registerSourceCodeLinesAndRequire([
     return answer;
   };
   const succ_without_checking_against_pred = (numFractionBits, minExponent, x) => {
-    CHECK.NE(x, undefined);
+    CHECK(typeof x === 'number');
     let verboseLevel = 0;
     if (verboseLevel >= 1) console.log("            in succ_without_checking_against_pred(numFractionBits="+STRINGIFY(numFractionBits)+", minExponent="+STRINGIFY(minExponent)+", x="+toDebugString(x)+")");
     CHECK(is_representable(numFractionBits, minExponent, x));
@@ -2891,47 +2893,52 @@ registerSourceCodeLinesAndRequire([
   const ExpressionValidity = expression => {
     const verboseLevel = 0;
     const posHolder = [0];
-    try {
-      const tree = Parse(expression, posHolder);
-      if (verboseLevel >= 1) console.log("  ExpressionValidity: tree = "+JSON.stringify(tree));
-      if (tree !== null) {
-        if (verboseLevel >= 1) PrintParseTree(tree, /*indentString=*/"      ", /*recursionLevel=*/0);
-        const lerp_function = ParseTreeToLerpFunction(tree);
-        if (verboseLevel >= 1) console.log("  lerp_function = "+STRINGIFY(lerp_function));
 
-        for (const a of [-1, 0, .25, .5, .75, 1])
-        for (const b of [-1, 0, .25, .5, .75, 1])
-        for (const t of [0, .25, .5, .75, 1]) {
-          try {
-            if (verboseLevel >= 1) console.log("  TESTING: lerp_function(a="+a+", b="+b+", t="+t+")");
-            const test_answer = lerp_function(a, b, t);
-            if (verboseLevel >= 1) console.log("  TESTED: lerp_function(a="+a+", b="+b+", t="+t+") = "+STRINGIFY(test_answer));
-            if (typeof test_answer !== 'number') {
-              // TODO: figure out how to make this discoverable!  for now, we emit it even at low verbosity level
-              if (verboseLevel >= 0) console.log("ExpressionValidity("+STRINGIFY(expression)+" returning -1 because lerp_function(a="+a+", b="+b+", t="+t+") returned "+STRINGIFY(test_answer)+" which is of type "+STRINGIFY(typeof test_answer)+", not 'number'");
-              return -1;
-            }
-          } catch (error) {
-            // Note that this is a runtime error, not a parse error.
-            // TODO: figure out how to make this discoverable!  for now, we emit it even at low verbosity level
-            if (verboseLevel >= 0) {
-              if (verboseLevel >= 0) console.log("ExpressionValidity("+STRINGIFY(expression)+" returning -1 because lerp_function(a="+a+", b="+b+", t="+t+") threw an exception: ",error);
-              return -1;
-            }
-          }
-        }
-      }
-      // CBB: actually I don't think parse can return null; so we always return 2 in this code path
-      const answer = tree !== null ? 2 :
-             posHolder[0]==expression.length ? 1 : 0;
-      if (verboseLevel >= 1) console.log("ExpressionValidity returning "+answer);
-      return answer;
+    let tree;
+    try {
+      tree = Parse(expression, posHolder);
     } catch (error) {
       // Parse error.
       // TODO: figure out how to make this discoverable!
       if (verboseLevel >= 1) console.log("ExpressionValidity returning false because: ",error);
       return posHolder[0]==expression.length ? 1 : 0;
     }
+    if (verboseLevel >= 1) console.log("  ExpressionValidity: tree = "+JSON.stringify(tree));
+    if (tree !== null) {
+      if (verboseLevel >= 1) PrintParseTree(tree, /*indentString=*/"      ", /*recursionLevel=*/0);
+      const lerp_function = ParseTreeToLerpFunction(tree);
+      if (verboseLevel >= 1) console.log("  lerp_function = "+STRINGIFY(lerp_function));
+
+      for (const a of [-1, 0, .25, .5, .75, 1])
+      for (const b of [-1, 0, .25, .5, .75, 1])
+      for (const t of [0, .25, .5, .75, 1]) {
+        try {
+          if (verboseLevel >= 1) console.log("  TESTING: lerp_function(a="+a+", b="+b+", t="+t+")");
+          const test_answer = lerp_function(a, b, t);
+          if (verboseLevel >= 1) console.log("  TESTED: lerp_function(a="+a+", b="+b+", t="+t+") = "+STRINGIFY(test_answer));
+          if (typeof test_answer !== 'number') {
+            // E.g. on "true": "returning -1 because lerp_function(a=-1, b=-1, t=0) returned true which is of type "boolean", not 'number'"
+            // TODO: figure out how to make this discoverable!  for now, we emit it even at low verbosity level
+            if (verboseLevel >= 0) console.log("ExpressionValidity("+STRINGIFY(expression)+") returning -1 because lerp_function(a="+a+", b="+b+", t="+t+") returned "+STRINGIFY(test_answer)+" which is of type "+STRINGIFY(typeof test_answer)+", not 'number'");
+            return -1;
+          }
+        } catch (error) {
+          // Note that this is a runtime error, not a parse error.
+          // E.g. on "0/0": "returning -1 because lerp_function(a=-1, b=-1, t=0) threw an exception:  Error: tried to divide 0 by zero"
+          // E.g. on "x": "returning -1 because lerp_function(a=-1, b=-1, t=0) threw an exception:  Error: undefined variable "x""
+          // TODO: figure out how to make this discoverable!  for now, we emit it even at low verbosity level
+          if (verboseLevel >= 0) {
+            if (verboseLevel >= 0) console.log("ExpressionValidity("+STRINGIFY(expression)+") returning -1 because lerp_function(a="+a+", b="+b+", t="+t+") threw an exception: ",error);
+            return -1;
+          }
+        }
+      }
+    }
+    // CBB: actually I don't think parse can return null; so we always return 2 in this code path
+    const answer = tree !== null ? 2 :
+           posHolder[0]==expression.length ? 1 : 0;
+    if (verboseLevel >= 1) console.log("ExpressionValidity returning "+answer);
+    return answer;
   };  // ExpressionValidity
 
   const AddCustomExpression = expression => {
