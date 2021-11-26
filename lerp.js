@@ -6,6 +6,9 @@
 //                and the ui says it's being incorrectly rounded to 1/2=128/256, when 9/16=144/256 is closer.
 //                so, why is it doing this, even at 8x precision?? that definitely can't be right :-(
 //       'http://localhost:8000/lerp.html#numFractionBits=3&minExponent=-6&a=1/2&b=1&custom=[%22(1-t)*a+%2B+t*b%22]'
+//        another example: a=1 b=0 t=9/256 omg! this can't be right
+//        another example: a=1/4 b=3/4 t=9/256
+//        another example: a=0 b=13/16 t=13/512,13/256,13/128,13/64,13/32,13/16 (single precision n=3 gets it perfect everywhere!)
 
 // TODO: internal error on "0=0": "unexpected failure to convert parse tree to lerp function: ... 'object' != 'string'"
 // TODO: custom exprs: need more friendly tooltip on failure; this one doesn't appear unless you leave and re-enter
