@@ -3084,9 +3084,8 @@ registerSourceCodeLinesAndRequire([
         textinput.title = expression_validity_string.replace(/^hard /, '');
       } else if (expression_validity_string.startsWith("failed smoke test:")) {
         // This means the expression is syntactically valid but the smoke test failed,
-        // e.g. "returning -1 because lerp_function(1, 2, 0.5) returned false which is of type "boolean", not 'number'".
-        // (Note: this will probably be misleading if the failure is for a reason
-        // different from wrong return value type.)
+        // e.g. "failed smoke test: lerp_function(1, 2, 0.5) returned false which is of type "boolean", not 'number'".
+        // e.g. "failed smoke test: lerp_function(a=0, b=0, t=0) threw an exception: Error: undefined variable "ccc""
         textinput.style.backgroundColor = '#ffeecc';  // light orange
         textinput.title = expression_validity_string;
       } else if (expression_validity_string.startsWith("internal error:")) {
