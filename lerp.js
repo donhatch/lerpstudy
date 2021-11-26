@@ -703,7 +703,7 @@ registerSourceCodeLinesAndRequire([
   };
 
   const round_to_nearest_representable = (numFractionBits, minExponent, x) => {
-    CHECK(typeof x === 'number');
+    CHECK.EQ(typeof x, 'number');
     CHECK.GE(numFractionBits, 0);
     const answer = round_to_nearest_representable_without_checking_against_opposite(numFractionBits, minExponent, x);
     CHECK.EQ(round_to_nearest_representable_without_checking_against_opposite(numFractionBits, minExponent, -x), -answer);
@@ -711,12 +711,12 @@ registerSourceCodeLinesAndRequire([
   };
 
   const is_representable = (numFractionBits, minExponent, x) => {
-    CHECK(typeof x === 'number');
+    CHECK.EQ(typeof x, 'number');
     CHECK.GE(numFractionBits, 0);
     return round_down_to_representable(numFractionBits, minExponent, x) == x;
   };
   const pred_without_checking_against_succ = (numFractionBits, minExponent, x) => {
-    CHECK(typeof x === 'number');
+    CHECK.EQ(typeof x, 'number');
     CHECK.GE(numFractionBits, 0);
     CHECK(is_representable(numFractionBits, minExponent, x));
     const quantum = get_rounding_quantum(numFractionBits, minExponent, x);
@@ -728,7 +728,7 @@ registerSourceCodeLinesAndRequire([
     return answer;
   };
   const succ_without_checking_against_pred = (numFractionBits, minExponent, x) => {
-    CHECK(typeof x === 'number');
+    CHECK.EQ(typeof x, 'number');
     let verboseLevel = 0;
     if (verboseLevel >= 1) console.log("            in succ_without_checking_against_pred(numFractionBits="+STRINGIFY(numFractionBits)+", minExponent="+STRINGIFY(minExponent)+", x="+toDebugString(x)+")");
     CHECK(is_representable(numFractionBits, minExponent, x));
@@ -2619,6 +2619,8 @@ registerSourceCodeLinesAndRequire([
 
         const number = Number(tree);
         if (!Number.isNaN(number)) {
+          // XXX this doesn't happen any more, I don't think
+          CHECK(false);
           // Note that parse() always interposes javascript_number_to_literal
           // above every number.
           if (verboseLevel >= 1) console.log("    out recurse");
@@ -2627,83 +2629,65 @@ registerSourceCodeLinesAndRequire([
 
         CHECK(/[_a-zA-Z][_a-zA-Z0-9]*/.test(tree));
         const name = tree;
-          if (verboseLevel >= 1) console.log("    out recurse");
-        return (vars) => {
+        const answer = vars => {
           if (!vars.has(name)) {
             throw new Error("undefined variable "+STRINGIFY(name));
           }
-          const value = vars.get(name);
-          return value;
+          return vars.get(name);
         };
+        if (verboseLevel >= 1) console.log("    out recurse");
+        return answer;
       } else if (Array.isArray(tree)) {
         CHECK.EQ(tree.length, 3);
         const [opname, implementation, operands] = tree;
-        if (opname === "?") {  // needs special case for short circuiting
-          CHECK.EQ(operands.length, 3);
-          const LHS_function = recurse(operands[0]);
-          const MHS_function = recurse(operands[1]);
-          const RHS_function = recurse(operands[2]);
-          if (verboseLevel >= 1) console.log("    out recurse");
-          return (vars) => {
-            const lhs = LHS_function(vars);
-            if (typeof lhs !== 'boolean') {
-              throw new Error("LHS of operator '?' is "+STRINGIFY(lhs)+" which is of type "+(typeof lhs)+", expected boolean");
-            }
-            return lhs ? MHS_function(vars)
-                       : RHS_function(vars);
-          };
-        } else if (opname === "||") {  // needs special case for short-circuiting
-          // CBB: really shouldn't need a special case for this; make the implementations take thunks
-          CHECK.EQ(operands.length, 2);
-          const LHS_function = recurse(operands[0]);
-          const RHS_function = recurse(operands[1]);
-          if (verboseLevel >= 1) console.log("    out recurse");
-          return (vars) => {
-            const lhs = LHS_function(vars);
-            if (typeof lhs !== 'boolean') {
-              throw new Error("LHS of operator '||' is "+STRINGIFY(lhs)+" which is of type "+(typeof lhs)+", expected boolean");
-            }
-            return lhs || RHS_function(vars);
-          };
-        } else if (opname === "&&") {  // needs special case for short-circuiting
-          // CBB: really shouldn't need a special case for this; make the implementations take thunks
-          CHECK.EQ(operands.length, 2);
-          const LHS_function = recurse(operands[0]);
-          const RHS_function = recurse(operands[1]);
-          if (verboseLevel >= 1) console.log("    out recurse");
-          return (vars) => {
-            const lhs = LHS_function(vars);
-            if (typeof lhs !== 'boolean') {
-              throw new Error("LHS of operator '&&' is "+STRINGIFY(lhs)+" which is of type "+(typeof lhs)+", expected boolean");
-            }
-            return lhs && RHS_function(vars);
-          };
-        } else if (opname === "=") {
+        if (opname === "=") {
           CHECK.EQ(operands.length, 2);
           const name = operands[0];
           CHECK.EQ(typeof name, 'string');
           CHECK(/[_a-zA-Z][_a-zA-Z0-9]*/.test(name));
           const RHS_function = recurse(operands[1]);
-          if (verboseLevel >= 1) console.log("    out recurse");
-          return (vars) => {
+          CHECK.EQ(typeof RHS_function, 'function');
+          const answer = vars => {
             const value = RHS_function(vars);
             vars.set(name, value);
             return value;
           }
+          if (verboseLevel >= 1) console.log("    out recurse, returning "+STRINGIFY(answer));
+          return answer;
+        } else if (operands.length == 0) {
+          const answer = vars => implementation();
+          if (verboseLevel >= 1) console.log("      implementation = "+STRINGIFY(implementation));
+          if (verboseLevel >= 1) console.log("    out recurse, returning "+STRINGIFY(answer));
+          return answer;
         } else if (operands.length == 1) {
           const RHS_function = recurse(operands[0]);
-          if (verboseLevel >= 1) console.log("    out recurse");
-          return (vars) => {
-            return implementation(RHS_function(vars));
-          }
-        } else {
-          CHECK.EQ(operands.length, 2);
+          CHECK.EQ(typeof RHS_function, 'function');
+          const answer = vars => implementation(()=>RHS_function(vars));
+          if (verboseLevel >= 1) console.log("    out recurse, returning "+STRINGIFY(answer));
+          return answer;
+        } else if (operands.length == 2) {
           const LHS_function = recurse(operands[0]);
+          CHECK.EQ(typeof LHS_function, 'function');
           const RHS_function = recurse(operands[1]);
-          if (verboseLevel >= 1) console.log("    out recurse");
-          return (vars) => {
-            return implementation(LHS_function(vars), RHS_function(vars));
-          };
+          CHECK.EQ(typeof RHS_function, 'function');
+          const answer = vars => implementation(()=>LHS_function(vars),
+                                                ()=>RHS_function(vars));
+          if (verboseLevel >= 1) console.log("    out recurse, returning "+STRINGIFY(answer));
+          return answer;
+        } else if (operands.length == 3) {
+          const LHS_function = recurse(operands[0]);
+          CHECK.EQ(typeof LHS_function, 'function');
+          const MHS_function = recurse(operands[1]);
+          CHECK.EQ(typeof MHS_function, 'function');
+          const RHS_function = recurse(operands[2]);
+          CHECK.EQ(typeof RHS_function, 'function');
+          return (vars) => implementation(()=>LHS_function(vars),
+                                          ()=>MHS_function(vars),
+                                          ()=>RHS_function(vars));
+          if (verboseLevel >= 1) console.log("    out recurse, returning "+STRINGIFY(answer));
+          return answer;
+        } else {
+          CHECK(false);
         }
       } else {
         throw new Error("ParseTreeToLerpFunction called on non-string non-list "+STRINGIFY(tree));
@@ -2711,8 +2695,9 @@ registerSourceCodeLinesAndRequire([
     };  // recurse
 
     const f = recurse(tree);
-    // so f is a function that takes vars and returns a value.
-    // we want to convert it to a function that takes a,b,t and returns a value.
+    if (verboseLevel >= 1) console.log("  f = "+STRINGIFY(f));
+    // so f is a function that takes vars and returns a number.
+    // we want to convert it to a function that takes a,b,t and returns a number.
     const answer = (a,b,t) => {
       const vars = new Map([
         ["a",a],
@@ -2723,6 +2708,7 @@ registerSourceCodeLinesAndRequire([
       ]);
       return f(vars);
     };
+    if (verboseLevel >= 1) console.log("  answer = "+STRINGIFY(answer));
     if (verboseLevel >= 1) console.log("out ParseTreeToLerpFunction");
     return answer;
   };  // ParseTreeToLerpFunction
@@ -2836,15 +2822,12 @@ registerSourceCodeLinesAndRequire([
         return identifier;
       }
 
-      const number = parseNumber();
-      if (number !== null) {
-        if (verboseLevel >= 1) console.log("            out parseFactor(pos="+posHolder[0]+"), returning number "+STRINGIFY(number));
-        if (true) {
-          // Here's where we interpose javascript_number_to_literal.
-          return combine("javascript_number_to_literal", javascript_number_to_literal, [number]);
-        } else {
-          return number;
-        }
+      const number_string = parseNumber();
+      if (number_string !== null) {
+        if (verboseLevel >= 1) console.log("            out parseFactor(pos="+posHolder[0]+"), returning number "+STRINGIFY(number_string));
+        // Here's where we interpose javascript_number_to_literal.
+        const number = Number(number_string);
+        return combine(""+number, ()=>javascript_number_to_literal(number), []);
       }
 
       if (parseLiteral("(") !== null) {
@@ -2965,53 +2948,55 @@ registerSourceCodeLinesAndRequire([
   // END: parsing stuff that could be moved into its own file
   //===============================================================================
 
+  const checkboolean = x => {
+    if (typeof x !== 'boolean') {
+      throw new Error("got value "+STRINGIFY(x)+" which is of type "+(typeof x)+", expected boolean");
+    }
+    return x;
+  };  // checkboolean
+
   const Parse = (expression,posHolder) => {
     const binary_op_table = [
       // precedence:8 is for left-unary ops, e.g. "-" and "!"
 
-      {name:"*", precedence:7, implementation:(x,y)=>Times(x,y)},
-      {name:"/", precedence:7, implementation:(x,y)=>DividedBy(x,y)},
+      {name:"*", precedence:7, implementation:(x,y)=>Times(x(),y())},
+      {name:"/", precedence:7, implementation:(x,y)=>DividedBy(x(),y())},
 
-      {name:"+", precedence:6, implementation:(x,y)=>Plus(x,y)},
-      {name:"-", precedence:6, implementation:(x,y)=>Minus(x,y)},
+      {name:"+", precedence:6, implementation:(x,y)=>Plus(x(),y())},
+      {name:"-", precedence:6, implementation:(x,y)=>Minus(x(),y())},
 
       // NOTE: "<=" must come before "<" so it will be preferred
-      {name:"<=", precedence:5, implementation:(x,y)=>x<=y},
-      {name:"<", precedence:5, implementation:(x,y)=>x<y},
+      {name:"<=", precedence:5, implementation:(x,y)=>x()<=y()},
+      {name:"<", precedence:5, implementation:(x,y)=>x()<y()},
       // NOTE: ">=" must come before ">" so it will be preferred
-      {name:">=", precedence:5, implementation:(x,y)=>x>=y},
-      {name:">", precedence:5, implementation:(x,y)=>x>y},
+      {name:">=", precedence:5, implementation:(x,y)=>x()>=y()},
+      {name:">", precedence:5, implementation:(x,y)=>x()>y()},
       // NOTE: "==" must come before "=" so it will be preferred
-      {name:"==", precedence:5, implementation:(x,y)=>x==y},
-      {name:"!=", precedence:5, implementation:(x,y)=>x!=y},
+      {name:"==", precedence:5, implementation:(x,y)=>x()==y()},
+      {name:"!=", precedence:5, implementation:(x,y)=>x()!=y()},
 
-      {name:"&&", precedence:4, implementation:(x,y)=>{
-        CHECK.EQ(typeof x, 'boolean');
-        CHECK.EQ(typeof y, 'boolean');
-        return x&&y;}},  // CBB: the type error will spam console. CBB: should short circuit; we risk zero-divides otherwise!  which says the functions need to take funcs rather than values.
+      {name:"&&", precedence:4, implementation:(x,y)=>checkboolean(x())&&checkboolean(y())},
 
-      {name:"||", precedence:3, implementation:(x,y)=>{
-        CHECK.EQ(typeof x, 'boolean');
-        CHECK.EQ(typeof y, 'boolean');
-        return x||y;}},  // CBB: the type error will spam console. CBB: should short circuit; we risk zero-divides otherwise!  which says the functions need to take funcs rather than values: implementation:(x,y)=>x()||y()
+      {name:"||", precedence:3, implementation:(x,y)=>checkboolean(x())||checkboolean(y())},
 
-      {name:"?", precedence:2, implementation:null},  // special case in code.  CBB: if we took thunks, the implementation could be (x,y,z)=>x()?y():z()
+      {name:"?", precedence:2, implementation:(x,y,z)=>checkboolean(x())?y():z()},
 
       {name:"=", precedence:1, implementation:null},  // special case in code
 
-      {name:",", precedence:0, implementation:(x,y)=>(x,y)},
-
+      {name:",", precedence:0, implementation:(x,y)=>(x(),y())},
     ];  // binary_op_table
     const left_unary_op_table = [
       // sort of a hack: treat these as left unary ops.  so "pred t" works
-      {name:"pred", precedence:8, implementation:(x)=>Pred(x)},
-      {name:"succ", precedence:8, implementation:(x)=>Succ(x)},
+      {name:"pred", precedence:8, implementation:x=>Pred(x())},
+      {name:"succ", precedence:8, implementation:x=>Succ(x())},
 
-      {name:"!", precedence:8, implementation:(x)=>UnaryNot(x)},
+      {name:"!", precedence:8, implementation:x=>UnaryNot(x())},
+
+      //{name: "twice_precision", precedence:8, implementation:
 
       // CBB: negative numbers end up being interpreted as unary-minus
       // followed by positive number.  I guess that's ok.
-      {name:"-", precedence:8, implementation:(x)=>UnaryMinus(x)},
+      {name:"-", precedence:8, implementation:x=>UnaryMinus(x())},
     ];  // left_unary_op_table
     return parse(expression, binary_op_table, left_unary_op_table, Round, posHolder);
   };  // Parse
@@ -3024,6 +3009,7 @@ registerSourceCodeLinesAndRequire([
   //   "valid"
   const ExpressionValidity = expression => {
     const verboseLevel = 0;
+    if (verboseLevel >= 1) console.log("in ExpressionValidity("+STRINGIFY(expression)+")");
     const posHolder = [0];
 
     let tree;
@@ -3066,7 +3052,7 @@ registerSourceCodeLinesAndRequire([
           if (typeof test_answer !== 'number') {
             // E.g. on "true": "failed smoke test: lerp_function(a=-1, b=-1, t=0) returned true which is of type "boolean", not 'number'"
             const reason = "failed smoke test:\nlerp_function(a="+a+", b="+b+", t="+t+") returned "+STRINGIFY(test_answer)+" which is of type "+STRINGIFY(typeof test_answer)+", not 'number'";
-            if (verboseLevel >= 1) console.log("ExpressionValidity("+STRINGIFY(expression)+") failing because "+reason);
+            if (verboseLevel >= 1) console.log("out ExpressionValidity("+STRINGIFY(expression)+"), failing because "+reason);
             return reason;
           }
         } catch (error) {
@@ -3075,7 +3061,7 @@ registerSourceCodeLinesAndRequire([
           // E.g. on "x": "failed smoke test: lerp_function(a=-1, b=-1, t=0) threw an exception:  Error: undefined variable "x""
           if (verboseLevel >= 0) {
             const reason = "failed smoke test:\nlerp_function(a="+a+", b="+b+", t="+t+") threw an exception:\n"+error;
-            if (verboseLevel >= 1) console.log("ExpressionValidity("+STRINGIFY(expression)+") failing because "+reason);
+            if (verboseLevel >= 1) console.log("out ExpressionValidity("+STRINGIFY(expression)+"), failing because "+reason);
             return reason;
           }
         }
@@ -3083,7 +3069,7 @@ registerSourceCodeLinesAndRequire([
     }  // smoke test
 
     const answer = "valid";
-    if (verboseLevel >= 1) console.log("ExpressionValidity returning "+STRINGIFY(answer));
+    if (verboseLevel >= 1) console.log("out ExpressionValidity, returning "+STRINGIFY(answer));
     return answer;
   };  // ExpressionValidity
 
