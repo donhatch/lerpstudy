@@ -2473,6 +2473,9 @@ registerSourceCodeLinesAndRequire([
   window.lerpmethodAlastUsingDotSmartest.onclick = () => setLerpMethodToAlastUsingDotSmartest();
   window.lerpmethodTAlastUsingDotSmartest.onclick = () => setLerpMethodToTAlastUsingDotSmartest();
 
+  //===============================================================================
+  // BEGIN: parsing stuff that could be moved into its own file
+
   // What do we return?
   // - an AST?
   // - an AST with functions attached to nodes?
@@ -2531,9 +2534,10 @@ registerSourceCodeLinesAndRequire([
 
         const number = Number(tree);
         if (!Number.isNaN(number)) {
-          const rounded_number = Round(number);
+          // Note that parse() always interposes javascript_number_to_literal
+          // above every number.
           if (verboseLevel >= 1) console.log("    out recurse");
-          return (vars) => rounded_number;
+          return vars => number;
         }
 
         CHECK(/[_a-zA-Z][_a-zA-Z0-9]*/.test(tree));
@@ -2590,9 +2594,11 @@ registerSourceCodeLinesAndRequire([
       } else {
         throw new Error("ParseTreeToLerpFunction called on non-string non-list "+STRINGIFY(tree));
       }
-    };
+    };  // recurse
 
     const f = recurse(tree);
+    // so f is a function that takes vars and returns a value.
+    // we want to convert it to a function that takes a,b,t and returns a value.
     const answer = (a,b,t) => {
       const vars = new Map([
         ["a",a],
@@ -2607,9 +2613,14 @@ registerSourceCodeLinesAndRequire([
     return answer;
   };  // ParseTreeToLerpFunction
 
-  const parse = (expression, binary_op_table, left_unary_op_table) => {
+  // returns a parse tree suitable as input to ParseTreeToLerpFunction
+  const parse = (expression, binary_op_table, left_unary_op_table, javascript_number_to_literal) => {
     const verboseLevel = 0;
     if (verboseLevel >= 1) console.log("    in parse(expression="+JSON.stringify(expression)+")");
+    CHECK.EQ(typeof expression, 'string');
+    CHECK(Array.isArray(binary_op_table));
+    CHECK(Array.isArray(left_unary_op_table));
+    CHECK.EQ(typeof javascript_number_to_literal, 'function');
     // Current position within expression string.
     // All the helper functions in here have the side effect of moving pos.
     let pos = 0;
@@ -2644,7 +2655,11 @@ registerSourceCodeLinesAndRequire([
       // i.e.
       //   /^-?((\.[0-9]+)|[0-9]+(\.[0-9]*)?)$/
       // But we don't use a regex, because expression has unbounded length
-      // and we don't want an O(n^2) algorithm.
+      // and we don't want an O(n^2) algorithm overall.
+      // TODO: I think this can be done anyway, without looking at arbitrarily big sections of the expression string?
+      //       Something like: compose a transformed regex that matches exactly *prefixes* of the regex,
+      //       use binary search to find the longest match of the transformed regex,
+      //       then see if that matches the original regex.
       let succeeded = false;
       let pos1 = pos;
       if (pos1 < expression.length && expression[pos1] === '-') {
@@ -2707,7 +2722,12 @@ registerSourceCodeLinesAndRequire([
       const number = parseNumber();
       if (number !== null) {
         if (verboseLevel >= 1) console.log("            out parseFactor(pos="+pos+"), returning number "+STRINGIFY(number));
-        return number;
+        if (true) {
+          // Here's where we interpose javascript_number_to_literal.
+          return combine("javascript_number_to_literal", javascript_number_to_literal, [number]);
+        } else {
+          return number;
+        }
       }
 
       if (parseLiteral("(") !== null) {
@@ -2810,47 +2830,49 @@ registerSourceCodeLinesAndRequire([
     if (verboseLevel >= 1) console.log("    out parse(expression="+JSON.stringify(expression)+")");
     return answer;
   };  // parse
-  const binary_op_table = [
-    // precedence:6 is for left-unary ops, e.g. "-" and "!"
 
-    {name:"*", precedence:5, implementation:(x,y)=>Times(x,y)},
-    {name:"/", precedence:5, implementation:(x,y)=>DividedBy(x,y)},
-
-    {name:"+", precedence:4, implementation:(x,y)=>Plus(x,y)},
-    {name:"-", precedence:4, implementation:(x,y)=>Minus(x,y)},
-
-    // NOTE: "<=" must come before "<" so it will be preferred
-    {name:"<=", precedence:3, implementation:(x,y)=>x<=y},
-    {name:"<", precedence:3, implementation:(x,y)=>x<y},
-    // NOTE: ">=" must come before ">" so it will be preferred
-    {name:">=", precedence:3, implementation:(x,y)=>x>=y},
-    {name:">", precedence:3, implementation:(x,y)=>x>y},
-    // NOTE: "==" must come before "=" so it will be preferred
-    {name:"==", precedence:3, implementation:(x,y)=>x==y},
-    {name:"!=", precedence:3, implementation:(x,y)=>x!=y},
-
-    {name:"?", precedence:2, implementation:null},  // special case in code
-
-    {name:"=", precedence:1, implementation:null},  // special case in code
-
-    {name:",", precedence:0, implementation:(x,y)=>(x,y)},
-
-  ];  // binary_op_table
-
-  const left_unary_op_table = [
-    // sort of a hack: treat these as left unary ops.  so "pred t" works
-    {name:"pred", precedence:6, implementation:(x)=>Pred(x)},
-    {name:"succ", precedence:6, implementation:(x)=>Succ(x)},
-
-    {name:"!", precedence:6, implementation:(x)=>UnaryNot(x)},
-
-    // CBB: negative numbers end up being interpreted as unary-minus
-    // followed by positive number.  I guess that's ok.
-    {name:"-", precedence:6, implementation:(x)=>UnaryMinus(x)},
-  ];  // left_unary_op_table
+  // END: parsing stuff that could be moved into its own file
+  //===============================================================================
 
   const Parse = expression => {
-    return parse(expression, binary_op_table, left_unary_op_table);
+    const binary_op_table = [
+      // precedence:6 is for left-unary ops, e.g. "-" and "!"
+
+      {name:"*", precedence:5, implementation:(x,y)=>Times(x,y)},
+      {name:"/", precedence:5, implementation:(x,y)=>DividedBy(x,y)},
+
+      {name:"+", precedence:4, implementation:(x,y)=>Plus(x,y)},
+      {name:"-", precedence:4, implementation:(x,y)=>Minus(x,y)},
+
+      // NOTE: "<=" must come before "<" so it will be preferred
+      {name:"<=", precedence:3, implementation:(x,y)=>x<=y},
+      {name:"<", precedence:3, implementation:(x,y)=>x<y},
+      // NOTE: ">=" must come before ">" so it will be preferred
+      {name:">=", precedence:3, implementation:(x,y)=>x>=y},
+      {name:">", precedence:3, implementation:(x,y)=>x>y},
+      // NOTE: "==" must come before "=" so it will be preferred
+      {name:"==", precedence:3, implementation:(x,y)=>x==y},
+      {name:"!=", precedence:3, implementation:(x,y)=>x!=y},
+
+      {name:"?", precedence:2, implementation:null},  // special case in code
+
+      {name:"=", precedence:1, implementation:null},  // special case in code
+
+      {name:",", precedence:0, implementation:(x,y)=>(x,y)},
+
+    ];  // binary_op_table
+    const left_unary_op_table = [
+      // sort of a hack: treat these as left unary ops.  so "pred t" works
+      {name:"pred", precedence:6, implementation:(x)=>Pred(x)},
+      {name:"succ", precedence:6, implementation:(x)=>Succ(x)},
+
+      {name:"!", precedence:6, implementation:(x)=>UnaryNot(x)},
+
+      // CBB: negative numbers end up being interpreted as unary-minus
+      // followed by positive number.  I guess that's ok.
+      {name:"-", precedence:6, implementation:(x)=>UnaryMinus(x)},
+    ];  // left_unary_op_table
+    return parse(expression, binary_op_table, left_unary_op_table, Round);
   };  // Parse
 
   const is_valid_expression = expression => {
@@ -2873,7 +2895,7 @@ registerSourceCodeLinesAndRequire([
       if (verboseLevel >= 1) console.log("is_valid_expression returning (tree!==null) = "+STRINGIFY(tree!==null));
       return tree !== null;
     } catch (error) {
-      if (verboseLevel >= 1) console.log("is_valid_expression returning false because: ",error);
+      if (verboseLevel >= 0) console.log("is_valid_expression returning false because: ",error);
       return false;
     }
   };  // is_valid_expression
@@ -3015,6 +3037,8 @@ registerSourceCodeLinesAndRequire([
     return Math.abs(iy-a) < Math.abs(iy-(a+b)/2.);
   };
 
+  let previousLerpExpressionIndex = null;  // so can toggle between two of them
+
   svg.addEventListener("focus", ()=>{});  // magically makes the keydown listener work!
   svg.addEventListener("keydown", (event) => {
     if (eventVerboseLevel >= 1) console.log("keydown");
@@ -3059,6 +3083,27 @@ registerSourceCodeLinesAndRequire([
         }
         SetSearchAndHashParamsInAddressBar([], [['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(a)],['b',toFractionString(b)]]);
         populateTheSVG(svg, Lerp, a, b);
+      } else if (event.key == ' ') {
+        // TODO: this listener should go on the radio panel as well
+        event.preventDefault();  // prevent scrolling
+        {
+          const radioButtons = document.querySelectorAll('input[type=radio][name=lerpmethod]');
+          console.log("  radioButtons = ",radioButtons);
+          let currentLerpExpressionIndex = null;
+          for (let i = 0; i < radioButtons.length; ++i) {
+            const radioButton = radioButtons[i];
+            console.log("      radioButtons["+i+"] = ",radioButton);
+            if (radioButton.checked) {
+              currentLerpExpressionIndex = i;
+            }
+          }
+          CHECK.NE(currentLerpExpressionIndex, null);
+          if (previousLerpExpressionIndex !== null) {
+            radioButtons[previousLerpExpressionIndex].checked = 'checked';
+            radioButtons[previousLerpExpressionIndex].onclick();  // hack
+          }
+          previousLerpExpressionIndex = currentLerpExpressionIndex;
+        }
       }
     }  // if !event.ctrlKey
     // event.stopPropagation(); // TODO: do I want this?  I haven't yet learned what it means
