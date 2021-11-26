@@ -3000,7 +3000,7 @@ registerSourceCodeLinesAndRequire([
         const saved_numFractionBits = numFractionBits;
         const saved_minExponent = minExponent;
         numFractionBits *= 2;
-        minExponent = -(minExponent**2);
+        minExponent = Math.max(-(minExponent**2), -1000);  // actual min exponent in IEEE754 double is -1022
         let twice_precision_answer;
         try {
           twice_precision_answer = x();
@@ -3116,11 +3116,16 @@ registerSourceCodeLinesAndRequire([
 
     const radiobutton_td = new_tr.insertCell(1);
     // font-size:13px empirically matches the font size of the radio button labels, although I wouldn't know how to predict that
-    radiobutton_td.innerHTML = '<input type="radio" name="lerpmethod"><input type="text" class="custom" style="font-family:monospace; font-size:13px;" size="(TO BE SET BELOW)" value="(TO BE SET BELOW)"></input>'
+    radiobutton_td.innerHTML = '<input type="radio" name="lerpmethod"><input type="text" class="custom" style="font-family:monospace; font-size:13px;" size="(TO BE SET BELOW)" value="(TO BE SET BELOW)"></input><label><input type="radio" name="lerpmethod">at twice precision</label><label><input type="radio" name="lerpmethod">at 4x precision</label>'
     const radiobutton = radiobutton_td.children[0];
     if (verboseLevel >= 1) console.log("  radiobutton = ",radiobutton);
     const textinput = radiobutton_td.children[1];
     if (verboseLevel >= 1) console.log("  textinput = ",textinput);
+    const radiobutton2 = radiobutton_td.children[2].children[0];
+    if (verboseLevel >= 1) console.log("  radiobutton2 = ",radiobutton2);
+    const radiobutton4 = radiobutton_td.children[3].children[0];
+    if (verboseLevel >= 1) console.log("  radiobutton4 = ",radiobutton4);
+
     textinput.value = expression;
 
     const minWidth = 30;
@@ -3130,15 +3135,24 @@ registerSourceCodeLinesAndRequire([
       // (unlike textinput.value which may not have been)
       setLerpMethodToCustom(textinput.old_value);
     };
-    // BEGIN: dup code
-    radiobutton.addEventListener('click', additional_onclick_event_listener);
-    radiobutton.onkeydown = event => {
-      if (event.key === ' ') {
-        event.preventDefault();  // prevent scrolling
-        toggle_current_and_previous_lerp_expression(event);
+    radiobutton2.onclick = () => {
+      setLerpMethodToCustom('twice_precision('+textinput.old_value+')');
+    };
+    radiobutton4.onclick = () => {
+      setLerpMethodToCustom('twice_precision(twice_precision('+textinput.old_value+'))');
+    };
+
+    for (const r of [radiobutton, radiobutton2, radiobutton4]) {
+      // BEGIN: dup code
+      r.addEventListener('click', additional_onclick_event_listener);
+      r.onkeydown = event => {
+        if (event.key === ' ') {
+          event.preventDefault();  // prevent scrolling
+          toggle_current_and_previous_lerp_expression(event);
+        }
       }
-    }
-    // END: dup code
+      // END: dup code
+    };
 
     textinput.old_value = textinput.value;  // keep value around so it can be restored
     textinput.size = Math.max(minWidth, textinput.value.length);
@@ -3209,10 +3223,12 @@ registerSourceCodeLinesAndRequire([
         textinput.old_value = new_value;
         textinput.style.backgroundColor = 'white';
         textinput.title = "";
-        if (radiobutton.checked) {
-          setLerpMethodToCustom(textinput.old_value);
+        for (const r of [radiobutton, radiobutton2, radiobutton4]) {
+          if (r.checked) {
+            r.onclick();
+            break;
+          }
         }
-
         // custom expressions changed, so...
         SetTheDamnCustomExpressionsInTheDamnAddressBar();
       }
