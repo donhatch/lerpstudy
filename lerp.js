@@ -2986,17 +2986,32 @@ registerSourceCodeLinesAndRequire([
       {name:",", precedence:0, implementation:(x,y)=>(x(),y())},
     ];  // binary_op_table
     const left_unary_op_table = [
-      // sort of a hack: treat these as left unary ops.  so "pred t" works
-      {name:"pred", precedence:8, implementation:x=>Pred(x())},
-      {name:"succ", precedence:8, implementation:x=>Succ(x())},
-
       {name:"!", precedence:8, implementation:x=>UnaryNot(x())},
-
-      //{name: "twice_precision", precedence:8, implementation:
 
       // CBB: negative numbers end up being interpreted as unary-minus
       // followed by positive number.  I guess that's ok.
       {name:"-", precedence:8, implementation:x=>UnaryMinus(x())},
+
+      // sort of a hack: treat these as left unary ops.  so "pred t" works
+      {name:"pred", precedence:8, implementation:x=>Pred(x())},
+      {name:"succ", precedence:8, implementation:x=>Succ(x())},
+
+      {name: "twice_precision", precedence:8, implementation:x=>{
+        const saved_numFractionBits = numFractionBits;
+        const saved_minExponent = minExponent;
+        numFractionBits *= 2;
+        minExponent = -(minExponent**2);
+        let twice_precision_answer;
+        try {
+          twice_precision_answer = x();
+        } finally {
+          numFractionBits = saved_numFractionBits;
+          minExponent = saved_minExponent;
+        }
+        const answer = Round(twice_precision_answer);
+        return answer;
+      }},
+
     ];  // left_unary_op_table
     return parse(expression, binary_op_table, left_unary_op_table, Round, posHolder);
   };  // Parse
