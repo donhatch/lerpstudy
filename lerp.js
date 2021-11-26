@@ -1,3 +1,4 @@
+// TODO: custom exprs: need more friendly tooltip on failure
 // TODO: custom exprs: failure mode on "-true" spams console with CHECK failure.  maybe throw more quietly?
 // TODO: custom exprs: starting to type "-" or "!" or "--" throws "lerp.js:2600 Uncaught Error: ParseTreeToLerpFunction called on non-string non-list null"
 // TODO: custom exprs: && and ||
@@ -31,7 +32,7 @@
 //     ARGH, no, it happened even with that turned off :-(
 //     WTF?
 
-// TODO: lots of failures with "magically exact", wtf?  Especially when b is 1. 
+// TODO: lots of failures with "magically exact", wtf?  Especially when b is 1.
 // e.g. this shows a circle near t=0  (at t=14/4096):
 // http://localhost:8000/lerp.html?numFractionBits=4&minExponent=-12&a=5/32&b=1
 // and this, not so near 0, at t=27/512:
@@ -2885,11 +2886,11 @@ registerSourceCodeLinesAndRequire([
     return parse(expression, binary_op_table, left_unary_op_table, Round, posHolder);
   };  // Parse
 
-  // Return:
-  //  -1 if whole expression is syntactically valid but smoke test of it fails
+  // Returns:
   //   0 if not a valid prefix
   //   1 if a valid prefix but not a valid expression
   //   2 if a valid expression and smoke test of it succeeds
+  //   string describing reason, if whole expression is syntactically valid but smoke test of it fails
   const ExpressionValidity = expression => {
     const verboseLevel = 0;
     const posHolder = [0];
@@ -2909,27 +2910,29 @@ registerSourceCodeLinesAndRequire([
       const lerp_function = ParseTreeToLerpFunction(tree);
       if (verboseLevel >= 1) console.log("  lerp_function = "+STRINGIFY(lerp_function));
 
-      for (const a of [-1, 0, .25, .5, .75, 1])
-      for (const b of [-1, 0, .25, .5, .75, 1])
-      for (const t of [0, .25, .5, .75, 1]) {
+      // Huh, this is probably more test cases than we are plotting.
+      // Overkill?  Not sure, maybe it's appropriate.
+      for (const a of [0, .25, .5, .75, 1, -1])
+      for (const b of [0, .25, .5, .75, 1, -1])
+      for (const t of [0, 1, .5, .25, .75]) {
         try {
           if (verboseLevel >= 1) console.log("  TESTING: lerp_function(a="+a+", b="+b+", t="+t+")");
           const test_answer = lerp_function(a, b, t);
           if (verboseLevel >= 1) console.log("  TESTED: lerp_function(a="+a+", b="+b+", t="+t+") = "+STRINGIFY(test_answer));
           if (typeof test_answer !== 'number') {
-            // E.g. on "true": "returning -1 because lerp_function(a=-1, b=-1, t=0) returned true which is of type "boolean", not 'number'"
-            // TODO: figure out how to make this discoverable!  for now, we emit it even at low verbosity level
-            if (verboseLevel >= 0) console.log("ExpressionValidity("+STRINGIFY(expression)+") returning -1 because lerp_function(a="+a+", b="+b+", t="+t+") returned "+STRINGIFY(test_answer)+" which is of type "+STRINGIFY(typeof test_answer)+", not 'number'");
-            return -1;
+            // E.g. on "true": "failed smoke test: lerp_function(a=-1, b=-1, t=0) returned true which is of type "boolean", not 'number'"
+            const reason = "failed smoke test:\nlerp_function(a="+a+", b="+b+", t="+t+") returned "+STRINGIFY(test_answer)+" which is of type "+STRINGIFY(typeof test_answer)+", not 'number'";
+            if (verboseLevel >= 1) console.log("ExpressionValidity("+STRINGIFY(expression)+") failing because "+reason);
+            return reason;
           }
         } catch (error) {
           // Note that this is a runtime error, not a parse error.
-          // E.g. on "0/0": "returning -1 because lerp_function(a=-1, b=-1, t=0) threw an exception:  Error: tried to divide 0 by zero"
-          // E.g. on "x": "returning -1 because lerp_function(a=-1, b=-1, t=0) threw an exception:  Error: undefined variable "x""
-          // TODO: figure out how to make this discoverable!  for now, we emit it even at low verbosity level
+          // E.g. on "0/0": "failed smoke test: lerp_function(a=-1, b=-1, t=0) threw an exception:  Error: tried to divide 0 by zero"
+          // E.g. on "x": "failed smoke test: lerp_function(a=-1, b=-1, t=0) threw an exception:  Error: undefined variable "x""
           if (verboseLevel >= 0) {
-            if (verboseLevel >= 0) console.log("ExpressionValidity("+STRINGIFY(expression)+") returning -1 because lerp_function(a="+a+", b="+b+", t="+t+") threw an exception: ",error);
-            return -1;
+            const reason = "failed smoke test:\nlerp_function(a="+a+", b="+b+", t="+t+") threw an exception:\n"+error;
+            if (verboseLevel >= 1) console.log("ExpressionValidity("+STRINGIFY(expression)+") failing because "+reason);
+            return reason;
           }
         }
       }
@@ -3007,11 +3010,18 @@ registerSourceCodeLinesAndRequire([
       const expression_validity = ExpressionValidity(new_value);
       if (new_value === textinput.old_value) {
         textinput.style.backgroundColor = 'white';
+        textinput.title = "";
       } else if (expression_validity === 2) {
         textinput.style.backgroundColor = '#ccffcc';  // light green
+        textinput.title = "";
       } else if (expression_validity === 1) {
         textinput.style.backgroundColor = '#ffffcc';  // yellow
-      } else if (expression_validity === -1) {
+        textinput.title = "";
+      } else if (expression_validity === 0) {
+        textinput.style.backgroundColor = '#ffcccc';  // pink
+        textinput.title = "";  // CBB: retain the reason and put it here!
+      } else {
+        CHECK.EQ(typeof expression_validity, 'string');
         // This means the expression is syntactically valid but the smoke test failed,
         // e.g. "returning -1 because lerp_function(1, 2, 0.5) returned false which is of type "boolean", not 'number'".
         // In that case it's still a valid prefix, so color it yellow,
@@ -3019,8 +3029,7 @@ registerSourceCodeLinesAndRequire([
         // (Note: this will probably be misleading if the failure is for a reason
         // different from wrong return value type.)
         textinput.style.backgroundColor = '#ffeecc';  // light orange
-      } else {
-        textinput.style.backgroundColor = '#ffcccc';  // pink
+        textinput.title = expression_validity;
       }
       if (verboseLevel >= 1) console.log("      new_value = "+STRINGIFY(new_value));
       // tweak: if user is backspacing, don't shrink, until they hit enter
@@ -3038,6 +3047,7 @@ registerSourceCodeLinesAndRequire([
         textinput.size = Math.max(minWidth, textinput.value.length);
         textinput.old_value = new_value;
         textinput.style.backgroundColor = 'white';
+        textinput.title = "";
         if (radiobutton.checked) {
           setLerpMethodToCustom(textinput.old_value);
         }
