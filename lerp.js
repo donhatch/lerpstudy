@@ -1,4 +1,3 @@
-// TODO: custom exprs: this should not be valid: "-t ? 3 : 4"
 // TODO: custom exprs: need more friendly tooltip on failure; this one doesn't appear unless you leave and re-enter
 // TODO: custom exprs: failure mode on "-true" spams console with CHECK failure.  needs to throw more quietly (minus, and all the other functions I guess? or, can we prevent this at compile time? or, is CHECK being too verbose to begin with?)
 // TODO: custom lerp functions: handle divide-by-zero that didn't get caught by smoke test more gracefully (completely abort?)
@@ -2572,8 +2571,12 @@ registerSourceCodeLinesAndRequire([
           const RHS_function = recurse(operands[2]);
           if (verboseLevel >= 1) console.log("    out recurse");
           return (vars) => {
-            return LHS_function(vars) ? MHS_function(vars)
-                                      : RHS_function(vars);
+            const lhs = LHS_function(vars);
+            if (typeof lhs !== 'boolean') {
+              throw new Error("LHS of operator '?' is "+STRINGIFY(lhs)+" which is of type "+(typeof lhs)+", expected boolean");
+            }
+            return lhs ? MHS_function(vars)
+                       : RHS_function(vars);
           };
         } else if (opname === "||") {  // needs special case for short-circuiting
           // CBB: really shouldn't need a special case for this; make the implementations take thunks
@@ -2582,7 +2585,11 @@ registerSourceCodeLinesAndRequire([
           const RHS_function = recurse(operands[1]);
           if (verboseLevel >= 1) console.log("    out recurse");
           return (vars) => {
-            return LHS_function(vars) || RHS_function(vars);
+            const lhs = LHS_function(vars);
+            if (typeof lhs !== 'boolean') {
+              throw new Error("LHS of operator '||' is "+STRINGIFY(lhs)+" which is of type "+(typeof lhs)+", expected boolean");
+            }
+            return lhs || RHS_function(vars);
           };
         } else if (opname === "&&") {  // needs special case for short-circuiting
           // CBB: really shouldn't need a special case for this; make the implementations take thunks
@@ -2591,7 +2598,11 @@ registerSourceCodeLinesAndRequire([
           const RHS_function = recurse(operands[1]);
           if (verboseLevel >= 1) console.log("    out recurse");
           return (vars) => {
-            return LHS_function(vars) && RHS_function(vars);
+            const lhs = LHS_function(vars);
+            if (typeof lhs !== 'boolean') {
+              throw new Error("LHS of operator '&&' is "+STRINGIFY(lhs)+" which is of type "+(typeof lhs)+", expected boolean");
+            }
+            return lhs && RHS_function(vars);
           };
         } else if (opname === "=") {
           CHECK.EQ(operands.length, 2);
