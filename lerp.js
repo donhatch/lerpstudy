@@ -9,6 +9,8 @@
 //        another example: a=1 b=0 t=9/256 omg! this can't be right
 //        another example: a=1/4 b=3/4 t=9/256
 //        another example: a=0 b=13/16 t=13/512,13/256,13/128,13/64,13/32,13/16 (single precision n=3 gets it perfect everywhere!)
+//        maybe simpler to debug: "a + t*(b-a)"
+//              a=0 b=13/16 t=13/16 (and 13/32 and...)
 
 // TODO: internal error on "0=0": "unexpected failure to convert parse tree to lerp function: ... 'object' != 'string'"
 // TODO: custom exprs: need more friendly tooltip on failure; this one doesn't appear unless you leave and re-enter
@@ -1641,6 +1643,36 @@ registerSourceCodeLinesAndRequire([
     //PRINTDEBUG(scale_expansion(numFractionBits, -100, [27/32], 19/32));  // XXX not representable, get rid
     //PRINTDEBUG(sum(scale_expansion(numFractionBits, -100, [27/32], 19/32)));  // XXX not representable, get rid
 
+    if (true) {
+      // Currently debugging the fact that "a+t*(b-a)" seems to do better at numFractionBits=3 than extended precision.
+      // bad case a=0 b=13/16 t=13/16 (or 13/32 or 13/64 or...)
+      const a = 0;
+      const b = 13/16;
+      const t = 13/16;
+      {
+        const numFractionBits = 3;
+        const minExponent = -6;
+        PRINTDEBUG(plus(numFractionBits, minExponent, a, times(numFractionBits, minExponent, t, minus(numFractionBits, minExponent, b, a))));
+        // should be same
+        PRINTDEBUG(round_to_nearest_representable(3, -6, plus(numFractionBits, minExponent, a, times(numFractionBits, minExponent, t, minus(numFractionBits, minExponent, b, a)))));
+      }
+      {
+        const numFractionBits = 6;
+        const minExponent = -36;
+        PRINTDEBUG(round_to_nearest_representable(3, -6, plus(numFractionBits, minExponent, a, times(numFractionBits, minExponent, t, minus(numFractionBits, minExponent, b, a)))));
+      }
+      {
+        const numFractionBits = 12;
+        const minExponent = -1000;
+        PRINTDEBUG(round_to_nearest_representable(3, -6, plus(numFractionBits, minExponent, a, times(numFractionBits, minExponent, t, minus(numFractionBits, minExponent, b, a)))));
+      }
+      {
+        const numFractionBits = 24;
+        const minExponent = -1000;
+        PRINTDEBUG(round_to_nearest_representable(3, -6, plus(numFractionBits, minExponent, a, times(numFractionBits, minExponent, t, minus(numFractionBits, minExponent, b, a)))));
+      }
+    }
+
     console.log("=================");
     /*
     http://localhost:8000/lerp.html?numFractionBits=4&minExponent=-20&a=0&b=27/32
@@ -1652,6 +1684,7 @@ registerSourceCodeLinesAndRequire([
     answer should be .5 ! why isn't it??
     =================
     */
+
   }
 
   // End float utilities
@@ -3006,6 +3039,7 @@ registerSourceCodeLinesAndRequire([
 
       {name:",", precedence:0, implementation:(x,y)=>(x(),y())},
     ];  // binary_op_table
+
     const left_unary_op_table = [
       {name:"!", precedence:8, implementation:x=>UnaryNot(x())},
 
@@ -3017,6 +3051,7 @@ registerSourceCodeLinesAndRequire([
       {name:"pred", precedence:8, implementation:x=>Pred(x())},
       {name:"succ", precedence:8, implementation:x=>Succ(x())},
 
+      // TODO: dup code here; make a function "extended_precision" or something out of it
       {name: "twice_precision", precedence:8, implementation:x=>{
         const saved_numFractionBits = numFractionBits;
         const saved_minExponent = minExponent;
@@ -3029,7 +3064,42 @@ registerSourceCodeLinesAndRequire([
           numFractionBits = saved_numFractionBits;
           minExponent = saved_minExponent;
         }
-        const answer = Round(twice_precision_answer);
+        const answer = Round(twice_precision_answer);  // to original current precision
+        return answer;
+      }},
+
+      // Note that four_times_precision(expr) is *not*
+      // the same as twice_precision(twice_precision(expr)),
+      // due to multiple rounding in the latter!  It comes up with some atrocious answers
+      {name: "four_times_precision", precedence:8, implementation:x=>{
+        const saved_numFractionBits = numFractionBits;
+        const saved_minExponent = minExponent;
+        numFractionBits *= 4;
+        minExponent = Math.max(-(minExponent**4), -1000);  // actual min exponent in IEEE754 double is -1022
+        let twice_precision_answer;
+        try {
+          twice_precision_answer = x();
+        } finally {
+          numFractionBits = saved_numFractionBits;
+          minExponent = saved_minExponent;
+        }
+        const answer = Round(twice_precision_answer);  // to original current precision
+        return answer;
+      }},
+
+      {name: "eight_times_precision", precedence:8, implementation:x=>{
+        const saved_numFractionBits = numFractionBits;
+        const saved_minExponent = minExponent;
+        numFractionBits *= 8;
+        minExponent = Math.max(-(minExponent**8), -1000);  // actual min exponent in IEEE754 double is -1022
+        let twice_precision_answer;
+        try {
+          twice_precision_answer = x();
+        } finally {
+          numFractionBits = saved_numFractionBits;
+          minExponent = saved_minExponent;
+        }
+        const answer = Round(twice_precision_answer);  // to original current precision
         return answer;
       }},
 
@@ -3165,10 +3235,10 @@ registerSourceCodeLinesAndRequire([
       setLerpMethodToCustom('twice_precision('+textinput.old_value+')');
     };
     radiobutton4.onclick = () => {
-      setLerpMethodToCustom('twice_precision(twice_precision('+textinput.old_value+'))');
+      setLerpMethodToCustom('four_times_precision('+textinput.old_value+')');
     };
     radiobutton8.onclick = () => {
-      setLerpMethodToCustom('twice_precision(twice_precision(twice_precision('+textinput.old_value+')))');
+      setLerpMethodToCustom('eight_times_precision('+textinput.old_value+')');
     };
 
     for (const r of [radiobutton, radiobutton2, radiobutton4, radiobutton8]) {
