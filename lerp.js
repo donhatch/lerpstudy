@@ -1,3 +1,5 @@
+// TODO: custom lerp functions: "0/0" ungraceful exception. maybe disallow division?
+// TODO: custom lerp functions: "t<.25 ? 0/0 : t" bad at runtime
 // TODO: custom lerp functions: really need to be able to see parse tree for when something goes wrong
 // TODO: custom lerp functions: handle divide-by-zero more gracefully (completely abort)
 // TODO: custom lerp functions: "at twice precision"
@@ -797,7 +799,10 @@ registerSourceCodeLinesAndRequire([
   const dividedby = (numFractionBits, minExponent, a, b) => {
     CHECK(is_representable(numFractionBits, minExponent, a));
     CHECK(is_representable(numFractionBits, minExponent, b));
-    CHECK.NE(b, 0);  // we don't do nan or inf, so disallow division by 0
+    // we don't do nan or inf, so disallow division by 0
+    if (b === 0) {
+      throw new Error("tried to divide "+STRINGIFY(a)+" by zero");
+    }
     return round_to_nearest_representable(numFractionBits, minExponent, a/b);
   };
   const fma = (numFractionBits, minExponent, a, b, c) => {
@@ -2430,7 +2435,7 @@ registerSourceCodeLinesAndRequire([
     theTitle.innerHTML = "[1,t,-t] <big>&#8226;</big> [a,b,a] smartest";
   };
   const setLerpMethodToCustom = (expression_string) => {
-    const tree = Parse(expression_string);
+    const tree = Parse(expression_string, [0]);
     Lerp = ParseTreeToLerpFunction(tree);
     populateTheSVG(svg, Lerp, a, b);
     theTitle.innerHTML = "custom lerp expression";
@@ -2613,38 +2618,41 @@ registerSourceCodeLinesAndRequire([
     return answer;
   };  // ParseTreeToLerpFunction
 
-  // returns a parse tree suitable as input to ParseTreeToLerpFunction
-  const parse = (expression, binary_op_table, left_unary_op_table, javascript_number_to_literal) => {
+  // returns a parse tree suitable as input to ParseTreeToLerpFunction,
+  // or throws with a message.
+  // Position within expression is tracked in posHolder[0], which caller should initialize
+  // to where parsing should start.  This allows caller to ask "did it parse to the end
+  // of the string or not?" regardless of whether the function succeeds or throws.
+  const parse = (expression, binary_op_table, left_unary_op_table, javascript_number_to_literal, posHolder) => {
     const verboseLevel = 0;
     if (verboseLevel >= 1) console.log("    in parse(expression="+JSON.stringify(expression)+")");
     CHECK.EQ(typeof expression, 'string');
     CHECK(Array.isArray(binary_op_table));
     CHECK(Array.isArray(left_unary_op_table));
     CHECK.EQ(typeof javascript_number_to_literal, 'function');
-    // Current position within expression string.
-    // All the helper functions in here have the side effect of moving pos.
-    let pos = 0;
+    CHECK(Array.isArray(posHolder));
+    CHECK.EQ(posHolder.length, 1);
     const discardSpaces = () => {
-      while (pos < expression.length && expression[pos].trim() === "") {
-        pos++;
+      while (posHolder[0] < expression.length && expression[posHolder[0]].trim() === "") {
+        posHolder[0]++;
       }
     };
     const parseLiteral = (literal) => {
       const verboseLevel = 0;
-      if (verboseLevel >= 1) console.log("                in parseLiteral(literal="+STRINGIFY(literal)+", pos="+pos+")");
-      if (suffix_starts_with(expression, pos, literal)) {
-        pos += literal.length;
-        if (verboseLevel >= 1) console.log("                out parseLiteral(literal="+STRINGIFY(literal)+", new pos="+pos+"), returning literal="+STRINGIFY(literal));
+      if (verboseLevel >= 1) console.log("                in parseLiteral(literal="+STRINGIFY(literal)+", pos="+posHolder[0]+")");
+      if (suffix_starts_with(expression, posHolder[0], literal)) {
+        posHolder[0] += literal.length;
+        if (verboseLevel >= 1) console.log("                out parseLiteral(literal="+STRINGIFY(literal)+", new pos="+posHolder[0]+"), returning literal="+STRINGIFY(literal));
         return literal;
       } else {
-        if (verboseLevel >= 1) console.log("                out parseLiteral(literal="+STRINGIFY(literal)+", pos="+pos+"), returning null");
+        if (verboseLevel >= 1) console.log("                out parseLiteral(literal="+STRINGIFY(literal)+", pos="+posHolder[0]+"), returning null");
         return null;
       }
     };
     const isDigit = c => /^\d$/.test(c);
     const parseNumber = () => {
       const verboseLevel = 0;
-      if (verboseLevel >= 1) console.log("                in parseNumber(pos="+pos+")");
+      if (verboseLevel >= 1) console.log("                in parseNumber(pos="+posHolder[0]+")");
       // Match the following on input:
       // /^-?[0-9]*\.[0-9]*$/  but must contain at least one digit
       // I.e. -? followed by exactly one of these:
@@ -2661,7 +2669,7 @@ registerSourceCodeLinesAndRequire([
       //       use binary search to find the longest match of the transformed regex,
       //       then see if that matches the original regex.
       let succeeded = false;
-      let pos1 = pos;
+      let pos1 = posHolder[0];
       if (pos1 < expression.length && expression[pos1] === '-') {
         pos1++;
       }
@@ -2685,24 +2693,24 @@ registerSourceCodeLinesAndRequire([
         }
       }
       if (succeeded) {
-        const answer = expression.slice(pos, pos1);
-        pos = pos1;
-        if (verboseLevel >= 1) console.log("                out parseNumber(pos="+pos+"), returning number "+STRINGIFY(answer));
+        const answer = expression.slice(posHolder[0], pos1);
+        posHolder[0] = pos1;
+        if (verboseLevel >= 1) console.log("                out parseNumber(pos="+posHolder[0]+"), returning number "+STRINGIFY(answer));
         return answer;
       } else {
-        if (verboseLevel >= 1) console.log("                out parseNumber(pos="+pos+"), returning null");
+        if (verboseLevel >= 1) console.log("                out parseNumber(pos="+posHolder[0]+"), returning null");
         return null;
       }
     };  // parseNumber
     const parseIdentifier = () => {
-      let pos1 = pos;
+      let pos1 = posHolder[0];
       if (pos1 < expression.length && /[_a-zA-Z]/.test(expression[pos1])) {
         pos1++;
         while (pos1 < expression.length && /[_a-zA-Z0-9]/.test(expression[pos1])) {
           pos1++;
         }
-        const answer = expression.slice(pos, pos1);
-        pos = pos1;
+        const answer = expression.slice(posHolder[0], pos1);
+        posHolder[0] = pos1;
         return answer;
       } else {
         return null;
@@ -2711,17 +2719,17 @@ registerSourceCodeLinesAndRequire([
 
     const parseFactor = () => {
       const verboseLevel = 0;
-      if (verboseLevel >= 1) console.log("            in parseFactor(pos="+pos+")");
+      if (verboseLevel >= 1) console.log("            in parseFactor(pos="+posHolder[0]+")");
 
       const identifier = parseIdentifier();
       if (identifier != null) {
-        if (verboseLevel >= 1) console.log("            out parseFactor(pos="+pos+"), returning identifier "+STRINGIFY(identifier));
+        if (verboseLevel >= 1) console.log("            out parseFactor(pos="+posHolder[0]+"), returning identifier "+STRINGIFY(identifier));
         return identifier;
       }
 
       const number = parseNumber();
       if (number !== null) {
-        if (verboseLevel >= 1) console.log("            out parseFactor(pos="+pos+"), returning number "+STRINGIFY(number));
+        if (verboseLevel >= 1) console.log("            out parseFactor(pos="+posHolder[0]+"), returning number "+STRINGIFY(number));
         if (true) {
           // Here's where we interpose javascript_number_to_literal.
           return combine("javascript_number_to_literal", javascript_number_to_literal, [number]);
@@ -2731,14 +2739,14 @@ registerSourceCodeLinesAndRequire([
       }
 
       if (parseLiteral("(") !== null) {
-        const i0 = pos - 1;
+        const i0 = posHolder[0] - 1;
         const answer = parseSubexpression(/*lowest_precedence_allowed=*/0);
         if (parseLiteral(")") === null) {
           throw new Error("unmatched '(' at position "+i0+")");
         }
         return answer;
       }
-      if (verboseLevel >= 1) console.log("            out parseFactor(pos="+pos+"), returning null at bottom");
+      if (verboseLevel >= 1) console.log("            out parseFactor(pos="+posHolder[0]+"), returning null at bottom");
       return null;
     };  // parseFactor
 
@@ -2754,7 +2762,7 @@ registerSourceCodeLinesAndRequire([
 
     const parseSubexpression = (lowest_precedence_allowed) => {
       const verboseLevel = 0;
-      if (verboseLevel >= 1) console.log("        in parseSubexpression(expression="+JSON.stringify(expression)+", pos="+pos+")");
+      if (verboseLevel >= 1) console.log("        in parseSubexpression(expression="+JSON.stringify(expression)+", pos="+posHolder[0]+")");
       if (verboseLevel >= 1) console.log("          calling initial parseFactor");
 
       discardSpaces();  // TODO: where should this go?  inside parseFactor? inside parseLiteral?
@@ -2768,7 +2776,7 @@ registerSourceCodeLinesAndRequire([
       } else {
         answer = parseFactor();
         if (verboseLevel >= 1) console.log("          returned from initial parseFactor: "+STRINGIFY(answer));
-        if (verboseLevel >= 1) console.log("          pos = "+pos);
+        if (verboseLevel >= 1) console.log("          pos = "+posHolder[0]);
       }
       if (answer !== null) {
         // All binary operators happen to be left-to-right associative,
@@ -2782,10 +2790,10 @@ registerSourceCodeLinesAndRequire([
           const entry = parseOp(binary_op_table, lowest_precedence_allowed);
           if (entry === null) break;  // didn't find an op
           if (verboseLevel >= 1) console.log("          found op "+STRINGIFY(entry.name));
-          if (verboseLevel >= 1) console.log("          pos = "+pos);
+          if (verboseLevel >= 1) console.log("          pos = "+posHolder[0]);
 
           if (entry.name === "?") {
-            const i0 = pos-1;
+            const i0 = posHolder[0]-1;
             // entry.precedence rather than entry.precedence+1,
             // i.e. allow "?" in the MHS, i.e. right-to-left-associative,
             // so "true?true?a:b:t" will be accepted
@@ -2806,7 +2814,7 @@ registerSourceCodeLinesAndRequire([
             const RHS = parseSubexpression(is_right_to_left_associative ? entry.precedence
                                                                         : entry.precedence+1);
             if (RHS === null) {
-              throw new Error("premature end of string at position "+pos+" after operator "+STRINGIFY(entry.name));
+              throw new Error("premature end of string at position "+posHolder[0]+" after operator "+STRINGIFY(entry.name));
             }
             answer = combine(entry.name, entry.implementation, [answer, RHS]);
           }
@@ -2814,16 +2822,16 @@ registerSourceCodeLinesAndRequire([
       }  // if answer !== null
       if (verboseLevel >= 1) console.log("          answer = "+STRINGIFY(answer));
       if (verboseLevel >= 1) PrintParseTree(answer, /*indentString=*/"              ", /*recursionLevel=*/0);
-      if (verboseLevel >= 1) console.log("        out parseSubexpression(expression="+JSON.stringify(expression)+", pos="+pos+")");
+      if (verboseLevel >= 1) console.log("        out parseSubexpression(expression="+JSON.stringify(expression)+", pos="+posHolder[0]+")");
       return answer;
     };  // parseSubexpression
     const answer = parseSubexpression(/*lowest_precedence_allowed=*/0);
     if (answer === null) {
-      throw new Error("syntax error at position "+pos+" (parseSubexpresion failed)");
+      throw new Error("syntax error at position "+posHolder[0]+" (parseSubexpresion failed)");
     }
     discardSpaces();
-    if (pos !== expression.length) {
-      throw new Error("syntax error at position "+pos+" (extra chars at end of string: "+STRINGIFY(expression.slice(pos))+")");
+    if (posHolder[0] !== expression.length) {
+      throw new Error("syntax error at position "+posHolder[0]+" (extra chars at end of string: "+STRINGIFY(expression.slice(posHolder[0]))+")");
     }
     if (verboseLevel >= 1) console.log("      answer = "+STRINGIFY(answer));
     if (verboseLevel >= 1) PrintParseTree(answer, /*indentString=*/"          ", /*recursionLevel=*/0);
@@ -2834,7 +2842,7 @@ registerSourceCodeLinesAndRequire([
   // END: parsing stuff that could be moved into its own file
   //===============================================================================
 
-  const Parse = expression => {
+  const Parse = (expression,posHolder) => {
     const binary_op_table = [
       // precedence:6 is for left-unary ops, e.g. "-" and "!"
 
@@ -2872,39 +2880,65 @@ registerSourceCodeLinesAndRequire([
       // followed by positive number.  I guess that's ok.
       {name:"-", precedence:6, implementation:(x)=>UnaryMinus(x)},
     ];  // left_unary_op_table
-    return parse(expression, binary_op_table, left_unary_op_table, Round);
+    return parse(expression, binary_op_table, left_unary_op_table, Round, posHolder);
   };  // Parse
 
-  const is_valid_expression = expression => {
+  // Return:
+  //  -1 if whole expression is syntactically valid but smoke test of it fails
+  //   0 if not a valid prefix
+  //   1 if a valid prefix but not a valid expression
+  //   2 if a valid expression and smoke test of it succeeds
+  const ExpressionValidity = expression => {
     const verboseLevel = 0;
+    const posHolder = [0];
     try {
-      const tree = Parse(expression);
-      if (verboseLevel >= 1) console.log("  is_valid_expression: tree = "+JSON.stringify(tree));
+      const tree = Parse(expression, posHolder);
+      if (verboseLevel >= 1) console.log("  ExpressionValidity: tree = "+JSON.stringify(tree));
       if (tree !== null) {
         if (verboseLevel >= 1) PrintParseTree(tree, /*indentString=*/"      ", /*recursionLevel=*/0);
         const lerp_function = ParseTreeToLerpFunction(tree);
         if (verboseLevel >= 1) console.log("  lerp_function = "+STRINGIFY(lerp_function));
-        if (verboseLevel >= 1) console.log("  TESTING: lerp_function(1, 2, 0.5)");
-        const test_answer = lerp_function(.25, .75, 0.5);
-        if (verboseLevel >= 1) console.log("  TESTING: lerp_function(1, 2, 0.5) = ",STRINGIFY(test_answer));
-        if (typeof test_answer !== 'number') {
-          console.log("is_valid_expression("+STRINGIFY(expression)+" returning false because lerp_function(1, 2, 0.5) returned "+STRINGIFY(test_answer)+" which is of type "+STRINGIFY(typeof test_answer)+", not 'number'");
-          return false;
+
+        for (const a of [-1, 0, .25, .5, .75, 1])
+        for (const b of [-1, 0, .25, .5, .75, 1])
+        for (const t of [0, .25, .5, .75, 1]) {
+          try {
+            if (verboseLevel >= 1) console.log("  TESTING: lerp_function(a="+a+", b="+b+", t="+t+")");
+            const test_answer = lerp_function(a, b, t);
+            if (verboseLevel >= 1) console.log("  TESTED: lerp_function(a="+a+", b="+b+", t="+t+") = "+STRINGIFY(test_answer));
+            if (typeof test_answer !== 'number') {
+              // TODO: figure out how to make this discoverable!  for now, we emit it even at low verbosity level
+              if (verboseLevel >= 0) console.log("ExpressionValidity("+STRINGIFY(expression)+" returning -1 because lerp_function(a="+a+", b="+b+", t="+t+") returned "+STRINGIFY(test_answer)+" which is of type "+STRINGIFY(typeof test_answer)+", not 'number'");
+              return -1;
+            }
+          } catch (error) {
+            // Note that this is a runtime error, not a parse error.
+            // TODO: figure out how to make this discoverable!  for now, we emit it even at low verbosity level
+            if (verboseLevel >= 0) {
+              if (verboseLevel >= 0) console.log("ExpressionValidity("+STRINGIFY(expression)+" returning -1 because lerp_function(a="+a+", b="+b+", t="+t+") threw an exception: ",error);
+              return -1;
+            }
+          }
         }
       }
-      if (verboseLevel >= 1) console.log("is_valid_expression returning (tree!==null) = "+STRINGIFY(tree!==null));
-      return tree !== null;
+      // CBB: actually I don't think parse can return null; so we always return 2 in this code path
+      const answer = tree !== null ? 2 :
+             posHolder[0]==expression.length ? 1 : 0;
+      if (verboseLevel >= 1) console.log("ExpressionValidity returning "+answer);
+      return answer;
     } catch (error) {
-      if (verboseLevel >= 0) console.log("is_valid_expression returning false because: ",error);
-      return false;
+      // Parse error.
+      // TODO: figure out how to make this discoverable!
+      if (verboseLevel >= 1) console.log("ExpressionValidity returning false because: ",error);
+      return posHolder[0]==expression.length ? 1 : 0;
     }
-  };  // is_valid_expression
+  };  // ExpressionValidity
 
   const AddCustomExpression = expression => {
     const verboseLevel = 0;
     if (verboseLevel >= 1) console.log("in AddCustomExpression");
 
-    if (!is_valid_expression(expression)) {
+    if (ExpressionValidity(expression) !== 2) {
       console.error("  tried to add invalid custom expression "+STRINGIFY(expression));
       if (verboseLevel >= 1) console.log("out AddCustomExpression (expression was invalid)");
       return;
@@ -2963,10 +2997,21 @@ registerSourceCodeLinesAndRequire([
       if (verboseLevel >= 1) console.log("    in textinput.oninput");
       if (verboseLevel >= 1) console.log("      event = ",event);
       const new_value = textinput.value;
+      const expression_validity = ExpressionValidity(new_value);
       if (new_value === textinput.old_value) {
         textinput.style.backgroundColor = 'white';
-      } else if (is_valid_expression(new_value)) {
+      } else if (expression_validity === 2) {
         textinput.style.backgroundColor = '#ccffcc';  // light green
+      } else if (expression_validity === 1) {
+        textinput.style.backgroundColor = '#ffffcc';  // yellow
+      } else if (expression_validity === -1) {
+        // This means the expression is syntactically valid but the smoke test failed,
+        // e.g. "returning -1 because lerp_function(1, 2, 0.5) returned false which is of type "boolean", not 'number'".
+        // In that case it's still a valid prefix, so color it yellow,
+        // but make it ever so slightly different from the normal yellow.
+        // (Note: this will probably be misleading if the failure is for a reason
+        // different from wrong return value type.)
+        textinput.style.backgroundColor = '#ffeecc';  // light orange
       } else {
         textinput.style.backgroundColor = '#ffcccc';  // pink
       }
@@ -2981,7 +3026,8 @@ registerSourceCodeLinesAndRequire([
       if (verboseLevel >= 1) console.log("      event = ",event);
       const new_value = textinput.value;
       if (verboseLevel >= 1) console.log("      new_value = "+STRINGIFY(new_value));
-      if (is_valid_expression(new_value)) {
+      const expression_validity = ExpressionValidity(new_value);
+      if (expression_validity === 2) {
         textinput.size = Math.max(minWidth, textinput.value.length);
         textinput.old_value = new_value;
         textinput.style.backgroundColor = 'white';
