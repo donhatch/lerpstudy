@@ -1,5 +1,3 @@
-// TODO: BUG: set numFractionBits to 0 and try to add a custom expr; it fails with "CHECK.js:72 CHECK(is_representable(numFractionBits, minExponent, b)) failed at minus (http://localhost:8000/lerp.js:800:5)"
-//       OH I see what's going on, it's the smoke test
 // Interesting: a=7/32 b=1, custom "(1-t)*a + t*b", twice precision is worse for some cases
 //             or 9/32
 //             or 3/8
@@ -3080,6 +3078,9 @@ registerSourceCodeLinesAndRequire([
       for (const a of [0, .25, .5, .75, 1, -1])
       for (const b of [0, .25, .5, .75, 1, -1])
       for (const t of [0, 1, .5, .25, .75]) {
+        if (!is_representable(numFractionBits, minExponent, a)) continue;
+        if (!is_representable(numFractionBits, minExponent, b)) continue;
+        if (!is_representable(numFractionBits, minExponent, t)) continue;
         try {
           if (verboseLevel >= 1) console.log("  TESTING: lerp_function(a="+a+", b="+b+", t="+t+")");
           const test_answer = lerp_function(a, b, t);
