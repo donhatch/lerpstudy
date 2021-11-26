@@ -1,17 +1,3 @@
-// Interesting: a=7/32 b=1, custom "(1-t)*a + t*b", twice precision is worse for some cases
-//             or 9/32
-//             or 3/8
-//             or 1/2  (t=9/128)  and not fixed even for 4x?? and not even 8x?? wtf?  am I even sure it's right??
-//                well, what's lerp(1/2, 1, 9/128)?  That'll be 1/2 + 9/256 = 128/256 + 9/256 = 137/256.  Hmm!
-//                and the ui says it's being incorrectly rounded to 1/2=128/256, when 9/16=144/256 is closer.
-//                so, why is it doing this, even at 8x precision?? that definitely can't be right :-(
-//       'http://localhost:8000/lerp.html#numFractionBits=3&minExponent=-6&a=1/2&b=1&custom=[%22(1-t)*a+%2B+t*b%22]'
-//        another example: a=1 b=0 t=9/256 omg! this can't be right
-//        another example: a=1/4 b=3/4 t=9/256
-//        another example: a=0 b=13/16 t=13/512,13/256,13/128,13/64,13/32,13/16 (single precision n=3 gets it perfect everywhere!)
-//        maybe simpler to debug: "a + t*(b-a)"
-//              a=0 b=13/16 t=13/16 (and 13/32 and...)
-
 // TODO: internal error on "0=0": "unexpected failure to convert parse tree to lerp function: ... 'object' != 'string'"
 // TODO: custom exprs: need more friendly tooltip on failure; this one doesn't appear unless you leave and re-enter
 // TODO: custom exprs: failure mode on "-true" spams console with CHECK failure.  needs to throw more quietly (minus, and all the other functions I guess? or, can we prevent this at compile time? or, is CHECK being too verbose to begin with?)
@@ -3009,6 +2995,25 @@ registerSourceCodeLinesAndRequire([
     return x;
   };  // checkboolean
 
+  // do the computation represented by thunk in extended precision,
+  // then round the result back to the current precision.
+  const extended_precision = (multiplier, thunk) => {
+    const saved_numFractionBits = numFractionBits;
+    const saved_minExponent = minExponent;
+    numFractionBits *= multiplier;
+    minExponent = Math.max(-(minExponent**multiplier), -1000);  // actual min exponent in IEEE754 double is -1022
+    let extended_precision_answer;
+    try {
+      extended_precision_answer = thunk();
+    } finally {
+      numFractionBits = saved_numFractionBits;
+      minExponent = saved_minExponent;
+    }
+    const answer = Round(extended_precision_answer);  // to original current precision
+    return answer;
+  };  // extended_precision
+
+
   const Parse = (expression,posHolder) => {
     const binary_op_table = [
       // precedence:8 is for left-unary ops, e.g. "-" and "!"
@@ -3051,57 +3056,12 @@ registerSourceCodeLinesAndRequire([
       {name:"pred", precedence:8, implementation:x=>Pred(x())},
       {name:"succ", precedence:8, implementation:x=>Succ(x())},
 
-      // TODO: dup code here; make a function "extended_precision" or something out of it
-      {name: "twice_precision", precedence:8, implementation:x=>{
-        const saved_numFractionBits = numFractionBits;
-        const saved_minExponent = minExponent;
-        numFractionBits *= 2;
-        minExponent = Math.max(-(minExponent**2), -1000);  // actual min exponent in IEEE754 double is -1022
-        let twice_precision_answer;
-        try {
-          twice_precision_answer = x();
-        } finally {
-          numFractionBits = saved_numFractionBits;
-          minExponent = saved_minExponent;
-        }
-        const answer = Round(twice_precision_answer);  // to original current precision
-        return answer;
-      }},
-
       // Note that four_times_precision(expr) is *not*
       // the same as twice_precision(twice_precision(expr)),
       // due to multiple rounding in the latter!  It comes up with some atrocious answers
-      {name: "four_times_precision", precedence:8, implementation:x=>{
-        const saved_numFractionBits = numFractionBits;
-        const saved_minExponent = minExponent;
-        numFractionBits *= 4;
-        minExponent = Math.max(-(minExponent**4), -1000);  // actual min exponent in IEEE754 double is -1022
-        let twice_precision_answer;
-        try {
-          twice_precision_answer = x();
-        } finally {
-          numFractionBits = saved_numFractionBits;
-          minExponent = saved_minExponent;
-        }
-        const answer = Round(twice_precision_answer);  // to original current precision
-        return answer;
-      }},
-
-      {name: "eight_times_precision", precedence:8, implementation:x=>{
-        const saved_numFractionBits = numFractionBits;
-        const saved_minExponent = minExponent;
-        numFractionBits *= 8;
-        minExponent = Math.max(-(minExponent**8), -1000);  // actual min exponent in IEEE754 double is -1022
-        let twice_precision_answer;
-        try {
-          twice_precision_answer = x();
-        } finally {
-          numFractionBits = saved_numFractionBits;
-          minExponent = saved_minExponent;
-        }
-        const answer = Round(twice_precision_answer);  // to original current precision
-        return answer;
-      }},
+      {name: "twice_precision", precedence:8, implementation:x=>extended_precision(2, x)},
+      {name: "four_times_precision", precedence:8, implementation:x=>extended_precision(4, x)},
+      {name: "eight_times_precision", precedence:8, implementation:x=>extended_precision(8, x)},
 
     ];  // left_unary_op_table
     return parse(expression, binary_op_table, left_unary_op_table, Round, posHolder);
