@@ -542,7 +542,9 @@ registerSourceCodeLinesAndRequire([
   const parseFractionString = s => {
     CHECK.NE(s, undefined);
     const parts = s.split("/");
-    CHECK(parts.length == 1 || parts.length == 2);
+    if (parts.length != 1 && parts.length != 2) {
+      return NaN;
+    }
     if (parts.length == 1) {
       return myParseFloat(parts[0]);
     } else {
@@ -583,8 +585,8 @@ registerSourceCodeLinesAndRequire([
       }
       return expressions;
     } catch (error) {
-      console.log("Aww fooey, couldn't parse custom expressions string "+STRINGIFY(custom_expressions_string)+" as json: "+error);
-      throw error;
+      console.error("Aww fooey, couldn't parse custom expressions string "+STRINGIFY(custom_expressions_string)+" as json: "+error);
+      return [];
     }
   };  // GetTheDamnCustomExpressionsFromTheDamnAddressBar
 
@@ -660,8 +662,14 @@ registerSourceCodeLinesAndRequire([
 
   let a = parseFractionString(aString);
   let b = parseFractionString(bString);
-  CHECK(Number.isFinite(a));  // TODO: clear page on failure, or something
-  CHECK(Number.isFinite(b));  // TODO: clear page on failure, or something
+  if (!Number.isFinite(a)) {
+    document.body.innerText = 'bad "a" parameter '+STRINGIFY(aString);
+    return;
+  }
+  if (!Number.isFinite(b)) {
+    document.body.innerText = 'bad "b" parameter '+STRINGIFY(bString);
+    return;
+  }
 
   //a = round_to_nearest_representable(a);
   //b = round_to_nearest_representable(b);
@@ -3430,7 +3438,7 @@ registerSourceCodeLinesAndRequire([
   // Add initial ones, from the url
   if (true) {
     const expressions = GetTheDamnCustomExpressionsFromTheDamnAddressBar();
-    console.log("  initial expressions = "+STRINGIFY(expressions));
+    console.log("  initial custom expressions = "+STRINGIFY(expressions));
     for (const expression of expressions) {
       AddCustomExpression(expression);
     }
