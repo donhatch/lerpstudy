@@ -1,3 +1,8 @@
+// TODO: 5x and 7x precision are failing on "1"!  why?
+// TODO: 3x is failing on the default expression! "CHECK.js:72 CHECK(is_representable(numFractionBits, minExponent, a)) failed at plus (http://localhost:8000/lerp.js:787:5)"
+
+// TODO: move expression parsing code out into its own file
+// TODO: recognize more ops like -- and gracefully fail if implementation not provided
 // TODO: custom exprs: need more friendly tooltip on failure; this one doesn't appear unless you leave and re-enter
 // TODO: custom exprs: failure mode on "-true" spams console with CHECK failure.  needs to throw more quietly (minus, and all the other functions I guess? or, can we prevent this at compile time? or, is CHECK being too verbose to begin with?)
 // TODO: custom lerp functions: handle divide-by-zero that didn't get caught by smoke test more gracefully (completely abort?)
@@ -3019,6 +3024,8 @@ registerSourceCodeLinesAndRequire([
   // do the computation represented by thunk in extended precision,
   // then round the result back to the current precision.
   const extended_precision = (multiplier, thunk) => {
+    CHECK(Number.isInteger(multiplier));
+    CHECK.GE(multiplier, 1);
     const saved_numFractionBits = numFractionBits;
     const saved_minExponent = minExponent;
     numFractionBits *= multiplier;
@@ -3135,9 +3142,14 @@ registerSourceCodeLinesAndRequire([
 
       // Note that four_times_precision(expr) is *not*
       // the same as twice_precision(twice_precision(expr)),
-      // due to multiple rounding in the latter!  It comes up with some atrocious answers
+      // due to multiple rounding in the latter!  It comes up with some atrocious answers.
+      // TODO: replace all these with function that takes 2 args (or a binary operator, since 2-arg functions aren't implemented currently)
       ["twice_precision", x=>extended_precision(2, x)],
+      ["three_times_precision", x=>extended_precision(3, x)],
       ["four_times_precision", x=>extended_precision(4, x)],
+      ["five_times_precision", x=>extended_precision(5, x)],
+      ["six_times_precision", x=>extended_precision(6, x)],
+      ["seven_times_precision", x=>extended_precision(7, x)],
       ["eight_times_precision", x=>extended_precision(8, x)],
     ];
     const javascript_number_to_literal = Round;
@@ -3249,38 +3261,42 @@ registerSourceCodeLinesAndRequire([
 
     const radiobutton_td = new_tr.insertCell(1);
     // font-size:13px empirically matches the font size of the radio button labels, although I wouldn't know how to predict that
-    radiobutton_td.innerHTML = '<input type="radio" name="lerpmethod"><input type="text" class="custom" style="font-family:monospace; font-size:13px;" size="(TO BE SET BELOW)" value="(TO BE SET BELOW)"></input><label><input type="radio" name="lerpmethod">at 2x precision</label><label><input type="radio" name="lerpmethod">4x</label><label><input type="radio" name="lerpmethod">8x</label>'
+    radiobutton_td.innerHTML = '<input type="radio" name="lerpmethod"><input type="text" class="custom" style="font-family:monospace; font-size:13px;" size="(TO BE SET BELOW)" value="(TO BE SET BELOW)"></input><label><input type="radio" name="lerpmethod">at 2x precision</label><label><input type="radio" name="lerpmethod">3x</label><label><input type="radio" name="lerpmethod">4x</label><label><input type="radio" name="lerpmethod">5x</label><label><input type="radio" name="lerpmethod">6x</label><label><input type="radio" name="lerpmethod">7x</label><label><input type="radio" name="lerpmethod">8x</label>'
     const radiobutton = radiobutton_td.children[0];
     if (verboseLevel >= 1) console.log("  radiobutton = ",radiobutton);
     const textinput = radiobutton_td.children[1];
     if (verboseLevel >= 1) console.log("  textinput = ",textinput);
     const radiobutton2 = radiobutton_td.children[2].children[0];
     if (verboseLevel >= 1) console.log("  radiobutton2 = ",radiobutton2);
-    const radiobutton4 = radiobutton_td.children[3].children[0];
+    const radiobutton3 = radiobutton_td.children[3].children[0];
+    if (verboseLevel >= 1) console.log("  radiobutton3 = ",radiobutton3);
+    const radiobutton4 = radiobutton_td.children[4].children[0];
     if (verboseLevel >= 1) console.log("  radiobutton4 = ",radiobutton4);
-    const radiobutton8 = radiobutton_td.children[4].children[0];
+    const radiobutton5 = radiobutton_td.children[5].children[0];
+    if (verboseLevel >= 1) console.log("  radiobutton8 = ",radiobutton8);
+    const radiobutton6 = radiobutton_td.children[6].children[0];
+    if (verboseLevel >= 1) console.log("  radiobutton8 = ",radiobutton8);
+    const radiobutton7 = radiobutton_td.children[7].children[0];
+    if (verboseLevel >= 1) console.log("  radiobutton8 = ",radiobutton8);
+    const radiobutton8 = radiobutton_td.children[8].children[0];
     if (verboseLevel >= 1) console.log("  radiobutton8 = ",radiobutton8);
 
     textinput.value = expression;
 
     const minWidth = 30;
 
-    radiobutton.onclick = () => {
-      // This assumes textinput.old_value has already been validated
-      // (unlike textinput.value which may not have been)
-      setLerpMethodToCustom(textinput.old_value);
-    };
-    radiobutton2.onclick = () => {
-      setLerpMethodToCustom('twice_precision('+textinput.old_value+')');
-    };
-    radiobutton4.onclick = () => {
-      setLerpMethodToCustom('four_times_precision('+textinput.old_value+')');
-    };
-    radiobutton8.onclick = () => {
-      setLerpMethodToCustom('eight_times_precision('+textinput.old_value+')');
-    };
+    // This assumes textinput.old_value has already been validated
+    // (unlike textinput.value which may not have been)
+    radiobutton.onclick = () => { setLerpMethodToCustom(textinput.old_value); };
+    radiobutton2.onclick = () => { setLerpMethodToCustom('twice_precision('+textinput.old_value+')'); };
+    radiobutton3.onclick = () => { setLerpMethodToCustom('three_times_precision('+textinput.old_value+')'); };
+    radiobutton4.onclick = () => { setLerpMethodToCustom('four_times_precision('+textinput.old_value+')'); };
+    radiobutton5.onclick = () => { setLerpMethodToCustom('five_times_precision('+textinput.old_value+')'); };
+    radiobutton6.onclick = () => { setLerpMethodToCustom('six_times_precision('+textinput.old_value+')'); };
+    radiobutton7.onclick = () => { setLerpMethodToCustom('seven_times_precision('+textinput.old_value+')'); };
+    radiobutton8.onclick = () => { setLerpMethodToCustom('eight_times_precision('+textinput.old_value+')'); };
 
-    for (const r of [radiobutton, radiobutton2, radiobutton4, radiobutton8]) {
+    for (const r of [radiobutton, radiobutton2, radiobutton3, radiobutton4, radiobutton5, radiobutton6, radiobutton7, radiobutton8]) {
       // BEGIN: dup code
       r.addEventListener('click', additional_onclick_event_listener);
       r.onkeydown = event => {
@@ -3361,7 +3377,7 @@ registerSourceCodeLinesAndRequire([
         textinput.old_value = new_value;
         textinput.style.backgroundColor = 'white';
         textinput.title = "";
-        for (const r of [radiobutton, radiobutton2, radiobutton4, radiobutton8]) {
+        for (const r of [radiobutton, radiobutton2, radiobutton3, radiobutton4, radiobutton5, radiobutton6, radiobutton7, radiobutton8]) {
           if (r.checked) {
             r.onclick();
             break;
@@ -3372,6 +3388,14 @@ registerSourceCodeLinesAndRequire([
       }
       if (verboseLevel >= 1) console.log("    out textinput.onchange");
     };
+
+    if (true) {
+      // TODO: fix 3!
+      radiobutton3.closest("label").remove();
+      // TODO: fix 5 and 7!
+      radiobutton5.closest("label").remove();
+      radiobutton7.closest("label").remove();
+    }
 
     if (verboseLevel >= 1) console.log("out AddCustomExpression");
   };  // AddCustomExpression
