@@ -2569,30 +2569,36 @@ registerSourceCodeLinesAndRequire([
   window.lerpmethodAlastUsingDotSmartest.onclick = () => setLerpMethodToAlastUsingDotSmartest();
   window.lerpmethodTAlastUsingDotSmartest.onclick = () => setLerpMethodToTAlastUsingDotSmartest();
 
-  let previousLerpExpressionIndex = null;  // so can toggle between two of them
-  let currentLerpExpressionIndex = null;  // so can toggle between two of them
 
-  const additional_onclick_event_listener = event => {
-    const verboseLevel = 0;
-    if (verboseLevel >= 1) console.log("in additional onclick listener");
-    if (verboseLevel >= 1) console.log("  event = ",event);
-    const thisRadioButton = event.target;
-    let thisIndex = null;
-    // what's my index?
+  const FindIndexOfCheckedLerpExpression = () => {
     const radioButtons = document.querySelectorAll('input[type=radio][name=lerpmethod]');
     for (let i = 0; i < radioButtons.length; ++i) {
-      if (radioButtons[i] === thisRadioButton) {
-        CHECK.EQ(thisIndex, null);
-        thisIndex = i;
+      if (radioButtons[i].checked) {
+        return i;
       }
     }
-    CHECK.NE(thisIndex, null);
+    CHECK(false);
+  };  // FindIndexOfCheckedLerpExpression
 
-    if (verboseLevel >= 1) console.log("  thisIndex = "+thisIndex);
+  let currentLerpExpressionIndex = FindIndexOfCheckedLerpExpression();
+  let previousLerpExpressionIndex = currentLerpExpressionIndex;
 
-    previousLerpExpressionIndex = currentLerpExpressionIndex;
-    currentLerpExpressionIndex = thisIndex;
-
+  const additional_onclick_event_listener = event => {
+    const verboseLevel = 1;
+    if (verboseLevel >= 1) console.log("in additional onclick listener");
+    if (verboseLevel >= 1) console.log("  event = ",event);
+    const newIndex = FindIndexOfCheckedLerpExpression();
+    // Do this only if it changed, so that we don't lose previous
+    // when user bangs on a single radio button
+    if (verboseLevel >= 1) console.log("  previous,current was "+previousLerpExpressionIndex+","+currentLerpExpressionIndex);
+    if (newIndex !== currentLerpExpressionIndex) {
+      if (verboseLevel >= 1) console.log("      (change)");
+      previousLerpExpressionIndex = currentLerpExpressionIndex;
+      currentLerpExpressionIndex = newIndex;
+    } else {
+      if (verboseLevel >= 1) console.log("      (no change)");
+    }
+    if (verboseLevel >= 1) console.log("  previous,current is "+previousLerpExpressionIndex+","+currentLerpExpressionIndex);
     if (verboseLevel >= 1) console.log("out additional onclick listener");
   };  // additional_onclick_event_listener
   const toggle_current_and_previous_lerp_expression = event => {
@@ -2618,17 +2624,11 @@ registerSourceCodeLinesAndRequire([
   }; // toggle_current_and_previous_lerp_expression
   if (true) {
     // Additional listening, to track current and previously checked radio button
-    const additional_radiobutton_onclick_function = () => {
-    };  // additional_radio_button_onclick_function
     const radioButtons = document.querySelectorAll('input[type=radio][name=lerpmethod]');
     //console.log("  radioButtons = ",radioButtons);
     for (let i = 0; i < radioButtons.length; ++i) {
       const radioButton = radioButtons[i];
       //console.log("      radioButtons["+i+"] = ",radioButton);
-      if (radioButton.checked) {
-        previousLerpExpressionIndex = i;
-        currentLerpExpressionIndex = i;
-      }
       // BEGIN: dup code
       radioButton.addEventListener('click', additional_onclick_event_listener);
       radioButton.onkeydown = event => {
@@ -3649,6 +3649,12 @@ registerSourceCodeLinesAndRequire([
       // callbacks documented in https://github.com/SortableJS/Sortable
       onEnd: (evt, originalEvent) => {
         SetTheDamnCustomExpressionsInTheDamnAddressBar();
+
+        // Indexes are now probably wrong;
+        // to be safe, just reset previous and current.
+        // TODO: should actually try to retain them through the reorder; how?
+        //       IDEA: track it via classes; perhaps "currentChecked", "previousChecked"
+        previousLerpExpressionIndex = currentLerpExpressionIndex = FindIndexOfCheckedLerpExpression();
       },
     });
   }
