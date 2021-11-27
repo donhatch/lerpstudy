@@ -1,3 +1,4 @@
+// TODO: after reordering rows, current and previous index will be wrong
 // TODO: clone buttons?
 // TODO: move expression parsing code out into its own file
 // TODO: recognize more ops like -- and gracefully fail if implementation not provided
