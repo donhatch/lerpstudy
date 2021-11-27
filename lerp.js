@@ -412,11 +412,13 @@ registerSourceCodeLinesAndRequire([
   "./PRINT.js",
   "./CHECK.js",
   "./STRINGIFY.js",
+  "./Sortable.min.js",
 ], function(
   MyURLSearchOrHashParams,
   PRINT,
   CHECK,
   STRINGIFY,
+  Sortable,
   shouldBeUndefined
 ){
   console.log("    in lerp.js require callback");
@@ -3629,6 +3631,9 @@ registerSourceCodeLinesAndRequire([
   });
 
   STRINGIFY.test();
+
+  if (true) {
+  }
 
   console.log("    out lerp.js require callback");
 });
