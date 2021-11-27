@@ -2584,7 +2584,7 @@ registerSourceCodeLinesAndRequire([
   let previousLerpExpressionIndex = currentLerpExpressionIndex;
 
   const additional_onclick_event_listener = event => {
-    const verboseLevel = 1;
+    const verboseLevel = 0;
     if (verboseLevel >= 1) console.log("in additional onclick listener");
     if (verboseLevel >= 1) console.log("  event = ",event);
     const newIndex = FindIndexOfCheckedLerpExpression();
@@ -3636,6 +3636,9 @@ registerSourceCodeLinesAndRequire([
 
   if (true) {
     // Make the table rows sortable.  Easy peasy.
+    // TODO: Escape solidifies the current tentative order; we'd like to cancel it instead, I think
+    //        https://github.com/SortableJS/Sortable/issues/138
+    //        https://github.com/SortableJS/Sortable/issues/264
     new Sortable(window.theradiopaneltbody, {
       animation: 150,
       ghostClass: 'blue-background-class',
@@ -3647,7 +3650,12 @@ registerSourceCodeLinesAndRequire([
       // use this so that the default action happens (that is, selecting text).
       preventOnFilter: false,
       // callbacks documented in https://github.com/SortableJS/Sortable
-      onEnd: (evt, originalEvent) => {
+      // apparently onEnd gets called at end of drag,
+      // preceded by onUpdate if it actually changed something
+      onUpdate: (evt) => {
+        //console.log("in Sortable onUpdate");
+        //console.log("  evt = ",evt);
+
         SetTheDamnCustomExpressionsInTheDamnAddressBar();
 
         // Indexes are now probably wrong;
@@ -3655,6 +3663,8 @@ registerSourceCodeLinesAndRequire([
         // TODO: should actually try to retain them through the reorder; how?
         //       IDEA: track it via classes; perhaps "currentChecked", "previousChecked"
         previousLerpExpressionIndex = currentLerpExpressionIndex = FindIndexOfCheckedLerpExpression();
+
+        //console.log("out Sortable onUpdate");
       },
     });
   }
