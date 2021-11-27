@@ -1,3 +1,5 @@
+// BUG: infinite loop on load: http://localhost:8000/lerp.html#numFractionBits=3&minExponent=-6&a=1/&b=3/4&custom=[%2232*((b-0.5*(b-t))+-+(t%2B0.5*(b-t)))%22]
+//      32*((b-0.5*(b-t)) - (t+0.5*(b-t)))
 // TODO: clone buttons?
 // TODO: swap buttons? (or ability to drag up/down to reorder)
 // TODO: move expression parsing code out into its own file
@@ -23,6 +25,22 @@
 //   a=5/32 b=3/4
 //   a=1/16 b=3/4
 //   a=1/32 b=5/8
+// How about a counterexample to simply a+(b-a)/2 <= b-(b-a)/2 ?
+// Maybe:  numFractionBits=3 (the current default), and:
+//  a=13/32 b=1  yeah that's a counterexample.  in this case b-(b-a)/2 gets the right answer.
+// Ok then how do we prove the following, which is really what we want?
+//  a+pred(.5)*(b-a) <= b-.5*(b-a)       which validates  t<.5 ? a+t*(b-a) : b-(1-t)*(b-a)
+//  a+.5*(b-a) <= b-(1-succ(.5))*(b-a)   which validates t<=.5 ? a+t*(b-a) : b-(1-t)*(b-a)
+// Maybe focus on the case when we have the inversion a+(b-a)/2 > b-(b-a)/2,
+// since that's the only dangerous case.
+// Wait, first...
+// Q: what is the relationship of those to the simpler correct anchor point (a+b)/2?
+// A: well, we know that a+(b-a)/2 can sometimes exceed it (see previous counterexample
+//    in which case a+(b-a)/2 exceeds it and b-(b-a)/2 is correct).
+//    and, we can find a case where b-(b-a)/2 is less than it, too, via graphing:
+//          ((b-(b-t)/2)-((t+b)/2))
+//    example: a=5/64 b=1
+//
 
 // TODO: js console error "Unchecked runtime.lastError: Could not establish connection. Receiving end does not exist." when reloading after 3m or so
 //   - possibly relevant:
@@ -3260,24 +3278,26 @@ registerSourceCodeLinesAndRequire([
 
     const radiobutton_td = new_tr.insertCell(1);
     // font-size:13px empirically matches the font size of the radio button labels, although I wouldn't know how to predict that
-    radiobutton_td.innerHTML = '<input type="radio" name="lerpmethod"><input type="text" class="custom" style="font-family:monospace; font-size:13px;" size="(TO BE SET BELOW)" value="(TO BE SET BELOW)"></input><label><input type="radio" name="lerpmethod">at 2x precision</label><label><input type="radio" name="lerpmethod">3x</label><label><input type="radio" name="lerpmethod">4x</label><label><input type="radio" name="lerpmethod">5x</label><label><input type="radio" name="lerpmethod">6x</label><label><input type="radio" name="lerpmethod">7x</label><label><input type="radio" name="lerpmethod">8x</label>'
-    const radiobutton = radiobutton_td.children[0];
+    radiobutton_td.innerHTML = '<input type="radio" name="lerpmethod"><input type="text" class="custom" style="font-family:monospace; font-size:13px;" size="(TO BE SET BELOW)" value="(TO BE SET BELOW)"></input><label><input type="radio" name="lerpmethod">at 2x precision </label><label><input type="radio" name="lerpmethod">3x </label><label><input type="radio" name="lerpmethod">4x </label><label><input type="radio" name="lerpmethod">5x </label><label><input type="radio" name="lerpmethod">6x </label><label><input type="radio" name="lerpmethod">7x </label><label><input type="radio" name="lerpmethod">8x </label>'
+    const radiobuttons = radiobutton_td.querySelectorAll("input[type=radio]");
+    if (verboseLevel >= 1) console.log("radiobuttons = ",radiobuttons);
+    const radiobutton = radiobuttons[0];
     if (verboseLevel >= 1) console.log("  radiobutton = ",radiobutton);
-    const textinput = radiobutton_td.children[1];
+    const textinput = radiobutton_td.querySelectorAll("input[type=text]")[0];
     if (verboseLevel >= 1) console.log("  textinput = ",textinput);
-    const radiobutton2 = radiobutton_td.children[2].children[0];
+    const radiobutton2 = radiobuttons[1];
     if (verboseLevel >= 1) console.log("  radiobutton2 = ",radiobutton2);
-    const radiobutton3 = radiobutton_td.children[3].children[0];
+    const radiobutton3 = radiobuttons[2];
     if (verboseLevel >= 1) console.log("  radiobutton3 = ",radiobutton3);
-    const radiobutton4 = radiobutton_td.children[4].children[0];
+    const radiobutton4 = radiobuttons[3];
     if (verboseLevel >= 1) console.log("  radiobutton4 = ",radiobutton4);
-    const radiobutton5 = radiobutton_td.children[5].children[0];
-    if (verboseLevel >= 1) console.log("  radiobutton8 = ",radiobutton8);
-    const radiobutton6 = radiobutton_td.children[6].children[0];
-    if (verboseLevel >= 1) console.log("  radiobutton8 = ",radiobutton8);
-    const radiobutton7 = radiobutton_td.children[7].children[0];
-    if (verboseLevel >= 1) console.log("  radiobutton8 = ",radiobutton8);
-    const radiobutton8 = radiobutton_td.children[8].children[0];
+    const radiobutton5 = radiobuttons[4];
+    if (verboseLevel >= 1) console.log("  radiobutton5 = ",radiobutton5);
+    const radiobutton6 = radiobuttons[5];
+    if (verboseLevel >= 1) console.log("  radiobutton6 = ",radiobutton6);
+    const radiobutton7 = radiobuttons[6];
+    if (verboseLevel >= 1) console.log("  radiobutton7 = ",radiobutton7);
+    const radiobutton8 = radiobuttons[7];
     if (verboseLevel >= 1) console.log("  radiobutton8 = ",radiobutton8);
 
     textinput.value = expression;
