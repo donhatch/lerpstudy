@@ -1,8 +1,6 @@
-// TODO: internal error on "0=0": "unexpected failure to convert parse tree to lerp function: ... 'object' != 'string'"
 // TODO: custom exprs: need more friendly tooltip on failure; this one doesn't appear unless you leave and re-enter
 // TODO: custom exprs: failure mode on "-true" spams console with CHECK failure.  needs to throw more quietly (minus, and all the other functions I guess? or, can we prevent this at compile time? or, is CHECK being too verbose to begin with?)
 // TODO: custom lerp functions: handle divide-by-zero that didn't get caught by smoke test more gracefully (completely abort?)
-// TODO: custom lerp functions: "at twice precision"
 // TODO: now that I want to copy-paste a lot, I don't think I want radio buttons to be checked when I click on them
 //       (or do I?  it's only a problem if user double-clicks. hmm. https://stackoverflow.com/questions/5497073/how-to-differentiate-single-click-event-and-double-click-event )
 
@@ -2689,11 +2687,24 @@ registerSourceCodeLinesAndRequire([
         if (opname === "=") {
           CHECK.EQ(operands.length, 2);
           const name = operands[0];
-          CHECK.EQ(typeof name, 'string');
+
+          if (false) {  // failure mode is friendlier on, e.g. "0=0" if we do it inside the answer function instead.  TODO: make caller recognize semantic errors that we throw out of here
+            CHECK.EQ(typeof name, 'string');
+          }
+
           CHECK(/[_a-zA-Z][_a-zA-Z0-9]*/.test(name));
           const RHS_function = recurse(operands[1]);
           CHECK.EQ(typeof RHS_function, 'function');
           const answer = vars => {
+
+            // TODO: should really detect this semantic error above,
+            //       but if we do so, it's ungraceful (see comment above).  So, we do it here.
+            if (typeof name !== 'string') {
+              // total hack: at this point the actual name of the thing or operator is name[0]
+              CHECK(Array.isArray(name));
+              CHECK.EQ(typeof name[0], 'string');
+              throw new Error(name[0]+" is not an lvalue");
+            }
             const value = RHS_function(vars);
             vars.set(name, value);
             return value;
