@@ -1,6 +1,3 @@
-// TODO: 5x and 7x precision are failing on "1"!  why?
-// TODO: 3x is failing on the default expression! "CHECK.js:72 CHECK(is_representable(numFractionBits, minExponent, a)) failed at plus (http://localhost:8000/lerp.js:787:5)"
-
 // TODO: move expression parsing code out into its own file
 // TODO: recognize more ops like -- and gracefully fail if implementation not provided
 // TODO: custom exprs: need more friendly tooltip on failure; this one doesn't appear unless you leave and re-enter
@@ -3029,7 +3026,7 @@ registerSourceCodeLinesAndRequire([
     const saved_numFractionBits = numFractionBits;
     const saved_minExponent = minExponent;
     numFractionBits *= multiplier;
-    minExponent = Math.max(-(minExponent**multiplier), -1000);  // actual min exponent in IEEE754 double is -1022
+    minExponent = Math.max(-(Math.abs(minExponent)**multiplier), -1000);  // actual min exponent in IEEE754 double is -1022
     let extended_precision_answer;
     try {
       extended_precision_answer = thunk();
@@ -3388,14 +3385,6 @@ registerSourceCodeLinesAndRequire([
       }
       if (verboseLevel >= 1) console.log("    out textinput.onchange");
     };
-
-    if (true) {
-      // TODO: fix 3!
-      radiobutton3.closest("label").remove();
-      // TODO: fix 5 and 7!
-      radiobutton5.closest("label").remove();
-      radiobutton7.closest("label").remove();
-    }
 
     if (verboseLevel >= 1) console.log("out AddCustomExpression");
   };  // AddCustomExpression
