@@ -1,5 +1,4 @@
 // TODO: clone buttons?
-// TODO: swap buttons? (or ability to drag up/down to reorder)
 // TODO: move expression parsing code out into its own file
 // TODO: recognize more ops like -- and gracefully fail if implementation not provided
 // TODO: custom exprs: need more friendly tooltip on failure; this one doesn't appear unless you leave and re-enter
@@ -2539,7 +2538,7 @@ registerSourceCodeLinesAndRequire([
   const lerpmethodChanged = (a) => {};
 
   window.lerpmethodExactCrossYourFingers.onclick = () => setLerpMethodToExactCrossYourFingers();
-  window.lerpmethodMagic.onclick = () => setLerpMethodToMagic();
+  //window.lerpmethodMagic.onclick = () => setLerpMethodToMagic();
   window.lerpmethodNaive.onclick = () => setLerpMethodToNaive();
   window.lerpmethodTypeMeaningful.onclick = () => setLerpMethodToTypeMeaningful();
   window.lerpmethodTypeMeaningfulBackwards.onclick = () => setLerpMethodToTypeMeaningfulBackwards();
@@ -3278,10 +3277,12 @@ registerSourceCodeLinesAndRequire([
       return;
     }
 
-    // Create a new tr element above the current tr element.
-
-    const current_table = window.add_custom_expression_button.closest("table");
-    const new_tr = current_table.insertRow(current_table.rows.length-1);
+    // Create a new tr element in the radio panel table,
+    // below all the other items, *except* the custom_expression_button row if it was last
+    // (but not if it wasn't, which can happen if user reorders the rows).
+    const current_table = window.theradiopaneltable;
+    const index_to_insert_at = current_table.rows[current_table.rows.length-1] === window.add_custom_expression_button.closest('tr') ? current_table.rows.length-1 : current_table.rows.length;
+    const new_tr = current_table.insertRow(index_to_insert_at);
     new_tr.style.whiteSpace = "nowrap";
 
     const x_td = new_tr.insertCell(0);
@@ -3633,6 +3634,22 @@ registerSourceCodeLinesAndRequire([
   STRINGIFY.test();
 
   if (true) {
+    // Make the table rows sortable.  Easy peasy.
+    new Sortable(window.theradiopaneltbody, {
+      animation: 150,
+      ghostClass: 'blue-background-class',
+      // filter means "Selectors that do not lead to dragging (String or Function)".
+      // We filter out anything with class "mono", since the user
+      // is likely to want to copy text from those.
+      filter: '.mono',
+      // preventOnFilter means "Call `event.preventDefault()` when triggered `filter`;
+      // use this so that the default action happens (that is, selecting text).
+      preventOnFilter: false,
+      // callbacks documented in https://github.com/SortableJS/Sortable
+      onEnd: (evt, originalEvent) => {
+        SetTheDamnCustomExpressionsInTheDamnAddressBar();
+      },
+    });
   }
 
   console.log("    out lerp.js require callback");

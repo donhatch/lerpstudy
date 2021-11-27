@@ -43,6 +43,10 @@
      margin: 0;
    }
 
+   /* we use this as the ghostClass for the Sortable radio panel */
+   .blue-background-class {
+     background-color: #C8EBFB;
+   }
 
  </style>
  <body>
@@ -82,8 +86,8 @@
     </td>
     <td valign="top">
      <div style="border: 1px solid black; margin:1px;">
-      <table>
-       <tbody id="theradiopanel">
+      <table id="theradiopaneltable">
+       <tbody id="theradiopaneltbody">
         <tr>
          <td>
          <td>
@@ -248,19 +252,25 @@
            smartest&nbsp;
           </label>
 
-        <tr style="display:none;">  <!-- too confusing for prime time -->
+        <!--  just commenting it out to avoid confusion in Sortable logic
+        <tr style="display:none;">  <!- - too confusing for prime time - - >
          <td>
          <td>
           <label>
-           <input type="radio" id="lerpmethodMagic" name="lerpmethod">magically exact (using exact sum expansions-- doesn't work yet apparently)
+           <input type="radio" id="lerpmethodMagic" name="lerpmethod">magically exact (using exact sum expansions- - doesn't work yet apparently)
           </label>
+        -->
 
         <!-- additional tr's for custom expressions get inserted here -->
-
-        <tr>
+        <tr class="noreorder">
          <td>
           <button type="button" id="add_custom_expression_button" title="add new custom lerp expression" style="padding:1px;">&#x271A;</button> <!-- heavy plus sign -->
          <td>
+
+       </tbody>
+      </table>
+      <table>
+       <tbody>
 
        </tbody>
       </table>
