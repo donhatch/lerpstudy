@@ -2603,7 +2603,7 @@ registerSourceCodeLinesAndRequire([
 
 
   //===============================================================================
-  // BEGIN: parsing stuff that could be moved into its own file
+  // BEGIN: expression parsing stuff that could be moved into its own file
 
   // What do we return?
   // - an AST?
@@ -2684,6 +2684,10 @@ registerSourceCodeLinesAndRequire([
       } else if (Array.isArray(tree)) {
         CHECK.EQ(tree.length, 3);
         const [opname, implementation, operands] = tree;
+        if (implementation === undefined) {
+          throw new Error("C operator "+STRINGIFY(opname)+" is undefined in this compiler");
+        }
+        CHECK.EQ(typeof implementation, 'function');
         if (opname === "=") {
           CHECK.EQ(operands.length, 2);
           const name = operands[0];
@@ -3002,7 +3006,7 @@ registerSourceCodeLinesAndRequire([
     return answer;
   };  // parse
 
-  // END: parsing stuff that could be moved into its own file
+  // END: expression parsing stuff that could be moved into its own file
   //===============================================================================
 
   const checkboolean = x => {
@@ -3031,57 +3035,114 @@ registerSourceCodeLinesAndRequire([
   };  // extended_precision
 
 
-  const Parse = (expression,posHolder) => {
+  const ParseCExpression = (expression, binary_op_implementations, left_unary_op_implementations, javascript_number_to_literal, posHolder) => {
+    const verboseLevel = 0;
+    if (verboseLevel >= 1) console.log("    in ParseCExpression");
+    if (verboseLevel >= 1) console.log("      binary_op_implementations = "+STRINGIFY(binary_op_implementations));
+    if (verboseLevel >= 1) console.log("      left_unary_op_implementations = "+STRINGIFY(left_unary_op_implementations));
     const binary_op_table = [
-      // precedence:8 is for left-unary ops, e.g. "-" and "!"
+      {name:"*", precedence:7},
+      {name:"/", precedence:7},
 
-      {name:"*", precedence:7, implementation:(x,y)=>Times(x(),y())},
-      {name:"/", precedence:7, implementation:(x,y)=>DividedBy(x(),y())},
+      {name:"+", precedence:6},
+      {name:"-", precedence:6},
 
-      {name:"+", precedence:6, implementation:(x,y)=>Plus(x(),y())},
-      {name:"-", precedence:6, implementation:(x,y)=>Minus(x(),y())},
+      // Note that this table gets sorted later so that longer names are preferred over shorter ones,
+      // *if they have the same operator precedence*.
+      // BUG: I think that if a higher precedence thing is a prefix of a lower precedence thing,
+      // it may not get recognized properly.  That is, the lower precedence thing may be ignored
+      // during the recursive descent, and so the higher precedence shorter one will be wrongly taken.
+      // Not sure whether there are any instances of that C/C++.
+      {name:"<=", precedence:5},
+      {name:"<", precedence:5},
+      {name:">=", precedence:5},
+      {name:">", precedence:5},
+      {name:"==", precedence:5},
+      {name:"!=", precedence:5},
 
-      // NOTE: "<=" must come before "<" so it will be preferred
-      {name:"<=", precedence:5, implementation:(x,y)=>x()<=y()},
-      {name:"<", precedence:5, implementation:(x,y)=>x()<y()},
-      // NOTE: ">=" must come before ">" so it will be preferred
-      {name:">=", precedence:5, implementation:(x,y)=>x()>=y()},
-      {name:">", precedence:5, implementation:(x,y)=>x()>y()},
-      // NOTE: "==" must come before "=" so it will be preferred
-      {name:"==", precedence:5, implementation:(x,y)=>x()==y()},
-      {name:"!=", precedence:5, implementation:(x,y)=>x()!=y()},
+      {name:"&&", precedence:4},
 
-      {name:"&&", precedence:4, implementation:(x,y)=>checkboolean(x())&&checkboolean(y())},
+      {name:"||", precedence:3},
 
-      {name:"||", precedence:3, implementation:(x,y)=>checkboolean(x())||checkboolean(y())},
+      {name:"?", precedence:2},
 
-      {name:"?", precedence:2, implementation:(x,y,z)=>checkboolean(x())?y():z()},
+      {name:"=", precedence:1},
 
-      {name:"=", precedence:1, implementation:null},  // special case in code
-
-      {name:",", precedence:0, implementation:(x,y)=>(x(),y())},
+      {name:",", precedence:0},
     ];  // binary_op_table
 
-    const left_unary_op_table = [
-      {name:"!", precedence:8, implementation:x=>UnaryNot(x())},
+    const name2index = new Map();
+    for (let i = 0; i < binary_op_table.length; ++i) {
+      name2index.set(binary_op_table[i].name, i);
+    }
+
+    for (const [name, implementation] of binary_op_implementations) {
+      binary_op_table[name2index.get(name)].implementation = implementation;
+    }
+
+    // Choose a precedence for the left unary ops,
+    // higher than all the binary ops.
+    let max_binary_op_precedence = 0;
+    for (const entry of binary_op_table) {
+      max_binary_op_precedence = Math.max(max_binary_op_precedence, entry.precedence);
+    }
+    const left_unary_op_precedence = max_binary_op_precedence + 1;
+
+    const left_unary_op_table = [];
+    for (const [name, implementation] of left_unary_op_implementations) {
+      left_unary_op_table.push({name:name, precedence:left_unary_op_precedence, implementation:implementation});
+    }
+
+    // sort by decreasing names length so that in the case
+    // that one is a prefix of another, the longer will be preferred
+    // TODO: move this into parse() so callers don't have to be responsible for it
+    binary_op_table.sort((a,b)=>(b.name.length-a.name.length));
+    left_unary_op_table.sort((a,b)=>(b.name.length-a.name.length));
+
+    const answer = parse(expression, binary_op_table, left_unary_op_table, javascript_number_to_literal, posHolder);
+    if (verboseLevel >= 1) console.log("    out ParseCExpression");
+    return answer;
+  };  // ParseCExpression
+
+  const Parse = (expression,posHolder) => {
+    const binary_op_implementations = [
+      ["*", (x,y)=>Times(x(),y())],
+      ["/", (x,y)=>DividedBy(x(),y())],
+      ["+", (x,y)=>Plus(x(),y())],
+      ["-", (x,y)=>Minus(x(),y())],
+      ["<", (x,y)=>x()<y()],
+      ["<=", (x,y)=>x()<=y()],
+      ["==", (x,y)=>x()==y()],
+      [">=", (x,y)=>x()>=y()],
+      [">", (x,y)=>x()>y()],
+      ["!=", (x,y)=>x()!=y()],
+      ["&&", (x,y)=>checkboolean(x())&&checkboolean(y())],
+      ["||", (x,y)=>checkboolean(x())||checkboolean(y())],
+      ["?", (x,y,z)=>checkboolean(x())?y():z()],
+      ["=", null],  // special case in ParseTreeToLerpFunction
+      [",", (x,y)=>(x(),y())],
+    ];
+    const left_unary_op_implementations = [
+      ["!", x=>UnaryNot(x())],
 
       // CBB: negative numbers end up being interpreted as unary-minus
       // followed by positive number.  I guess that's ok.
-      {name:"-", precedence:8, implementation:x=>UnaryMinus(x())},
+      ["-", x=>UnaryMinus(x())],
 
       // sort of a hack: treat these as left unary ops.  so "pred t" works
-      {name:"pred", precedence:8, implementation:x=>Pred(x())},
-      {name:"succ", precedence:8, implementation:x=>Succ(x())},
+      ["pred", x=>Pred(x())],
+      ["succ", x=>Succ(x())],
 
       // Note that four_times_precision(expr) is *not*
       // the same as twice_precision(twice_precision(expr)),
       // due to multiple rounding in the latter!  It comes up with some atrocious answers
-      {name: "twice_precision", precedence:8, implementation:x=>extended_precision(2, x)},
-      {name: "four_times_precision", precedence:8, implementation:x=>extended_precision(4, x)},
-      {name: "eight_times_precision", precedence:8, implementation:x=>extended_precision(8, x)},
-
-    ];  // left_unary_op_table
-    return parse(expression, binary_op_table, left_unary_op_table, Round, posHolder);
+      ["twice_precision", x=>extended_precision(2, x)],
+      ["four_times_precision", x=>extended_precision(4, x)],
+      ["eight_times_precision", x=>extended_precision(8, x)],
+    ];
+    const javascript_number_to_literal = Round;
+    const answer = ParseCExpression(expression, binary_op_implementations, left_unary_op_implementations, javascript_number_to_literal, posHolder);
+    return answer;
   };  // Parse
 
   // Returns a string of one of the following forms:
@@ -3163,8 +3224,9 @@ registerSourceCodeLinesAndRequire([
     const verboseLevel = 0;
     if (verboseLevel >= 1) console.log("in AddCustomExpression");
 
-    if (ExpressionValidity(expression) !== "valid") {
-      console.error("  tried to add invalid custom expression "+STRINGIFY(expression));
+    const expression_validity = ExpressionValidity(expression);
+    if (expression_validity !== "valid") {
+      console.error("  tried to add invalid custom expression "+STRINGIFY(expression)+": "+expression_validity);
       if (verboseLevel >= 1) console.log("out AddCustomExpression (expression was invalid)");
       return;
     }
@@ -3318,6 +3380,7 @@ registerSourceCodeLinesAndRequire([
     const verboseLevel = 0;
     if (verboseLevel >= 1) console.log("in window.add_custom_expression_button.onclick");
     AddCustomExpression("t < 0.5 ? a + t*(b-a) : t > 0.5 ? b - (1-t)*(b-a) : (a+b)*0.5");
+    //AddCustomExpression("1");
     if (verboseLevel >= 1) console.log("out window.add_custom_expression_button.onclick");
   }; // window.add_custom_expression_button.onclick
 
