@@ -1,3 +1,5 @@
+// TODO: clone buttons?
+// TODO: swap buttons? (or ability to drag up/down to reorder)
 // TODO: move expression parsing code out into its own file
 // TODO: recognize more ops like -- and gracefully fail if implementation not provided
 // TODO: custom exprs: need more friendly tooltip on failure; this one doesn't appear unless you leave and re-enter
