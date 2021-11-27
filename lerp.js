@@ -1,5 +1,3 @@
-// BUG: infinite loop on load: http://localhost:8000/lerp.html#numFractionBits=3&minExponent=-6&a=1/&b=3/4&custom=[%2232*((b-0.5*(b-t))+-+(t%2B0.5*(b-t)))%22]
-//      32*((b-0.5*(b-t)) - (t+0.5*(b-t)))
 // TODO: clone buttons?
 // TODO: swap buttons? (or ability to drag up/down to reorder)
 // TODO: move expression parsing code out into its own file
@@ -524,6 +522,7 @@ registerSourceCodeLinesAndRequire([
 
   const toFractionString = x => {
     CHECK.NE(x, undefined);
+    CHECK(Number.isFinite(x));
     let numerator = x;
     let denominator = 1.;
     while (Math.floor(numerator) != numerator) {
@@ -535,14 +534,19 @@ registerSourceCodeLinesAndRequire([
     else
       return numerator+"/"+denominator;
   };
+  // parseFloat is bad because it doesn't consume the whole string.
+  // Number ctor is bad because it turns zero or more spaces into zeros.
+  const myParseFloat = s => {
+    return /^\s*$/.test(s) ? NaN : Number(s);
+  };
   const parseFractionString = s => {
     CHECK.NE(s, undefined);
     const parts = s.split("/");
     CHECK(parts.length == 1 || parts.length == 2);
     if (parts.length == 1) {
-      return parseFloat(parts[0]);
+      return myParseFloat(parts[0]);
     } else {
-      return parseFloat(parts[0]) / parseFloat(parts[1]);
+      return myParseFloat(parts[0]) / myParseFloat(parts[1]);
     }
   };
   const parseBoolean = s => {
@@ -588,6 +592,8 @@ registerSourceCodeLinesAndRequire([
   const SetSearchAndHashParamsInAddressBar = (searchNameValuePairs, hashNameValuePairs) => {
     const verboseLevel = 0;
     if (verboseLevel >= 1) console.log("        in SetSearchAndHashParamsInAddressBar");
+    if (verboseLevel >= 1) console.log("          searchNameValuePairs = ",searchNameValuePairs);
+    if (verboseLevel >= 1) console.log("          hashNameValuePairs = ",hashNameValuePairs);
     if (verboseLevel >= 1) console.log("          window.location was ",window.location);
     CHECK(Array.isArray(searchNameValuePairs));
     CHECK(Array.isArray(hashNameValuePairs));
@@ -624,6 +630,7 @@ registerSourceCodeLinesAndRequire([
     if (verboseLevel >= 1) console.log("        out SetSearchAndHashParamsInAddressBar");
   };  // SetSearchAndHashParamsInAddressBar
 
+
   if (true) {
     // Quick check that SetSearchAndHashParamsInAddressBar
     // with no changes doesn't change anything.
@@ -653,6 +660,8 @@ registerSourceCodeLinesAndRequire([
 
   let a = parseFractionString(aString);
   let b = parseFractionString(bString);
+  CHECK(Number.isFinite(a));  // TODO: clear page on failure, or something
+  CHECK(Number.isFinite(b));  // TODO: clear page on failure, or something
 
   //a = round_to_nearest_representable(a);
   //b = round_to_nearest_representable(b);
@@ -669,9 +678,8 @@ registerSourceCodeLinesAndRequire([
   }
 
   // initially without "custom", since we don't have the model for that til we add the buttons
-  // (although maybe we should make an explicit model instead of storing it in the ui)
+  // (although maybe we should make an explicit model-view kind of model instead of storing it in the ui)
   SetSearchAndHashParamsInAddressBar(searchParamPairsForUnsetting, [['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(a)],['b',toFractionString(b)]]);
-
 
   //======================================
   // Begin float utilities

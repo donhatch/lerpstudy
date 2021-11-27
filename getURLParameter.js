@@ -37,7 +37,7 @@ registerSourceCodeLinesAndDefine(['./CHECK.js'], function(CHECK) {
     // Do not use parseFloat for this, since that ignores trailing spaces.
     // However, beware that the Number constructor unhelpfully converts
     // zero-or-more spaces to 0.
-    let value = /\s*/.test(valueString) ? NaN : Number(valueString);
+    let value = /^\s*$/.test(valueString) ? NaN : Number(valueString);
     if (isNaN(value)) {
       throw Error('bad url param '+name+'='+valueString+'');
     }
