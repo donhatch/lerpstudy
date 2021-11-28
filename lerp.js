@@ -2006,6 +2006,8 @@ registerSourceCodeLinesAndRequire([
     window.tooltip.style.display = "none";
   };
 
+  let num_redraws = 0;
+
   const populateTheSVG = (svg, Lerp, aIntent, bIntent) => {
     const verboseLevel = 0;
     if (verboseLevel >= 1) console.log("in populateTheSVG");
@@ -2356,6 +2358,11 @@ registerSourceCodeLinesAndRequire([
       }
 
       console.log("======");
+    }
+
+    window.redrawcounter.innerText = ++num_redraws;
+    if (num_redraws <= 2) {  // otherwise pluralization didn't change
+      window.redrawcounterpluralization.innerText = (num_redraws==1 ? "" : "s");
     }
 
     if (verboseLevel >= 1) console.log("out populateTheSVG");
