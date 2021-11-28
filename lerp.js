@@ -3706,10 +3706,13 @@ registerSourceCodeLinesAndRequire([
     if (mouseEventVerboseLevel >= 1) console.log("  event = ",event);
     if (draggingA || draggingB) {
       draggingA = draggingB = false;
-      // Snap intents to nearest on mouse up (a and b are intents at this point)
-      a = round_to_nearest_representable(numFractionBits, minExponent, a);
-      b = round_to_nearest_representable(numFractionBits, minExponent, b);
-      populateTheSVG(svg, Lerp, a, b);
+      if (a != round_to_nearest_representable(numFractionBits, minExponent, a) ||
+          b != round_to_nearest_representable(numFractionBits, minExponent, b)) {
+        // Snap intents to nearest on mouse up (a and b are intents at this point)
+        a = round_to_nearest_representable(numFractionBits, minExponent, a);
+        b = round_to_nearest_representable(numFractionBits, minExponent, b);
+        populateTheSVG(svg, Lerp, a, b);
+      }
     }
     // Do *not* set xOfPreviousMouseEvent,yOfPreviousMouseEvent
     // to event.offsetX,event.offsetY!
