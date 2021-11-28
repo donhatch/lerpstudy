@@ -18,9 +18,9 @@ define(['./sourceCodeLines.js', './STRINGIFY.js', './getStackTrace.js'], functio
     let stack_trace = getStackTrace();
     if (verboseLevel >= 2) console.log("stack_trace = ",STRINGIFY(stack_trace,null, 4));
     let stack_frame = stack_trace[2]; // [0] is me, [1] is the caller (CHECK or CHECK.EQ or whatever), [2] is the caller of CHECK or CHECK.EQ or whatever, which is what we want
-    let callerURL = stack_frame[1];
-    let linenum = stack_frame[2];
-    let colnum = stack_frame[3];
+    let callerURL = stack_frame===null ? "????" : stack_frame[1];
+    let linenum = stack_frame===null ? "???" : stack_frame[2];
+    let colnum = stack_frame===null ? "??" : stack_frame[3];
     if (verboseLevel >= 2) console.log("callerURL = ",STRINGIFY(callerURL));
 
     let callerSourceCodeLines = sourceCodeLines[callerURL];
