@@ -2073,6 +2073,7 @@ registerSourceCodeLinesAndRequire([
       for (const attr in attrs) {
         element.setAttributeNS(null, attr, attrs[attr]);
       }
+      return element;
     };  // setAttrs
     const makePath = (segs) => {
       const path = document.createElementNS(svgns, "path");
@@ -2188,12 +2189,14 @@ registerSourceCodeLinesAndRequire([
       const BB = Round(b-a);
       const oBB = relerp(BB, iy0,iy1,oy0,oy1);
       const o0y = relerp(0., iy0,iy1,oy0,oy1);
-      const anotherFunnyUpwardDiagonalPath = makePath([[[o0x,o0y],[o1x,oBB]]]);
+      const anotherFunnyUpwardDiagonalPath = setAttrs(makePath([[[o0x,o0y],[o1x,oBB]]]),
+                                                      {"stroke":"#dddddd"});  // a bit lighter
       svg.appendChild(anotherFunnyUpwardDiagonalPath);
 
       const BBB = b-a;
       const oBBB = relerp(BBB, iy0,iy1,oy0,oy1);
-      const aThirdFunnyUpwardDiagonalPath = makePath([[[o0x,o0y],[o1x,oBBB]]]);
+      const aThirdFunnyUpwardDiagonalPath = setAttrs(makePath([[[o0x,o0y],[o1x,oBBB]]]),
+                                                     {"stroke":"#bbbbbb"});  // a bit darker
       svg.appendChild(aThirdFunnyUpwardDiagonalPath);
     }
 
