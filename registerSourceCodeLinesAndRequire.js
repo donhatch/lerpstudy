@@ -11,8 +11,18 @@ console.log("in registerSourceCodeLinesAndRequire.js");
 let registerSourceCodeLinesAndRequire = function(deps0, callback0) {
     console.log("in registerSourceCodeLinesAndRequire");
     let stackTraceLines = new Error().stack.split('\n');
-    let callerStackTraceLine = stackTraceLines[2].trim();
-    let reResult = /^at (.+):\d+:\d+$/.exec(callerStackTraceLine); // oversimplistic regex
+    //console.log("  stackTraceLines = ",stackTraceLines);
+    // Empirically:
+    //   chrome:
+    //    0: "Error"
+    //    1: "    at registerSourceCodeLinesAndRequire (http://localhost:8000/registerSourceCodeLinesAndRequire.js:13:27)"
+    //    2: "    at http://localhost:8000/lerp.js:410:1"
+    //   firefox:
+    //    0: "registerSourceCodeLinesAndRequire@http://localhost:8000/registerSourceCodeLinesAndRequire.js:13:27"
+    //    1: "@http://localhost:8000/lerp.js:410:34"
+    //    2: ""
+    let callerStackTraceLine = (stackTraceLines[2]==="" ? stackTraceLines[1] : stackTraceLines[2]).trim();
+    let reResult = /^(at |@)(.+):\d+:\d+$/.exec(callerStackTraceLine); // oversimplistic regex
     if (reResult === null) {
         throw new Error("registerSourceCodeLinesAndRequire failed: couldn't parse caller stack trace line "+JSON.stringify(callerStackTraceLine));
     }
@@ -32,8 +42,9 @@ let registerSourceCodeLinesAndRequire = function(deps0, callback0) {
 let registerSourceCodeLinesAndDefine = function(deps0, callback0) {
     console.log("in registerSourceCodeLinesAndDefine");
     let stackTraceLines = new Error().stack.split('\n');
-    let callerStackTraceLine = stackTraceLines[2].trim();
-    let reResult = /^at (.+):\d+:\d+$/.exec(callerStackTraceLine); // oversimplistic regex
+    //console.log("  stackTraceLines = ",stackTraceLines);
+    let callerStackTraceLine = (stackTraceLines[2]==="" ? stackTraceLines[1] : stackTraceLines[2]).trim();
+    let reResult = /^(at |@)(.+):\d+:\d+$/.exec(callerStackTraceLine); // oversimplistic regex
     if (reResult === null) {
         throw new Error("registerSourceCodeLinesAndDefine failed: couldn't parse caller stack trace line "+JSON.stringify(callerStackTraceLine));
     }
