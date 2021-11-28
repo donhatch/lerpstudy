@@ -1,7 +1,7 @@
-// TODO: after reordering rows, current and previous index will be wrong
-// TODO: clone buttons?
+// TODO: make current and previous index update correctly on reorder (currently we just clear them)
+// TODO: "clone" buttons?
 // TODO: move expression parsing code out into its own file
-// TODO: recognize more ops like -- and gracefully fail if implementation not provided
+// TODO: recognize more ops like "--" and gracefully fail if implementation not provided
 // TODO: custom exprs: need more friendly tooltip on failure; this one doesn't appear unless you leave and re-enter
 // TODO: custom exprs: failure mode on "-true" spams console with CHECK failure.  needs to throw more quietly (minus, and all the other functions I guess? or, can we prevent this at compile time? or, is CHECK being too verbose to begin with?)
 // TODO: custom lerp functions: handle divide-by-zero that didn't get caught by smoke test more gracefully (completely abort?)
@@ -3513,6 +3513,10 @@ registerSourceCodeLinesAndRequire([
     if (verboseLevel >= 1) console.log("                          client rect width,height = ",elementClientRect.right-elementClientRect.left, elementClientRect.bottom-elementClientRect.top);
     CHECK.EQ(elementClientRect.width, elementClientRect.right-elementClientRect.left);
     CHECK.EQ(elementClientRect.height, elementClientRect.bottom-elementClientRect.top);
+    // Note: https://developer.mozilla.org/en-US/docs/Web/API/Element/clientWidth
+    // claims that element.clientWidth is rect's client rect rounded to integer;
+    // and it does *not* contain border or padding, so it's closer to what we want...
+    // however, svg elements don't have that anyway so it's not worth trying.
     const elementClientWidthRounded = Math.round(elementClientRect.width);
     const elementClientHeightRounded = Math.round(elementClientRect.height);
 
