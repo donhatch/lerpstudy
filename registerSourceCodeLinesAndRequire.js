@@ -22,7 +22,7 @@ let registerSourceCodeLinesAndRequire = function(deps0, callback0) {
     //    1: "@http://localhost:8000/lerp.js:410:34"
     //    2: ""
     let callerStackTraceLine = (stackTraceLines[2]==="" ? stackTraceLines[1] : stackTraceLines[2]).trim();
-    let reResult = /^(at |@)(.+):\d+:\d+$/.exec(callerStackTraceLine); // oversimplistic regex
+    let reResult = /^(?:at |@)(.+):\d+:\d+$/.exec(callerStackTraceLine); // oversimplistic regex
     if (reResult === null) {
         throw new Error("registerSourceCodeLinesAndRequire failed: couldn't parse caller stack trace line "+JSON.stringify(callerStackTraceLine));
     }
@@ -44,7 +44,7 @@ let registerSourceCodeLinesAndDefine = function(deps0, callback0) {
     let stackTraceLines = new Error().stack.split('\n');
     //console.log("  stackTraceLines = ",stackTraceLines);
     let callerStackTraceLine = (stackTraceLines[2]==="" ? stackTraceLines[1] : stackTraceLines[2]).trim();
-    let reResult = /^(at |@)(.+):\d+:\d+$/.exec(callerStackTraceLine); // oversimplistic regex
+    let reResult = /^(?:at |@)(.+):\d+:\d+$/.exec(callerStackTraceLine); // oversimplistic regex
     if (reResult === null) {
         throw new Error("registerSourceCodeLinesAndDefine failed: couldn't parse caller stack trace line "+JSON.stringify(callerStackTraceLine));
     }
