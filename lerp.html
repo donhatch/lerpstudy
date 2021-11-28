@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
  <head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8" />
   <title>Lerp study</title>
 
   <link rel="icon" type="image/png" href="lerp-favicon.png" />
@@ -46,6 +47,14 @@
    /* we use this as the ghostClass for the Sortable radio panel */
    .blue-background-class {
      background-color: #C8EBFB;
+   }
+
+   /* prevent the extra mouseenter events when mouse is down
+      and hovering over a path or circle element; "svg > *" means on everything
+      under the svg (currently path and circle elements).
+      See: https://www.smashingmagazine.com/2018/05/svg-interaction-pointer-events-property/ */
+   svg > * {
+     pointer-events: none;
    }
 
  </style>
