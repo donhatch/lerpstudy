@@ -3095,7 +3095,7 @@ registerSourceCodeLinesAndRequire([
     };  // parseSubexpression
     const answer = parseSubexpression(/*lowest_precedence_allowed=*/0);
     if (answer === null) {
-      throw new Error("syntax error at position "+posHolder[0]+" (parseSubexpresion failed)");
+      throw new Error("syntax error at position "+posHolder[0]+" (parseSubexpression failed)");
     }
     discardSpaces();
     if (posHolder[0] !== expression.length) {
