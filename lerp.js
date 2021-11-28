@@ -25,20 +25,61 @@
 //   a=1/32 b=5/8
 // How about a counterexample to simply a+(b-a)/2 <= b-(b-a)/2 ?
 // Maybe:  numFractionBits=3 (the current default), and:
-//  a=13/32 b=1  yeah that's a counterexample.  in this case b-(b-a)/2 gets the right answer.
-// Ok then how do we prove the following, which is really what we want?
+//  a=13/32 b=1  yeah that's a counterexample.  in this case b-(b-a)/2 gets the right answer and a+(b-a)/2 is too high.
+// Q: out of curiosity: is there a case where a+(b-a)/2 gets the right answer and b-(b-a)/2 is too low?
+//        To search for the previous:
+//           a+(b-a)/2>(a+b)/2 && b-(b-a)/2==(a+b)/2 ? .25 : 0
+//           t+(b-t)/2>(t+b)/2 && b-(b-t)/2==(t+b)/2 ? .25 : 0
+//         yeah that finds a=13/32 b=1.
+//        To search for it:
+//           a+(b-a)/2==(a+b)/2 && b-(b-a)/2<(a+b)/2 ? .25 : 0
+//           t+(b-t)/2==(t+b)/2 && b-(b-t)/2<(t+b)/2 ? .25 : 0
+// A: yeah, that finds a=11/128 b=1,  and a=5/64 b=1, and a=9/128 b=1.
+// Q: out of curiosity: is there actually a case where b-(b-a)/2 < (a+b)/2 < a+(b-a)/2 ?
+//        To search for it:
+//           b-(b-a)/2<(a+b)/2 && (a+b)/2<a+(b-a)/2 ? .25 : 0
+//           b-(b-t)/2<(t+b)/2 && (t+b)/2<t+(b-t)/2 ? .25 : 0
+// A: no, there seem to be no cases of that.
+// Q: (weaker) out of curiosity: is there a case where b-(b-a)/2 < pred(a+(b-a)/2) ?
+//           b-(b-a)/2 < pred(a+(b-a)/2) ? .25 : 0
+//           b-(b-t)/2 < pred(t+(b-t)/2) ? .25 : 0
+// A: no, there seem to be no cases of even that.
+
+// And, ok, then how do we prove the following, which is really what we want?
 //  a+pred(.5)*(b-a) <= b-.5*(b-a)       which validates  t<.5 ? a+t*(b-a) : b-(1-t)*(b-a)
 //  a+.5*(b-a) <= b-(1-succ(.5))*(b-a)   which validates t<=.5 ? a+t*(b-a) : b-(1-t)*(b-a)
+
+// Counterexample search to first:
+//              a+pred(.5)*(b-a) > b-.5*(b-a) ? .25 : 0
+//              t+pred(.5)*(b-t) > b-.5*(b-t) ? .25 : 0
+// found nothing, as expected.
+// Counterexample search to second:
+//              a+.5*(b-a) > b-(1-succ(.5))*(b-a) ? .25 : 0
+//              t+.5*(b-t) > b-(1-succ(.5))*(b-t) ? .25 : 0
+//   Hey wait a minute, found something?
+//              a=1/4 b=13/64
+//   oh doesn't count because a>b.
+// found nothing, as expected.
+
 // Maybe focus on the case when we have the inversion a+(b-a)/2 > b-(b-a)/2,
 // since that's the only dangerous case.
-// Wait, first...
-// Q: what is the relationship of those to the simpler correct anchor point (a+b)/2?
-// A: well, we know that a+(b-a)/2 can sometimes exceed it (see previous counterexample
-//    in which case a+(b-a)/2 exceeds it and b-(b-a)/2 is correct).
-//    and, we can find a case where b-(b-a)/2 is less than it, too, via graphing:
-//          ((b-(b-t)/2)-((t+b)/2))
-//    example: a=5/64 b=1
-//
+
+// Verification that pred(.5)*x == pred(.5*x): and succ(.5)*x == succ(.5*x):
+//              pred(.5)*t == pred(.5*t) ? 0 : .25
+//       hmm that fails on t=1/32 and some smaller.  that's weird.
+//              succ(.5)*t == succ(.5*t) ? 0 : .25
+//       hmm that fails in lots of cases.  weird.
+// Let's try simpler (equally wrong) theorem:
+//              pred(1)*t == pred(t) ? 0 : .25
+//       fails on t=1/64 and some smaller, instead of 1/32
+//              succ(1)*t == succ(t) ? 0 : .25
+//       fails in same cases.
+// oh ok the explanation is:
+//     - the succ one is just false
+//     - the pred one is indeed hitting underflow; this is with minExponent=-6
+
+
+
 
 // TODO: js console error "Unchecked runtime.lastError: Could not establish connection. Receiving end does not exist." when reloading after 3m or so
 //   - possibly relevant:
@@ -2729,12 +2770,11 @@ registerSourceCodeLinesAndRequire([
         if (implementation === undefined) {
           throw new Error("C operator "+STRINGIFY(opname)+" is undefined in this compiler");
         }
-        CHECK.EQ(typeof implementation, 'function');
         if (opname === "=") {
           CHECK.EQ(operands.length, 2);
           const name = operands[0];
 
-          if (false) {  // failure mode is friendlier on, e.g. "0=0" if we do it inside the answer function instead.  TODO: make caller recognize semantic errors that we throw out of here
+          if (false) {  // failure mode is friendlier on, e.g. "0=0" if we do it inside the answer function instead.  TODO: make caller recognize semantic errors as a specific failure mode like syntax errors and runtime errors, and specifically throw them here
             CHECK.EQ(typeof name, 'string');
           }
 
@@ -2757,40 +2797,43 @@ registerSourceCodeLinesAndRequire([
           }
           if (verboseLevel >= 1) console.log("    out recurse, returning "+STRINGIFY(answer));
           return answer;
-        } else if (operands.length == 0) {
-          const answer = vars => implementation();
-          if (verboseLevel >= 1) console.log("      implementation = "+STRINGIFY(implementation));
-          if (verboseLevel >= 1) console.log("    out recurse, returning "+STRINGIFY(answer));
-          return answer;
-        } else if (operands.length == 1) {
-          const RHS_function = recurse(operands[0]);
-          CHECK.EQ(typeof RHS_function, 'function');
-          const answer = vars => implementation(()=>RHS_function(vars));
-          if (verboseLevel >= 1) console.log("    out recurse, returning "+STRINGIFY(answer));
-          return answer;
-        } else if (operands.length == 2) {
-          const LHS_function = recurse(operands[0]);
-          CHECK.EQ(typeof LHS_function, 'function');
-          const RHS_function = recurse(operands[1]);
-          CHECK.EQ(typeof RHS_function, 'function');
-          const answer = vars => implementation(()=>LHS_function(vars),
-                                                ()=>RHS_function(vars));
-          if (verboseLevel >= 1) console.log("    out recurse, returning "+STRINGIFY(answer));
-          return answer;
-        } else if (operands.length == 3) {
-          const LHS_function = recurse(operands[0]);
-          CHECK.EQ(typeof LHS_function, 'function');
-          const MHS_function = recurse(operands[1]);
-          CHECK.EQ(typeof MHS_function, 'function');
-          const RHS_function = recurse(operands[2]);
-          CHECK.EQ(typeof RHS_function, 'function');
-          const answer = (vars) => implementation(()=>LHS_function(vars),
-                                                  ()=>MHS_function(vars),
-                                                  ()=>RHS_function(vars));
-          if (verboseLevel >= 1) console.log("    out recurse, returning "+STRINGIFY(answer));
-          return answer;
         } else {
-          CHECK(false);
+          CHECK.EQ(typeof implementation, 'function');  // TODO: this is ungraceful; we hit here if caller hasn't implemented an op, should detect that sooner
+          if (operands.length == 0) {
+            const answer = vars => implementation();
+            if (verboseLevel >= 1) console.log("      implementation = "+STRINGIFY(implementation));
+            if (verboseLevel >= 1) console.log("    out recurse, returning "+STRINGIFY(answer));
+            return answer;
+          } else if (operands.length == 1) {
+            const RHS_function = recurse(operands[0]);
+            CHECK.EQ(typeof RHS_function, 'function');
+            const answer = vars => implementation(()=>RHS_function(vars));
+            if (verboseLevel >= 1) console.log("    out recurse, returning "+STRINGIFY(answer));
+            return answer;
+          } else if (operands.length == 2) {
+            const LHS_function = recurse(operands[0]);
+            CHECK.EQ(typeof LHS_function, 'function');
+            const RHS_function = recurse(operands[1]);
+            CHECK.EQ(typeof RHS_function, 'function');
+            const answer = vars => implementation(()=>LHS_function(vars),
+                                                  ()=>RHS_function(vars));
+            if (verboseLevel >= 1) console.log("    out recurse, returning "+STRINGIFY(answer));
+            return answer;
+          } else if (operands.length == 3) {
+            const LHS_function = recurse(operands[0]);
+            CHECK.EQ(typeof LHS_function, 'function');
+            const MHS_function = recurse(operands[1]);
+            CHECK.EQ(typeof MHS_function, 'function');
+            const RHS_function = recurse(operands[2]);
+            CHECK.EQ(typeof RHS_function, 'function');
+            const answer = (vars) => implementation(()=>LHS_function(vars),
+                                                    ()=>MHS_function(vars),
+                                                    ()=>RHS_function(vars));
+            if (verboseLevel >= 1) console.log("    out recurse, returning "+STRINGIFY(answer));
+            return answer;
+          } else {
+            CHECK(false);
+          }
         }
       } else {
         throw new Error("ParseTreeToLerpFunction called on non-string non-list "+STRINGIFY(tree));
