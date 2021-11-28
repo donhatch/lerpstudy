@@ -84,8 +84,8 @@
 
     <td rowspan="2" style="border: 0px solid black; vertical-align: top;">
 
-     <!-- TODO: theSVG isn't placed inside theSVGholder if you examine it closely; this is all messed up -->
-     <div id="theSVGholder" style="width:523px; height:1035px;">  <!-- XXX need to control this from inside -->
+     <!-- the width and height aren't strictly necessary, since, if they are omitted, they will be calculated based on what's inside.  but they prevent layout noise at the beginning and especially on reload. -->
+     <div id="theSVGholder" style="width:523px; height:1035px;">
       <svg id="theSVG"></svg>
      </div>
 
@@ -96,7 +96,11 @@
     </td>
 
     <td>
-     <span class="mono"> </span>  <!-- space for the "a" and "b" to right of picture -->
+     <!-- space for the "a" and "b" to right of picture. can get rid of this when I make positions of those be non-absolute; then they will take up their own space -->
+     <span class="mono"> </span>
+     <!-- tops of these will be set programmatically; set "display:none" here initially until that happens, to prevent layout noise on startup -->
+     <div id="b" style="position:absolute; left:537px; top:0px; display:none;"><span class="mono">b</span></div>
+     <div id="a" style="position:absolute; left:537px; top:0px; display:none;"><span class="mono">a</span></div>
     </td>
     <td valign="top">
      <div style="border: 1px solid black; margin:1px;">
@@ -345,8 +349,6 @@ Things to know:
    </tr>
   </table>
 
-  <div id="b" style="position:absolute; left:537px; top:118px;"><span class="mono">b</span></div>
-  <div id="a" style="position:absolute; left:537px; top:608px;"><span class="mono">a</span></div>
 
   <!-- https://stackoverflow.com/questions/10643426/how-to-add-a-tooltip-to-an-svg-graphic#answer-50543963 -->
   <!-- must come after "a" and "b" so that it will be on top of them -->

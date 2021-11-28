@@ -2038,8 +2038,12 @@ registerSourceCodeLinesAndRequire([
       // and a is shifted a little down, so that
       // when they coincide they will not be drawn in exactly
       // the same place.
-      window.b.style.top = (relerp(b,-1,1,oy0,oy1)+position_in_parent+svgBorderWidthPixels+10-4)+"px";
-      window.a.style.top = (relerp(a,-1,1,oy0,oy1)+position_in_parent+svgBorderWidthPixels+10+4)+"px";
+      // TODO: there's still some fudge in here.  try to do it while making a,b's positions not be absolute, if possible
+      window.b.style.top = (relerp(b,-1,1,oy0,oy1)+position_in_parent+svgBorderWidthPixels-2-4)+"px";
+      window.a.style.top = (relerp(a,-1,1,oy0,oy1)+position_in_parent+svgBorderWidthPixels-2+4)+"px";
+      // un-hide.
+      window.a.style.display = '';  // same as 'initial'? who knows
+      window.b.style.display = '';  // same as 'initial'? who knows
     }
 
     const svgns = "http://www.w3.org/2000/svg";
