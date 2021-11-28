@@ -3110,6 +3110,8 @@ registerSourceCodeLinesAndRequire([
   // END: expression parsing stuff that could be moved into its own file
   //===============================================================================
 
+  // These throw nice errors which are surfaced to the user,
+  // so don't call CHECK and don't spam the console.
   const checkboolean = x => {
     if (typeof x !== 'boolean') {
       throw new Error("got value "+STRINGIFY(x)+" which is of type "+(typeof x)+", expected boolean");
@@ -3121,6 +3123,11 @@ registerSourceCodeLinesAndRequire([
       throw new Error("got value "+STRINGIFY(x)+" which is of type "+(typeof x)+", expected number");
     }
     return x;
+  };
+  const check_equal_types = (x,y) => {
+    if (typeof x !== typeof y) {
+      throw new Error("type mismatch: comparing "+STRINGIFY(x)+" of type "+(typeof x)+" with "+STRINGIFY(y)+" of type "+(typeof y));
+    }
   };
 
   // do the computation represented by thunk in extended precision,
@@ -3221,10 +3228,10 @@ registerSourceCodeLinesAndRequire([
       ["-", (x,y)=>Minus(checknumber(x()),checknumber(y()))],
       ["<", (x,y)=>checknumber(x())<checknumber(y())],
       ["<=", (x,y)=>checknumber(x())<=checknumber(y())],
-      ["==", (x,y)=>x()==y()],
+      ["==", (x,y)=>{const xx = x(); const yy = y(); check_equal_types(xx,yy); return xx===yy;}],
       [">=", (x,y)=>checknumber(x())>=checknumber(y())],
       [">", (x,y)=>checknumber(x())>checknumber(y())],
-      ["!=", (x,y)=>x()!=y()],
+      ["==", (x,y)=>{const xx = x(); const yy = y(); check_equal_types(xx,yy); return xx!==yy;}],
       ["&&", (x,y)=>checkboolean(x())&&checkboolean(y())],
       ["||", (x,y)=>checkboolean(x())||checkboolean(y())],
       ["?", (x,y,z)=>checkboolean(x())?y():z()],
