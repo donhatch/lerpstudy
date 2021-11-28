@@ -3,7 +3,6 @@
 // TODO: move expression parsing code out into its own file
 // TODO: recognize more ops like "--" and gracefully fail if implementation not provided
 // TODO: custom exprs: need more friendly tooltip on failure; this one doesn't appear unless you leave and re-enter
-// TODO: custom exprs: failure mode on "-true" spams console with CHECK failure.  needs to throw more quietly (minus, and all the other functions I guess? or, can we prevent this at compile time? or, is CHECK being too verbose to begin with?)
 // TODO: custom lerp functions: handle divide-by-zero that didn't get caught by smoke test more gracefully (completely abort?)
 // TODO: now that I want to copy-paste a lot, I don't think I want radio buttons to be checked when I click on them
 //       (or do I?  it's only a problem if user double-clicks. hmm. https://stackoverflow.com/questions/5497073/how-to-differentiate-single-click-event-and-double-click-event )
@@ -1866,9 +1865,7 @@ registerSourceCodeLinesAndRequire([
     return dot_correct(numFractionBits, minExponent, xs, ys);
   };
   const UnaryNot = x => {
-    if (typeof x !== 'boolean') {
-      throw new Error("type error: unary '!' called on non-boolean");
-    }
+    CHECK.EQ(typeof x, 'boolean');
     return !x;
   };
 
@@ -3109,6 +3106,12 @@ registerSourceCodeLinesAndRequire([
     }
     return x;
   };  // checkboolean
+  const checknumber = x => {
+    if (typeof x !== 'number') {
+      throw new Error("got value "+STRINGIFY(x)+" which is of type "+(typeof x)+", expected number");
+    }
+    return x;
+  };
 
   // do the computation represented by thunk in extended precision,
   // then round the result back to the current precision.
@@ -3202,15 +3205,15 @@ registerSourceCodeLinesAndRequire([
 
   const Parse = (expression,posHolder) => {
     const binary_op_implementations = [
-      ["*", (x,y)=>Times(x(),y())],
-      ["/", (x,y)=>DividedBy(x(),y())],
-      ["+", (x,y)=>Plus(x(),y())],
-      ["-", (x,y)=>Minus(x(),y())],
-      ["<", (x,y)=>x()<y()],
-      ["<=", (x,y)=>x()<=y()],
+      ["*", (x,y)=>Times(checknumber(x()),checknumber(y()))],
+      ["/", (x,y)=>DividedBy(checknumber(x()),checknumber(y()))],
+      ["+", (x,y)=>Plus(checknumber(x()),checknumber(y()))],
+      ["-", (x,y)=>Minus(checknumber(x()),checknumber(y()))],
+      ["<", (x,y)=>checknumber(x())<checknumber(y())],
+      ["<=", (x,y)=>checknumber(x())<=checknumber(y())],
       ["==", (x,y)=>x()==y()],
-      [">=", (x,y)=>x()>=y()],
-      [">", (x,y)=>x()>y()],
+      [">=", (x,y)=>checknumber(x())>=checknumber(y())],
+      [">", (x,y)=>checknumber(x())>checknumber(y())],
       ["!=", (x,y)=>x()!=y()],
       ["&&", (x,y)=>checkboolean(x())&&checkboolean(y())],
       ["||", (x,y)=>checkboolean(x())||checkboolean(y())],
@@ -3219,15 +3222,15 @@ registerSourceCodeLinesAndRequire([
       [",", (x,y)=>(x(),y())],
     ];
     const left_unary_op_implementations = [
-      ["!", x=>UnaryNot(x())],
+      ["!", x=>UnaryNot(checkboolean(x()))],
 
       // CBB: negative numbers end up being interpreted as unary-minus
       // followed by positive number.  I guess that's ok.
-      ["-", x=>UnaryMinus(x())],
+      ["-", x=>UnaryMinus(checknumber(x()))],
 
       // sort of a hack: treat these as left unary ops.  so "pred t" works
-      ["pred", x=>Pred(x())],
-      ["succ", x=>Succ(x())],
+      ["pred", x=>Pred(checknumber(x()))],
+      ["succ", x=>Succ(checknumber(x()))],
 
       // Note that four_times_precision(expr) is *not*
       // the same as twice_precision(twice_precision(expr)),
