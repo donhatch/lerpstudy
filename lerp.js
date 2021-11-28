@@ -1966,6 +1966,8 @@ registerSourceCodeLinesAndRequire([
   };
 
   const populateTheSVG = (svg, Lerp, aIntent, bIntent) => {
+    const verboseLevel = 0;
+    if (verboseLevel >= 1) console.log("in populateTheSVG");
     CHECK.NE(bIntent, undefined);
 
     // TODO: rename
@@ -2315,7 +2317,7 @@ registerSourceCodeLinesAndRequire([
       console.log("======");
     }
 
-    return svg;
+    if (verboseLevel >= 1) console.log("out populateTheSVG");
   };  // populateTheSVG
 
   const svg = window.theSVG;
@@ -2782,9 +2784,9 @@ registerSourceCodeLinesAndRequire([
           CHECK.EQ(typeof MHS_function, 'function');
           const RHS_function = recurse(operands[2]);
           CHECK.EQ(typeof RHS_function, 'function');
-          return (vars) => implementation(()=>LHS_function(vars),
-                                          ()=>MHS_function(vars),
-                                          ()=>RHS_function(vars));
+          const answer = (vars) => implementation(()=>LHS_function(vars),
+                                                  ()=>MHS_function(vars),
+                                                  ()=>RHS_function(vars));
           if (verboseLevel >= 1) console.log("    out recurse, returning "+STRINGIFY(answer));
           return answer;
         } else {
@@ -3448,6 +3450,94 @@ registerSourceCodeLinesAndRequire([
     }
   }
 
+  //============================================================
+  // BEGIN: EVENT STUFF
+
+  // This is unbelievably hard.
+  //
+  // Okay, what does the event have?
+  // Observing some:
+  //   - target: li
+  //   - clientX,clientY: 950,704
+  //   - offsetX,offsetY: 369,1
+  //   - pageX,pageY: 950,704
+  //   - screenX,screenY: 2989,870
+  //   - x,y: ?
+  // When scrolled a bit:
+  //   - target: span.mono
+  //   - clientX,clientY: 935,312
+  //   - offsetX,offsetY: 371,8
+  //   - pageX,pageY: 935,360
+  //   - screenX,screenY: 2974,478
+  //   - x,y: ?
+  //
+  // When scrolled a bit:
+  //   - target: li
+  //   - clientX,clientY: 914,584
+  //   - layerX,layerY: 914,955
+  //   - offsetX,offsetY: 293,0
+  //   - pageX,pageY: 914,955   (same as layerX,layerY.  always?)
+  //   - screenX,screenY: 2953,750
+  //   - x,y: 914,584   (same as clientX,clientY.  always?)
+  //
+  // Observation:
+  //   - when not scrolled, clientX,clientY == pageX,pageY.
+  //   - when scrolled a bit, clientX==pageX but clientY is a bit less than pageY (makes sense, pageY is the position within logical page, some of which is scrolled off)
+  // Possibly relevant:
+  //   https://www.quirksmode.org/js/events_properties.html#position
+  // Its opinion is:
+  //   - pageX/Y and clientX/Y are useful (see linked article "Mission impossible: mouse position" which is 404, also the "correct script", which I don't trust because it's treating numbers as bools)
+  //   - screenX,screenY are cross-browser compatible but useless
+  //   - other three pairs (layerX/Y, offsetX/Y, x/y) are unimportant.
+
+  const FigureOutEventOffsetRelativeToElement = (event, element) => {
+    const verboseLevel = 0;
+    if (verboseLevel >= 1) console.log("                        in FigureOutEventOffsetRelativeToElement");
+    if (verboseLevel >= 1) console.log("                          element = ",element);
+
+    // Observation: element's client rect size stays pretty much the same
+    // in all browser zooms, except that at some browser zooms,
+    // it comes out slightly different from the right answer which is 523.  Annoying!
+    //   67%: 522.984375
+    //   75%: 523
+    //   80%: 522.98828125
+    //   90%: 522.9861450195312
+    //   100%: 523
+    //   110%: 522.9971313476562
+    //   125%: 523
+    // and likewise for height.
+    // So, just round?  This isn't very principled :-(
+    // And, on firefox, I'm getting a slightly different answer :-(
+    const elementClientRect = element.getBoundingClientRect();
+    if (verboseLevel >= 1) console.log("                          client rect = ",elementClientRect);
+    if (verboseLevel >= 1) console.log("                          client rect width,height = ",elementClientRect.right-elementClientRect.left, elementClientRect.bottom-elementClientRect.top);
+    CHECK.EQ(elementClientRect.width, elementClientRect.right-elementClientRect.left);
+    CHECK.EQ(elementClientRect.height, elementClientRect.bottom-elementClientRect.top);
+    const elementClientWidthRounded = Math.round(elementClientRect.width);
+    const elementClientHeightRounded = Math.round(elementClientRect.height);
+
+    if (verboseLevel >= 1) {
+      // might be of use some day, but not today
+      const computedStyle = window.getComputedStyle(element);
+      console.log("                          computed style = ",computedStyle);
+    }
+
+    // Punt.
+    // TODO: make this better
+    const border = 5;  // TODO: don't hard code, figure it out from computedStyle or something... but holy hell it's complicated
+    const padding = 0;  // TODO: don't hard code, figure it out from computedStyle or something... but holy hell it's complicated
+    const answer = [event.clientX - (Math.round(elementClientRect.left)+padding+border),
+                    event.clientY - (Math.round(elementClientRect.top)+padding+border)]
+    if (event.target === element) {
+      if (false) { // on firefox, this can be off by a pixel or two, on certain browser zooms :-(
+        CHECK.EQ(event.offsetX, answer[0]);
+        CHECK.EQ(event.offsetY, answer[1]);
+      }
+    }
+    if (verboseLevel >= 1) console.log("                        out FigureOutEventOffsetRelativeToElement, returning "+STRINGIFY(answer));
+    return answer;
+  };  // FigureOutEventOffsetRelativeToElement
+
   let xOfMouseDown = undefined;
   let yOfMouseDown = undefined;
   let aOfMouseDown = undefined;
@@ -3457,7 +3547,8 @@ registerSourceCodeLinesAndRequire([
 
   let draggingA = false;
   let draggingB = false;
-  const eventVerboseLevel = 0;  // set to something greater than 0 here to debug
+  const keyEventVerboseLevel = 0;  // set to something greater than 0 here to debug
+  const mouseEventVerboseLevel = 0;  // 0: nothing; >=1: and enter,leave,down,up; >=2: and move with mouse down; >=3: and move with mouse up
   // https://www.mutuallyhuman.com/blog/keydown-is-the-only-keyboard-event-we-need/
 
   // whether b is closer than the midpoint between a and b
@@ -3473,8 +3564,8 @@ registerSourceCodeLinesAndRequire([
 
   svg.addEventListener("focus", ()=>{});  // magically makes the keydown listener work!
   svg.addEventListener("keydown", (event) => {
-    if (eventVerboseLevel >= 1) console.log("keydown");
-    if (eventVerboseLevel >= 1) console.log("  event = ",event);
+    if (keyEventVerboseLevel >= 1) console.log("keydown");
+    if (keyEventVerboseLevel >= 1) console.log("  event = ",event);
     if (!event.ctrlKey) {
       if (false) {
       } else if (event.key === '=' || event.key === '+') {
@@ -3522,11 +3613,12 @@ registerSourceCodeLinesAndRequire([
     }  // if !event.ctrlKey
     // event.stopPropagation(); // TODO: do I want this?  I haven't yet learned what it means
   });  // svg keydown listener
+
   svg.addEventListener("mousedown", (event) => {
-    if (eventVerboseLevel >= 1) console.log("mousedown");
-    if (eventVerboseLevel >= 1) console.log("  event = ",event);
-    xOfMouseDown = event.offsetX;
-    yOfMouseDown = event.offsetY;
+    if (mouseEventVerboseLevel >= 1) console.log("mousedown");
+    if (mouseEventVerboseLevel >= 1) console.log("  event = ",event);
+    xOfMouseDown = event.offsetX;  // relative to the svg
+    yOfMouseDown = event.offsetY;  // relative to the svg
     aOfMouseDown = a;
     bOfMouseDown = b;
     const ix = relerp(event.offsetX, ox0,ox1, ix0,ix1);
@@ -3551,38 +3643,67 @@ registerSourceCodeLinesAndRequire([
     xOfPreviousMouseEvent = event.offsetX;
     yOfPreviousMouseEvent = event.offsetY;
   });
-  svg.addEventListener("mouseup", (event) => {
-    if (eventVerboseLevel >= 1) console.log("mouseup");
-    if (eventVerboseLevel >= 1) console.log("  event = ",event);
+  // put this on the window, *not* on the svg, so that we'll detect the mouse
+  // is no longer down even if the mouse left the svg while dragging.
+  window.addEventListener("mouseup", (event) => {
+    if (mouseEventVerboseLevel >= 1) console.log("mouseup");
+    if (mouseEventVerboseLevel >= 1) console.log("  event = ",event);
     draggingA = draggingB = false;
     // Snap intents to nearest on mouse up (a and b are intents here)
     a = round_to_nearest_representable(numFractionBits, minExponent, a);
     b = round_to_nearest_representable(numFractionBits, minExponent, b);
     populateTheSVG(svg, Lerp, a, b);
-    xOfPreviousMouseEvent = event.offsetX;
-    yOfPreviousMouseEvent = event.offsetY;
+    // Do *not* set xOfPreviousMouseEvent,yOfPreviousMouseEvent
+    // to event.offsetX,event.offsetY!
+    // Why? Because we want this handler to work
+    // even if it's on the window rather than the svg,
+    // and xOfPreviousMouseEvent,yOfPreviousMouseEvent
+    // should be properly updated by mousemove events anyway,
+    // so there's no need to expend the effort to translate event.offsetX,event.offsetY
+    // to svg-relative.
   });
+
+  // NOTE: "pointer-events:none" must be set on all elements under the svg,
+  // otherwise we'll get spurious mouseenter events from this listener
+  // when hovering over those elements (the paths and circles)
+  // (probably only when the svg and/or window has a mousedown and/or mousemove listener,
+  // which is the case in this app).
+  // These events can be detected by their fromElement and relatedElement
+  // members being that descendent element rather than the svg,
+  // but they can be prevented by pointer-events:none, which we do in the stylesheet.
+  // See: https://www.smashingmagazine.com/2018/05/svg-interaction-pointer-events-property/
+  // (Note that I'm managing my own hovering behavior, since the system's hovering
+  // has very little chance of being good enough.)
   svg.addEventListener("mouseenter", (event) => {
-    if (eventVerboseLevel >= 1) console.log("mouseenter");
-    if (eventVerboseLevel >= 1) console.log("  event = ",event);
+    if (mouseEventVerboseLevel >= 1) console.log("    mouseenter");
+    if (mouseEventVerboseLevel >= 1) console.log("          event = ",event);
     xOfPreviousMouseEvent = event.offsetX;
     yOfPreviousMouseEvent = event.offsetY;
   });
   svg.addEventListener("mouseleave", (event) => {
-    if (eventVerboseLevel >= 1) console.log("mouseleave");
-    if (eventVerboseLevel >= 1) console.log("  event = ",event);
+    if (mouseEventVerboseLevel >= 1) console.log("        mouseleave");
+    if (mouseEventVerboseLevel >= 1) console.log("              event = ",event);
     xOfPreviousMouseEvent = event.offsetX;
     yOfPreviousMouseEvent = event.offsetY;
-    hideTooltip();
+    hideTooltip(); // since the mousemove handler doesn't update if outside the svg
   });
-  svg.addEventListener("mousemove", (event) => {
+
+  // put this on the window, *not* on the svg
+  // (the dragging variables were set by a mousedown
+  // on the svg, but mouseup and mousemove can be anywhere...
+  // and, putting it on the window actually makes us get these events, which we want,
+  // even if outside the window, as long as mouse is down and was pressed inside the window)
+  window.addEventListener("mousemove", (event) => {
     if (draggingA || draggingB) {
-      if (eventVerboseLevel >= 1) console.log("mousemove with mouse down");
-      if (eventVerboseLevel >= 1) console.log("  event = ",event);
+      if (mouseEventVerboseLevel >= 2) console.log("            mousemove with mouse down");
+      if (mouseEventVerboseLevel >= 2) console.log("                  event = ",event);
+
+      const [eventOffsetXrelativeToSVG, eventOffsetYrelativeToSVG] = FigureOutEventOffsetRelativeToElement(event, svg);
+
       const ixOfMouseDown = relerp(xOfMouseDown, ox0,ox1, ix0,ix1);
       const iyOfMouseDown = relerp(yOfMouseDown, oy0,oy1, iy0,iy1);
-      const ix = relerp(event.offsetX, ox0,ox1, ix0,ix1);
-      const iy = relerp(event.offsetY, oy0,oy1, iy0,iy1);
+      const ix = relerp(eventOffsetXrelativeToSVG, ox0,ox1, ix0,ix1);
+      const iy = relerp(eventOffsetYrelativeToSVG, oy0,oy1, iy0,iy1);
 
       const aSnappedOld = round_to_nearest_representable(numFractionBits, minExponent, a);
       const bSnappedOld = round_to_nearest_representable(numFractionBits, minExponent, b);
@@ -3598,39 +3719,51 @@ registerSourceCodeLinesAndRequire([
         SetSearchAndHashParamsInAddressBar([], [['numFractionBits',numFractionBits],['minExponent',minExponent],['a',toFractionString(aSnappedNew)],['b',toFractionString(bSnappedNew)]]);
       }
 
+      hideTooltip();  // it's going to be stale  (TODO: decide if this should be inside populateTheSVG -- probably not... or maybe only if a or b actually changed?  (not just aIntent or bIntent, which don't change the dots by themselves))
       populateTheSVG(svg, Lerp, a, b);
+
+      xOfPreviousMouseEvent = eventOffsetXrelativeToSVG;
+      yOfPreviousMouseEvent = eventOffsetYrelativeToSVG;
     } else {
-      // See if we are close to any circles.  This is wildly inefficient.
-      const hoverables = svg.getElementsByClassName("hoverable");
-      //PRINT(hoverables.length);
-      //PRINT(hoverables);
-      let closestIndex = -1;
-      let closestDist2 = -1;
-      for (let i = 0; i < hoverables.length; ++i) {
-        const hoverable = hoverables[i];
-        CHECK.EQ(hoverable.tagName, "circle");
-        const cx = parseFloat(hoverable.getAttributeNS(null, "cx"));
-        const cy = parseFloat(hoverable.getAttributeNS(null, "cy"));
-        const thisDist2 = (cx-event.offsetX)**2 + (cy-event.offsetY)**2;
-        if (closestIndex == -1 || thisDist2 < closestDist2) {
-          closestIndex = i;
-          closestDist2 = thisDist2;
+      if (mouseEventVerboseLevel >= 3) console.log("                mousemove with mouse up");
+      if (mouseEventVerboseLevel >= 3) console.log("                      event = ",event);
+      if (event.target === svg) {
+        const [eventOffsetXrelativeToSVG, eventOffsetYrelativeToSVG] = FigureOutEventOffsetRelativeToElement(event, svg);
+        // See if we are close to any circles.  This is wildly inefficient.
+        const hoverables = svg.getElementsByClassName("hoverable");
+        //PRINT(hoverables.length);
+        //PRINT(hoverables);
+        let closestIndex = -1;
+        let closestDist2 = -1;
+        for (let i = 0; i < hoverables.length; ++i) {
+          const hoverable = hoverables[i];
+          CHECK.EQ(hoverable.tagName, "circle");
+          const cx = parseFloat(hoverable.getAttributeNS(null, "cx"));
+          const cy = parseFloat(hoverable.getAttributeNS(null, "cy"));
+          const thisDist2 = (cx-eventOffsetXrelativeToSVG)**2 + (cy-eventOffsetYrelativeToSVG)**2;
+          if (closestIndex == -1 || thisDist2 < closestDist2) {
+            closestIndex = i;
+            closestDist2 = thisDist2;
+          }
         }
-      }
-      //PRINT(closestIndex);
-      if (closestIndex !== -1) {
-        const threshold = 10;
-        if (closestDist2 <= threshold**2) {
-          const closestDist = Math.sqrt(closestDist2);
-          hoverables[closestIndex].onmouseover(event);
-        } else {
-          hideTooltip();
+        //PRINT(closestIndex);
+        if (closestIndex !== -1) {
+          const threshold = 10;
+          if (closestDist2 <= threshold**2) {
+            const closestDist = Math.sqrt(closestDist2);
+            hoverables[closestIndex].onmouseover(event);
+          } else {
+            hideTooltip();
+          }
         }
-      }
-    }
-    xOfPreviousMouseEvent = event.offsetX;
-    yOfPreviousMouseEvent = event.offsetY;
-  });
+        xOfPreviousMouseEvent = eventOffsetXrelativeToSVG;
+        yOfPreviousMouseEvent = eventOffsetYrelativeToSVG;
+      }  // if event.target === svg
+    }  // mouse is up
+  });  // mousemove
+
+  // END: EVENT STUFF
+  //============================================================
 
   STRINGIFY.test();
 
