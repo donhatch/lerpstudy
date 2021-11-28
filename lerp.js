@@ -2046,9 +2046,7 @@ registerSourceCodeLinesAndRequire([
 
     svg.setAttribute("width", ""+width+"px");
     svg.setAttribute("height", ""+height+"px");
-    svg.style.position = 'absolute';
-    svg.style.left = '0px';
-    //svg.style.pointerEvents = 'none';  // to make it "click-through-able", and so tooltips of underlying are functional
+    //svg.style.pointerEvents = 'none';  // to make it "click-through-able", and so tooltips of underlying are functional.  nah, don't; I manage that stuff myself
     svg.style.border = svgBorderWidthPixels+"px solid black";
     svg.innerHTML = '';  // clear old contents if any
     svg.innerHTML = (
