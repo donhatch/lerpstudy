@@ -33,6 +33,9 @@ define([], function() {
       if (x.constructor.name !== 'Object') {
         answer += '[object '+x.constructor.name+']';
       }
+      // Print own properties.
+      // (Note this is a bit screwy in the case of, say, MouseEvent-- it prints isTrusted,
+      // but not all the others that are on parent class, such as screenX, screenY, clientX, clientY, etc.)
       answer += '{';
       let keys = Object.getOwnPropertyNames(x);
       for (let i = 0; i < keys.length; ++i) {
