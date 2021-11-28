@@ -10,27 +10,29 @@ registerSourceCodeLinesAndDefine(['./CHECK.js'], function(CHECK) {
   // and the constructor ignores a leading '#' if any.
   // NOTE: only a subset of URLSearchParams's API is currently implemented.
   class MyURLSearchOrHashParams {
-    #url_search_params;
+    // NOTE: would say "#url_search_params",
+    // but firefox says "Uncaught SyntaxError: private fields are not currently supported"
+    _url_search_params;
     constructor(window_location_search_or_hash) {
       CHECK.EQ(typeof window_location_search_or_hash, 'string');
       let old_search_or_hash = window_location_search_or_hash;
       if (old_search_or_hash.startsWith('#')) {
         old_search_or_hash = old_search_or_hash.slice(1);
       }
-      this.#url_search_params = new URLSearchParams(old_search_or_hash);
+      this._url_search_params = new URLSearchParams(old_search_or_hash);
     }
     get(name) {
-      return this.#url_search_params.get(name);
+      return this._url_search_params.get(name);
     }
     set(name, value) {
-      return this.#url_search_params.set(name, value);
+      return this._url_search_params.set(name, value);
     }
     delete(name) {
-      return this.#url_search_params.delete(name);
+      return this._url_search_params.delete(name);
     }
     // Note that the returned string does *not* include an initial '?' or '#'.
     toString() {
-      let new_search_or_hash = this.#url_search_params.toString();
+      let new_search_or_hash = this._url_search_params.toString();
 
       // These seem to be harmless,
       // and keeping them cleartext enhances readability.
