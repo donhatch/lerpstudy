@@ -59,13 +59,46 @@ define([], function() {
       // Note, the initial \s* rather than \s+ is sort of a hack
       // so that we'll match even if func was omitted, without too much
       // extra work.
-
       let reResult = /^\s*at\s*(.*)\s+\((\S*):(\d+):(\d+)\)$/.exec(line); // with parens
-      if (reResult == null) {
+      if (reResult === null) {
         reResult = /^\s*at\s*(.*)\s+(\S*):(\d+):(\d+)$/.exec(line); // without parens
+        if (reResult === null) {
+          // Expect what I've seen on firefox:
+          /*
+            lines =  [
+                "getStackTrace@http://localhost:8000/getStackTrace.js:27:26",
+                "answer@http://localhost:8000/PRINT.js:38:27",
+                "@http://localhost:8000/lerp.js:1666:15",
+                "registerSourceCodeLinesAndRequire/<@http://localhost:8000/registerSourceCodeLinesAndRequire.js:33:18",
+                "execCb@http://localhost:8000/require.js:1696:33",
+                "check@http://localhost:8000/require.js:883:51",
+                "enable/</<@http://localhost:8000/require.js:1139:34",
+                "bind/<@http://localhost:8000/require.js:134:23",
+                "emit/<@http://localhost:8000/require.js:1189:23",
+                "each@http://localhost:8000/require.js:59:31",
+                "emit@http://localhost:8000/require.js:1188:21",
+                "check@http://localhost:8000/require.js:938:30",
+                "enable/</<@http://localhost:8000/require.js:1139:34",
+                "bind/<@http://localhost:8000/require.js:134:23",
+                "emit/<@http://localhost:8000/require.js:1189:23",
+                "each@http://localhost:8000/require.js:59:31",
+                "emit@http://localhost:8000/require.js:1188:21",
+                "check@http://localhost:8000/require.js:938:30",
+                "enable@http://localhost:8000/require.js:1176:22",
+                "init@http://localhost:8000/require.js:788:26",
+                "callPlugin/</load<@http://localhost:8000/require.js:1014:30",
+                "bind/<@http://localhost:8000/require.js:134:23",
+                "finishLoad@http://localhost:8000/text.js:169:19",
+                "load/<@http://localhost:8000/text.js:205:26",
+                "text.get/xhr.onreadystatechange@http://localhost:8000/text.js:321:33",
+                ""
+            ]
+          */
+          reResult = /^([^@]+)@(\S*):(\d+):(\d+)$/.exec(line);
+        }
       }
       if (reResult == null) {
-        return null;
+        return null;  // for this line
       } else {
         let [all, func, file, linenum, colnum] = reResult;
         return [func, file, linenum, colnum];
