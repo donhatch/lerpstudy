@@ -2175,6 +2175,7 @@ registerSourceCodeLinesAndRequire([
     // and going up at slope round(b-a).
     // That is, from 0,a to 1,a+round(b-a).
     // And then another one, of the same slope, from 0,0 to 1,round(b-a).
+    // And then another one, of slope b-a, from 0,0 to 1,b-a
     {
       const B = a + Round(b-a);
       const o0x = relerp(0., ix0,ix1,ox0,ox1);
@@ -2183,11 +2184,17 @@ registerSourceCodeLinesAndRequire([
       const oB = relerp(B, iy0,iy1,oy0,oy1);
       const funnyUpwardDiagonalPath = makePath([[[o0x,oa],[o1x,oB]]]);
       svg.appendChild(funnyUpwardDiagonalPath);
+
       const BB = Round(b-a);
       const oBB = relerp(BB, iy0,iy1,oy0,oy1);
       const o0y = relerp(0., iy0,iy1,oy0,oy1);
       const anotherFunnyUpwardDiagonalPath = makePath([[[o0x,o0y],[o1x,oBB]]]);
       svg.appendChild(anotherFunnyUpwardDiagonalPath);
+
+      const BBB = b-a;
+      const oBBB = relerp(BBB, iy0,iy1,oy0,oy1);
+      const aThirdFunnyUpwardDiagonalPath = makePath([[[o0x,o0y],[o1x,oBBB]]]);
+      svg.appendChild(aThirdFunnyUpwardDiagonalPath);
     }
 
     // The diagonals
