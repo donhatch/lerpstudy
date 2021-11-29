@@ -3231,7 +3231,7 @@ registerSourceCodeLinesAndRequire([
       ["==", (x,y)=>{const xx = x(); const yy = y(); check_equal_types(xx,yy); return xx===yy;}],
       [">=", (x,y)=>checknumber(x())>=checknumber(y())],
       [">", (x,y)=>checknumber(x())>checknumber(y())],
-      ["==", (x,y)=>{const xx = x(); const yy = y(); check_equal_types(xx,yy); return xx!==yy;}],
+      ["!=", (x,y)=>{const xx = x(); const yy = y(); check_equal_types(xx,yy); return xx!==yy;}],
       ["&&", (x,y)=>checkboolean(x())&&checkboolean(y())],
       ["||", (x,y)=>checkboolean(x())||checkboolean(y())],
       ["?", (x,y,z)=>checkboolean(x())?y():z()],
