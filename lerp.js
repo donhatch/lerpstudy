@@ -77,6 +77,47 @@
 //     - the succ one is just false
 //     - the pred one is indeed hitting underflow; this is with minExponent=-6
 
+// Test for cases around a+b/2:
+//       a+pred(.5)*(b-a)   a+.5*(b-a)  a+succ(.5)*(b-a)
+// I think there are 4 cases:  0 1  1 1   1 2
+//       a+pred(.5)*(b-a) == pred(a+.5*(b-a)) && succ(a+.5*(b-a))==a+succ(.5)*(b-a)
+//       a+pred(.5)*(b-a) == pred(a+.5*(b-a)) && succ(succ(a+.5*(b-a)))==a+succ(.5)*(b-a)
+//       a+pred(.5)*(b-a) == a+.5*(b-a) && succ(a+.5*(b-a))==a+succ(.5)*(b-a)
+//       a+pred(.5)*(b-a) == a+.5*(b-a) && succ(succ(a+.5*(b-a)))==a+succ(.5)*(b-a)
+// So to test for all 4 and that these are the only 4, it should be something like:
+/*
+         (a+pred(.5)*(b-a) == pred(a+.5*(b-a)) && succ(a+.5*(b-a))==a+succ(.5)*(b-a) ? .125 :
+          a+pred(.5)*(b-a) == pred(a+.5*(b-a)) && succ(succ(a+.5*(b-a)))==a+succ(.5)*(b-a) ? .25 :
+          a+pred(.5)*(b-a) == a+.5*(b-a) && succ(a+.5*(b-a))==a+succ(.5)*(b-a) ? .375 :
+          a+pred(.5)*(b-a) == a+.5*(b-a) && succ(succ(a+.5*(b-a)))==a+succ(.5)*(b-a) .5 :
+          1)
+   And substituting t for a so I can graph it:
+         (t+pred(.5)*(b-t) == pred(t+.5*(b-t)) && succ(t+.5*(b-t))==t+succ(.5)*(b-t) ? .125 :
+          t+pred(.5)*(b-t) == pred(t+.5*(b-t)) && succ(succ(t+.5*(b-t)))==t+succ(.5)*(b-t) ? .25 :
+          t+pred(.5)*(b-t) == t+.5*(b-t) && succ(t+.5*(b-t))==t+succ(.5)*(b-t) ? .375 :
+          t+pred(.5)*(b-t) == t+.5*(b-t) && succ(succ(t+.5*(b-t)))==t+succ(.5)*(b-t) ? .5 :
+          1)
+   Note that for some b's, the 2nd case does not occur.
+   Oh wait, more cases??  Hmm!
+   First lets separate into the two parts:
+          (t+pred(.5)*(b-t) == pred(t+.5*(b-t)) ? .25 :
+           t+pred(.5)*(b-t) == t+.5*(b-t) ? .5 :
+           1)
+         (succ(t+.5*(b-t))==t+succ(.5)*(b-t) ? .25 :
+          succ(succ(t+.5*(b-t)))==t+succ(.5)*(b-t) ? .75 :
+          1)
+   Ok it's the latter that has more cases.
+         (t+.5*(b-t)==t+succ(.5)*(b-t) ? 0 :
+          succ(t+.5*(b-t))==t+succ(.5)*(b-t) ? .125 :
+          succ(succ(t+.5*(b-t)))==t+succ(.5)*(b-t) ? .25 :
+          succ(succ(succ(t+.5*(b-t))))==t+succ(.5)*(b-t) ? .375 :
+          1)
+   I see, ok, it has the zero case.  And that happens throughout the a range and throughout the b in (.5,1) range.
+*/
+//
+// Something else to try.
+//      hi=b-a, lo=-(a<b?hi-b+a:hi+a-b), a+t*(hi+lo), (hi+lo)-(b-a)
+
 
 
 
@@ -3157,11 +3198,11 @@ registerSourceCodeLinesAndRequire([
     if (verboseLevel >= 1) console.log("      binary_op_implementations = "+STRINGIFY(binary_op_implementations));
     if (verboseLevel >= 1) console.log("      left_unary_op_implementations = "+STRINGIFY(left_unary_op_implementations));
     const binary_op_table = [
-      {name:"*", precedence:7},
-      {name:"/", precedence:7},
+      {name:"*", precedence:9},
+      {name:"/", precedence:9},
 
-      {name:"+", precedence:6},
-      {name:"-", precedence:6},
+      {name:"+", precedence:8},
+      {name:"-", precedence:8},
 
       // Note that this table gets sorted later so that longer names are preferred over shorter ones,
       // *if they have the same operator precedence*.
@@ -3169,12 +3210,16 @@ registerSourceCodeLinesAndRequire([
       // it may not get recognized properly.  That is, the lower precedence thing may be ignored
       // during the recursive descent, and so the higher precedence shorter one will be wrongly taken.
       // Not sure whether there are any instances of that C/C++.
-      {name:"<=", precedence:5},
-      {name:"<", precedence:5},
-      {name:">=", precedence:5},
-      {name:">", precedence:5},
-      {name:"==", precedence:5},
-      {name:"!=", precedence:5},
+      {name:"<=", precedence:7},
+      {name:"<", precedence:7},
+      {name:">=", precedence:7},
+      {name:">", precedence:7},
+      {name:"==", precedence:7},
+      {name:"!=", precedence:7},
+
+      {name:"&", precedence:6},
+      {name:"^", precedence:6},
+      {name:"|", precedence:5},
 
       {name:"&&", precedence:4},
 
@@ -3232,6 +3277,8 @@ registerSourceCodeLinesAndRequire([
       [">=", (x,y)=>checknumber(x())>=checknumber(y())],
       [">", (x,y)=>checknumber(x())>checknumber(y())],
       ["!=", (x,y)=>{const xx = x(); const yy = y(); check_equal_types(xx,yy); return xx!==yy;}],
+      ["&", (x,y)=>Math.min(checknumber(x()),checknumber(y()))],
+      ["|", (x,y)=>Math.max(checknumber(x()),checknumber(y()))],
       ["&&", (x,y)=>checkboolean(x())&&checkboolean(y())],
       ["||", (x,y)=>checkboolean(x())||checkboolean(y())],
       ["?", (x,y,z)=>checkboolean(x())?y():z()],
@@ -3859,7 +3906,7 @@ registerSourceCodeLinesAndRequire([
       // filter means "Selectors that do not lead to dragging (String or Function)".
       // We filter out anything with class "mono", since the user
       // is likely to want to copy text from those.
-      filter: '.mono',
+      filter: '.mono,input[type=text]',
       // preventOnFilter means "Call `event.preventDefault()` when triggered `filter`;
       // use this so that the default action happens (that is, selecting text).
       preventOnFilter: false,
