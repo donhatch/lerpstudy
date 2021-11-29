@@ -3332,17 +3332,18 @@ registerSourceCodeLinesAndRequire([
   //   "internal error: ..."
   //   "failed smoke test: ..."
   //   "valid"
-  const ExpressionValidity = expression => {
+  const ExpressionValidity = (expression,posHolder) => {
     const verboseLevel = 0;
     if (verboseLevel >= 1) console.log("in ExpressionValidity("+STRINGIFY(expression)+")");
-    const posHolder = [0];
+    CHECK(Array.isArray(posHolder));
+    CHECK.EQ(posHolder.length, 1);
 
     let tree;
     try {
       tree = Parse(expression, posHolder);
     } catch (error) {
       // Parse error.
-      const reason = (posHolder[0]==expression.length ? "soft syntax error: " : "hard syntax error: ")+error.message;
+      const reason = (posHolder[0]==expression.length ? "soft syntax error: " : "hard syntax error at position "+(posHolder[0])+": ")+error.message;
       if (verboseLevel >= 1) console.log("ExpressionValidity("+STRINGIFY(expression)+") failing because "+reason);
       return reason;
     }
@@ -3401,11 +3402,26 @@ registerSourceCodeLinesAndRequire([
     return answer;
   };  // ExpressionValidity
 
+  const TryToSetTextInputWidthInMonospaceChars = (textinput,n) => {
+    textinput.size = Math.max(1,n);
+    // Note, that *should* be sufficient to set the width,
+    // but it doesn't seem to work.
+    // So, override the width using textinput.style.width.
+    // But, leave textinput.size set, so that it can be used in the gradient percentage calculations.
+    console.log("textinput.size="+STRINGIFY(textinput.size)+" -> textinput.style.width="+STRINGIFY(textinput.style.width));
+    //textinput.style.width = n+"em";  // same; too big
+    //textinput.style.width = (n*7)+"px";  // too small
+    //textinput.style.width = (n*8)+"px";  // too big
+    textinput.style.width = (n*7.83)+"px";  // seems to be approx the magic value for font-size=13, wtf
+    //console.log("textinput.style.width = "+STRINGIFY(textinput.style.width));
+  };  // TryToSetTextInputWidthInMonospaceChars
+
+
   const AddCustomExpression = expression => {
     const verboseLevel = 0;
     if (verboseLevel >= 1) console.log("in AddCustomExpression");
 
-    const expression_validity = ExpressionValidity(expression);
+    const expression_validity = ExpressionValidity(expression, [0]);
     if (expression_validity !== "valid") {
       console.error("  tried to add invalid custom expression "+STRINGIFY(expression)+": "+expression_validity);
       if (verboseLevel >= 1) console.log("out AddCustomExpression (expression was invalid)");
@@ -3432,7 +3448,7 @@ registerSourceCodeLinesAndRequire([
 
     const radiobutton_td = new_tr.insertCell(1);
     // font-size:13px empirically matches the font size of the radio button labels, although I wouldn't know how to predict that
-    radiobutton_td.innerHTML = '<input type="radio" name="lerpmethod"><input type="text" class="custom" style="font-family:monospace; font-size:13px;" size="(TO BE SET BELOW)" value="(TO BE SET BELOW)"></input><label><input type="radio" name="lerpmethod">at 2x precision </label><label><input type="radio" name="lerpmethod">3x </label><label><input type="radio" name="lerpmethod">4x </label><label><input type="radio" name="lerpmethod">5x </label><label><input type="radio" name="lerpmethod">6x </label><label><input type="radio" name="lerpmethod">7x </label><label><input type="radio" name="lerpmethod">8x </label>'
+    radiobutton_td.innerHTML = '<input type="radio" name="lerpmethod"><input type="text" class="custom" size="(TO BE SET BELOW)" value="(TO BE SET BELOW)"></input><label><input type="radio" name="lerpmethod">at 2x precision </label><label><input type="radio" name="lerpmethod">3x </label><label><input type="radio" name="lerpmethod">4x </label><label><input type="radio" name="lerpmethod">5x </label><label><input type="radio" name="lerpmethod">6x </label><label><input type="radio" name="lerpmethod">7x </label><label><input type="radio" name="lerpmethod">8x </label>'
     const radiobuttons = radiobutton_td.querySelectorAll("input[type=radio]");
     if (verboseLevel >= 1) console.log("radiobuttons = ",radiobuttons);
     const radiobutton = radiobuttons[0];
@@ -3456,7 +3472,8 @@ registerSourceCodeLinesAndRequire([
 
     textinput.value = expression;
 
-    const minWidth = 30;
+    //const minWidth = 30;
+    const minWidth = 0;  // for simplicity, for now
 
     // This assumes textinput.old_value has already been validated
     // (unlike textinput.value which may not have been)
@@ -3482,7 +3499,7 @@ registerSourceCodeLinesAndRequire([
     };
 
     textinput.old_value = textinput.value;  // keep value around so it can be restored
-    textinput.size = Math.max(minWidth, textinput.value.length);
+    TryToSetTextInputWidthInMonospaceChars(textinput, Math.max(minWidth, textinput.value.length));
 
     // custom expressions changed, so...
     SetTheDamnCustomExpressionsInTheDamnAddressBar();
@@ -3493,7 +3510,8 @@ registerSourceCodeLinesAndRequire([
       if (verboseLevel >= 1) console.log("      event = ",event);
       if (event.key === 'Escape') {
         textinput.value = textinput.old_value;
-        textinput.size = Math.max(minWidth, textinput.value.length);
+        TryToSetTextInputWidthInMonospaceChars(textinput, Math.max(minWidth, textinput.value.length));
+        textinput.style.background = '';
         textinput.style.backgroundColor = 'white';
       }
       if (verboseLevel >= 1) console.log("    out textinput.onkeydown");
@@ -3502,40 +3520,68 @@ registerSourceCodeLinesAndRequire([
       const verboseLevel = 0;
       if (verboseLevel >= 1) console.log("    in textinput.oninput");
       if (verboseLevel >= 1) console.log("      event = ",event);
+
+      if (false) {
+        // tweak: if user is backspacing, don't shrink, until they hit enter
+        TryToSetTextInputWidthInMonospaceChars(textinput, Math.max(minWidth, textinput.value.length, textinput.size));
+      } else {  // nah, just always fit it
+        TryToSetTextInputWidthInMonospaceChars(textinput, Math.max(minWidth, textinput.value.length));
+      }
       const new_value = textinput.value;
-      const expression_validity_string = ExpressionValidity(new_value);
+      const posHolder = [0];
+      const expression_validity_string = ExpressionValidity(new_value, posHolder);
       CHECK.EQ(typeof expression_validity_string, 'string');
       if (new_value === textinput.old_value) {
+        textinput.style.background = '';
         textinput.style.backgroundColor = 'white';
         textinput.title = expression_validity_string;
       } else if (expression_validity_string === "valid") {
+        textinput.style.background = '';
         textinput.style.backgroundColor = '#ccffcc';  // light green
         textinput.title = "valid! hit Enter to use, Escape to revert";
       } else if (expression_validity_string.startsWith("soft syntax error:")) {
+        textinput.style.background = '';
         textinput.style.backgroundColor = '#ffffcc';  // yellow
         textinput.title = expression_validity_string.replace(/^soft /, '');
-      } else if (expression_validity_string.startsWith("hard syntax error:")) {
-        textinput.style.backgroundColor = '#ffcccc';  // pink
+      } else if (expression_validity_string.startsWith("hard syntax error")) {
         textinput.title = expression_validity_string.replace(/^hard /, '');
+        if (true) {
+          // Try to be clever: color the part to the left of pos yellow,
+          // and the part to the right of pos pink.
+          // Example:
+          // textinput.style.background = "linear-gradient(to right, white 30%, #ffdddd 30% 40%, #ddffdd 40% 70%, white 70%)"
+          const fraction0 = posHolder[0]/textinput.size;
+          const fraction1 = new_value.length/textinput.size;
+          const percent0 = fraction0 * 100;
+          const percent1 = fraction1 * 100;
+          const background = "linear-gradient(to right, #ffffcc  "+percent0+"%, #ffcccc "+percent0+"% "+percent1+"%, #ffffcc "+percent1+"%)";
+          console.log("background = "+background);
+          textinput.style.background = background;
+        } else {
+          textinput.style.background = ''
+          textinput.style.backgroundColor = '#ffcccc';  // pink
+        }
       } else if (expression_validity_string.startsWith("failed smoke test:")) {
         // This means the expression is syntactically valid but the smoke test failed,
         // e.g. "failed smoke test: lerp_function(1, 2, 0.5) returned false which is of type "boolean", not 'number'".
         // e.g. "failed smoke test: lerp_function(a=0, b=0, t=0) threw an exception: Error: undefined variable "ccc""
+        textinput.style.background = '';
         textinput.style.backgroundColor = '#ffeecc';  // light orange
         textinput.title = expression_validity_string;
       } else if (expression_validity_string.startsWith("internal error:")) {
+        textinput.style.background = '';
         textinput.style.backgroundColor = 'red';
         textinput.title = expression_validity_string;
       } else {
         // this shouldn't happen.
+        textinput.style.background = '';
         textinput.style.backgroundColor = '#4A412A';  // #4A412A is "pantone 448 C" aka "drab dark brown" aka "the ugliest colour in the world".
         // argh, but we need it to be brighter than that so it can be read.
+        textinput.style.background = '';
         textinput.style.backgroundColor = '#967117';  // Drab
         textinput.title = "THIS REALLY SHOULDN'T HAPPEN: "+expression_validity_string;
       }
       if (verboseLevel >= 1) console.log("      new_value = "+STRINGIFY(new_value));
-      // tweak: if user is backspacing, don't shrink, until they hit enter
-      textinput.size = Math.max(minWidth, textinput.value.length, textinput.size);
       if (verboseLevel >= 1) console.log("    out textinput.oninput");
     };
     textinput.onchange = event => {
@@ -3544,10 +3590,11 @@ registerSourceCodeLinesAndRequire([
       if (verboseLevel >= 1) console.log("      event = ",event);
       const new_value = textinput.value;
       if (verboseLevel >= 1) console.log("      new_value = "+STRINGIFY(new_value));
-      const expression_validity_string = ExpressionValidity(new_value);
+      const expression_validity_string = ExpressionValidity(new_value, [0]);
       if (expression_validity_string === "valid") {
-        textinput.size = Math.max(minWidth, textinput.value.length);
+        TryToSetTextInputWidthInMonospaceChars(textinput, Math.max(minWidth, textinput.value.length));
         textinput.old_value = new_value;
+        textinput.style.background = '';
         textinput.style.backgroundColor = 'white';
         textinput.title = "";
         for (const r of [radiobutton, radiobutton2, radiobutton3, radiobutton4, radiobutton5, radiobutton6, radiobutton7, radiobutton8]) {
