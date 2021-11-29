@@ -1,3 +1,4 @@
+// IDEA: two-color syntax errors, based on how far parsing got. yellow at beginning and red after parsing stopped
 // TODO: make current and previous index update correctly on reorder (currently we just clear them)
 // TODO: "clone" buttons?
 // TODO: move expression parsing code out into its own file
@@ -113,10 +114,22 @@
           succ(succ(succ(t+.5*(b-t))))==t+succ(.5)*(b-t) ? .375 :
           1)
    I see, ok, it has the zero case.  And that happens throughout the a range and throughout the b in (.5,1) range.
+         (t+pred(.5)*(b-t) == pred(t+.5*(b-t)) && t+.5*(b-t)==t+succ(.5)*(b-t) ? .125 :
+          t+pred(.5)*(b-t) == t+.5*(b-t)       && t+.5*(b-t)==t+succ(.5)*(b-t) ? .25 :
+          t+pred(.5)*(b-t) == pred(t+.5*(b-t)) && succ(t+.5*(b-t))==t+succ(.5)*(b-t) ? .375 :
+          t+pred(.5)*(b-t) == t+.5*(b-t)       && succ(t+.5*(b-t))==t+succ(.5)*(b-t) ? .5 :
+          t+pred(.5)*(b-t) == pred(t+.5*(b-t)) && succ(succ(t+.5*(b-t)))==t+succ(.5)*(b-t) ? .625 :
+          t+pred(.5)*(b-t) == t+.5*(b-t)       && succ(succ(t+.5*(b-t)))==t+succ(.5)*(b-t) ? .75 :
+          1)
+   Yep, all cases happen
 */
 //
 // Something else to try.
-//      hi=b-a, lo=-(a<b?hi-b+a:hi+a-b), a+t*(hi+lo), (hi+lo)-(b-a)
+//      hi=b-a, lo=-(a<b?hi-b+a:hi+a-b), a+t*(hi+lo)
+//      hi=b-a, lo=-(a<b?hi-b+a:hi+a-b), a+t*hi + t*lo
+//      hi=b-a, lo=-(a<b?hi-b+a:hi+a-b), t*hi + t*lo + a
+//      hi=b-a, lo=-(a<b?hi-b+a:hi+a-b), t*hi + (a|(t*lo)) + (a&(t*lo))
+//      hi=b-a, lo=-(a<b?hi-b+a:hi+a-b), t*lo + t*hi + a
 
 
 
