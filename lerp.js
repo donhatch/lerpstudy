@@ -2308,6 +2308,14 @@ registerSourceCodeLinesAndRequire([
 
       return answer;
     };
+
+    let prev_y_green = null;
+    let prev_y_red = null;
+    let saw_red_upward = false;
+    let saw_red_downward = false;
+    let saw_green_upward = false;
+    let saw_green_downward = false;
+
     // The dots along the diagonals.
     // Upward green, downward red.
     for (let t = 0.; t <= 1.; t = Succ(t)) {
@@ -2344,6 +2352,11 @@ registerSourceCodeLinesAndRequire([
         circle.onmouseout = evt=>hideTooltip();
         svg.appendChild(circle);
 
+        if (prev_y_green !== null) {
+          if (y > prev_y_green) saw_green_upward = true;
+          else if (y < prev_y_green) saw_green_downward = true;
+        }
+        prev_y_green = y;
       }
       {
         const y = Lerp(b,a,t);
@@ -2380,6 +2393,12 @@ registerSourceCodeLinesAndRequire([
         circle.onmouseover = evt=>showTooltip(evt, makeTheTooltipText(t, exact_lerp_cross_your_fingers(b,a,t), y));
         circle.onmouseout = evt=>hideTooltip();
         svg.appendChild(circle);
+
+        if (prev_y_red !== null) {
+          if (y > prev_y_red) saw_red_upward = true;
+          else if (y < prev_y_red) saw_red_downward = true;
+        }
+        prev_y_red = y;
       }
     }
 
@@ -2426,6 +2445,15 @@ registerSourceCodeLinesAndRequire([
     window.redrawcounter.innerText = ++num_redraws;
     if (num_redraws <= 2) {  // otherwise pluralization didn't change
       window.redrawcounterpluralization.innerText = (num_redraws==1 ? "" : "s");
+    }
+
+    const everything_is_monotonic = !(saw_red_upward && saw_red_downward) && !(saw_green_upward && saw_green_downward);
+    if (everything_is_monotonic) {
+      window.everything_is_monotonic.innerText = "everything is monotonic";
+      window.everything_is_monotonic.style.color = "black";
+    } else {
+      window.everything_is_monotonic.innerText = "something is not monotonic!";
+      window.everything_is_monotonic.style.color = "red";
     }
 
     if (verboseLevel >= 1) console.log("out populateTheSVG");
@@ -3402,6 +3430,7 @@ registerSourceCodeLinesAndRequire([
     return answer;
   };  // ExpressionValidity
 
+  // TODO: try using the "ch" metric, see https://stackoverflow.com/questions/16886674/specify-width-of-3-chars-for-an-html-input-text#answer-55308399
   const TryToSetTextInputWidthInMonospaceChars = (textinput,n) => {
     textinput.size = Math.max(1,n);
     // Note, that *should* be sufficient to set the width,

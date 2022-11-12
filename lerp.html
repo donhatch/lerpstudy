@@ -97,7 +97,11 @@
      </div>
 
      <p style="margin-top:-4px; margin-left:0px;"> <!-- spacing fudge -->
+     <span id="everything_is_monotonic" style="width:100%;">everything is monotonic</span>
+     <br>
      <small><small style="color:#808080;"><span>(<big><span id="redrawcounter" class="mono" style="color:black;">0</span></big> redraw<span id="redrawcounterpluralization">s</span>)</span></small></small>
+     </p>
+     <p>
      </p>
 
     </td>
@@ -314,12 +318,12 @@ Things to know:
 <ul>
  <li>grid lines are the representable floating point numbers at the current precision (slightly darker for "even", slightly lighter for "odd")
  <li>t varies from 0 at the left to 1 at the right.
- <li>The red horizontal lines are <span class="mono">a</span> and <span class="mono">b</span>.
+ <li>The red horizontal lines are <span class="mono">a</span> and <span class="mono">b</span> (drag them up and down).
  <li>The line surrounded by green dots is the exact lerp function: <span class="monowrap">lerp(a, b, t)</span>.
  <br>
  (The line surrounded by red dots is the same, but with <span class="mono">a</span> and <span class="mono">b</span> interchanged: <span class="monowrap">lerp(b, a, t)</span>.)
- <li>The green dots are the approximations to it using the chosen expression, computed using the current precision.
- <li>A green dot is circled if it's not the exactly correct answer rounded to nearest representable using the round-ties-to-even rule.
+ <li>The green (or red) dots are the approximations to it using the chosen expression, computed using the current precision.
+ <li>A green (or red) dot is circled if it's not the exactly correct answer rounded to nearest representable using the round-ties-to-even rule.
  <li>Hovering over a dot shows the derivation of the verdict: in fractions and binary:
  <ul><li><span class="monowrap">t</span>
  <li><span class="monowrap">[exact rounded down, exact, (halfway between exact rounded down and up), exact rounded up]</span> in sorted order

@@ -84,7 +84,7 @@ registerSourceCodeLinesAndDefine(['./CHECK.js'], function(CHECK) {
       CHECK.EQ(typeof(defaultValue), 'number');  // not sure about this-- maybe allow null?
       const valueString = this.get(name);
       if (valueString === null) return defaultValue;
-      // Do not use parseFloat for this, since that ignores trailing spaces.
+      // Do not use parseFloat for this, since that ignores trailing stuff.
       // However, beware that the Number constructor unhelpfully converts
       // zero-or-more spaces to 0.
       let value = /^\s*$/.test(valueString) ? NaN : Number(valueString);
